@@ -1,3 +1,8 @@
+
+
+
+Biểu tượng JS
+admin-app
 const TOKEN_STORAGE_KEY = "ctec_admin_secret_token";
 
 const EXECUTIVE_DEPT = "EXCUTIVE BOARD";
@@ -240,7 +245,8 @@ let bankInfo = {
   accountNumber: "",
   accountName: "",
   bankName: "",
-  qrHtml10k: ""
+  qrHtml10k: "",
+  rawHtml: ""
 };
 let importTargetType = "roster";
 
@@ -299,6 +305,18 @@ function parseTransferHtmlToObj(htmlText) {
 }
 
 function applyAdminI18n(lang) {
+  const activeEl = document.activeElement;
+  const focusState =
+    activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")
+      ? {
+          id: activeEl.id,
+          rowIdx: activeEl.dataset?.rowIdx,
+          field: activeEl.dataset?.field,
+          start: activeEl.selectionStart,
+          end: activeEl.selectionEnd
+        }
+      : null;
+
   const t = ADMIN_I18N[lang] || ADMIN_I18N.vi;
   document.title = t.pageTitle;
   const homeLink = document.getElementById("homeLink");
@@ -321,10 +339,26 @@ function applyAdminI18n(lang) {
     if (t[key] !== undefined) el.title = t[key];
   });
 
+  updateRosterCountBadges();
   renderFundEditorHeader();
   renderDeadlinesEditor();
-  renderRosterEditor();
-  renderFundEditor();
+
+  if (!focusState) {
+    renderRosterEditor();
+    renderFundEditor();
+  } else {
+    const target = focusState.id
+      ? document.getElementById(focusState.id)
+      : document.querySelector(
+          `[data-row-idx="${focusState.rowIdx}"][data-field="${focusState.field}"]`
+        );
+    if (target) {
+      target.focus();
+      if (typeof focusState.start === "number" && typeof target.setSelectionRange === "function") {
+        target.setSelectionRange(focusState.start, focusState.end);
+      }
+    }
+  }
 }
 
 function showToast(message, type = "success") {
@@ -676,11 +710,13 @@ async function loadAllAdminData() {
 
     const fundList = fundPayload.rows || fundPayload.members || fundPayload.fund || fundPayload.data;
     if (Array.isArray(fundList)) {
-      const dedupedFund = new Map();
+      const dedupedByPersonDept = new Map();
       fundList.forEach((m, idx) => {
         const name = normalizeMemberName(m.name ?? m.full_name);
-        const key = buildMemberNameKey(name);
-        if (!key) return;
+        const nameKey = buildMemberNameKey(name);
+        if (!nameKey) return;
+        const dept = CTEC.normalizeDeptKey(m.dept || m.department || "CONTENT DEPARTMENT");
+        const pairKey = `${nameKey}||${dept}`;
 
         const rawMonths = Array.isArray(m.months)
           ? m.months
@@ -688,40 +724,43 @@ async function loadAllAdminData() {
         const months = Array.from({ length: 8 }, (_, i) => normalizeMonthStatus(rawMonths[i]));
         const note = String(m.note ?? "").trim();
 
-        if (!dedupedFund.has(key)) {
-          dedupedFund.set(key, {
+        if (!dedupedByPersonDept.has(pairKey)) {
+          dedupedByPersonDept.set(pairKey, {
             id: m.id ?? idx + 1,
             name,
-            dept: CTEC.normalizeDeptKey(m.dept || m.department || "CONTENT DEPARTMENT"),
+            dept,
             months,
             note
           });
         } else {
-          const prev = dedupedFund.get(key);
+          const prev = dedupedByPersonDept.get(pairKey);
           prev.months = mergeMonthStatusArrays(prev.months, months);
           if (note && !prev.note.includes(note)) {
             prev.note = prev.note ? `${prev.note}; ${note}` : note;
           }
         }
       });
-      fundRows = Array.from(dedupedFund.values());
+      fundRows = Array.from(dedupedByPersonDept.values());
+    }
 
-      if (Array.isArray(fundPayload.deadlines)) {
-        fundDeadlines = Array.from({ length: 8 }, (_, i) => parseInt(fundPayload.deadlines[i], 10) || 0);
-      }
+    if (Array.isArray(fundPayload.deadlines)) {
+      fundDeadlines = Array.from({ length: 8 }, (_, i) => Math.max(0, Math.min(31, parseInt(fundPayload.deadlines[i], 10) || 0)));
+    }
 
-      if (fundPayload.bankInfo && typeof fundPayload.bankInfo === "object") {
-        let b = { ...fundPayload.bankInfo };
-        if (b.rawHtml && !b.accountNumber && !b.qrHtml10k) {
-          b = { ...parseTransferHtmlToObj(b.rawHtml), ...b };
-        }
-        bankInfo = {
-          accountNumber: b.accountNumber || b.stk || "",
-          accountName: b.accountName || "",
-          bankName: b.bankName || "",
-          qrHtml10k: b.qrHtml10k || b.qrUrl || ""
-        };
+    const rawBankObj = fundPayload.bankInfo || fundPayload.bank_info;
+    if (rawBankObj && typeof rawBankObj === "object") {
+      let b = { ...rawBankObj };
+      const preservedRawHtml = String(b.rawHtml || "");
+      if (preservedRawHtml && !b.accountNumber && !b.stk && !b.accountNo && !b.qrHtml10k) {
+        b = { ...parseTransferHtmlToObj(preservedRawHtml), ...b };
       }
+      bankInfo = {
+        accountNumber: b.accountNumber || b.stk || b.accountNo || "",
+        accountName: b.accountName || "",
+        bankName: b.bankName || "",
+        qrHtml10k: b.qrHtml10k || b.qrUrl || "",
+        rawHtml: preservedRawHtml
+      };
     }
 
     renderRosterEditor();
@@ -901,10 +940,12 @@ function applySheetImportToDraft() {
     const combinedFund = replaceExisting ? parsedFund : fundRows.concat(parsedFund);
     const dedupedFundMap = new Map();
     combinedFund.forEach((item, idx) => {
-      const key = buildMemberNameKey(item.name);
-      if (!key) return;
+      const nameKey = buildMemberNameKey(item.name);
+      if (!nameKey) return;
+      const dept = CTEC.normalizeDeptKey(item.dept || "CONTENT DEPARTMENT");
+      const key = `${nameKey}||${dept}`;
       if (!dedupedFundMap.has(key)) {
-        dedupedFundMap.set(key, { ...item, id: item.id ?? Date.now() + idx });
+        dedupedFundMap.set(key, { ...item, dept, id: item.id ?? Date.now() + idx });
       } else {
         const prev = dedupedFundMap.get(key);
         prev.months = mergeMonthStatusArrays(prev.months, item.months);
@@ -958,7 +999,7 @@ function renderRosterEditor() {
       `<tr class="hover:bg-slate-50/80">` +
         `<td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>` +
         `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<input type="text" value="${CTEC.escapeHtml(row.name)}" ` +
+          `<input type="text" data-row-idx="${realIdx}" data-field="roster-name" value="${CTEC.escapeHtml(row.name)}" ` +
                  `oninput="handleRosterNameInput(${realIdx}, this.value)" ` +
                  `placeholder="${CTEC.escapeHtml(t.namePlaceholder)}" ` +
                  `class="sheet-cell-input font-semibold text-slate-800">` +
@@ -1151,24 +1192,13 @@ function renderFundEditor() {
   const q = document.getElementById("fundSearchInput").value.toLowerCase().trim();
   document.getElementById("badgeFundCount").textContent = countUniquePeople(fundRows);
 
-  const deptsByPerson = new Map();
-  for (let i = 0; i < rosterRows.length; i++) {
-    const key = buildMemberNameKey(rosterRows[i].name);
-    if (!key) continue;
-    const dept = CTEC.normalizeDeptKey(rosterRows[i].dept);
-    if (!deptsByPerson.has(key)) deptsByPerson.set(key, new Set());
-    deptsByPerson.get(key).add(dept);
-  }
-
   const tbody = document.getElementById("fundEditorBody");
   const html = [];
 
   for (let realIdx = 0; realIdx < fundRows.length; realIdx++) {
     const row = fundRows[realIdx];
-    const personKey = buildMemberNameKey(row.name);
-    const personDepts = deptsByPerson.has(personKey)
-      ? Array.from(deptsByPerson.get(personKey))
-      : [CTEC.normalizeDeptKey(row.dept)];
+    const rowDept = CTEC.normalizeDeptKey(row.dept || "CONTENT DEPARTMENT");
+    const personDepts = [rowDept];
 
     if (q) {
       const hay = `${row.name} ${personDepts.join(" ")} ${row.note || ""}`.toLowerCase();
@@ -1195,7 +1225,7 @@ function renderFundEditor() {
         `<td class="py-2.5 px-4 border-r border-slate-100 whitespace-nowrap"><div class="flex flex-wrap items-center gap-1">${deptBadgesHtml}</div></td>` +
         `${monthCells}` +
         `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<input type="text" value="${CTEC.escapeHtml(row.note || "")}" ` +
+          `<input type="text" data-row-idx="${realIdx}" data-field="fund-note" value="${CTEC.escapeHtml(row.note || "")}" ` +
                  `oninput="fundRows[${realIdx}].note = this.value" ` +
                  `placeholder="${CTEC.escapeHtml(t.notePlaceholder)}" ` +
                  `class="sheet-cell-input text-xs text-slate-600">` +
@@ -1217,61 +1247,80 @@ function renderFundEditor() {
 
 function syncMembersFromRosterToFund() {
   const pruneMissing = Boolean(document.getElementById("pruneMissingOnSyncCheckbox")?.checked);
-  const existingMap = new Map();
+  const existingByPersonDept = new Map();
+  const statusByPerson = new Map();
 
   for (let i = 0; i < fundRows.length; i++) {
     const name = normalizeMemberName(fundRows[i].name);
-    const key = buildMemberNameKey(name);
-    if (!key) continue;
+    const nameKey = buildMemberNameKey(name);
+    if (!nameKey) continue;
+    const dept = CTEC.normalizeDeptKey(fundRows[i].dept || "CONTENT DEPARTMENT");
+    const pairKey = `${nameKey}||${dept}`;
+    const months = Array.from({ length: 8 }, (_, m) => normalizeMonthStatus(fundRows[i].months?.[m]));
+    const note = String(fundRows[i].note ?? "").trim();
 
-    if (!existingMap.has(key)) {
-      existingMap.set(key, {
+    if (!existingByPersonDept.has(pairKey)) {
+      existingByPersonDept.set(pairKey, {
         ...fundRows[i],
         name,
-        months: Array.from({ length: 8 }, (_, m) => normalizeMonthStatus(fundRows[i].months?.[m]))
+        dept,
+        months,
+        note
       });
     } else {
-      const prev = existingMap.get(key);
-      prev.months = mergeMonthStatusArrays(prev.months, fundRows[i].months);
-      const nextNote = String(fundRows[i].note ?? "").trim();
-      if (nextNote && !prev.note.includes(nextNote)) {
-        prev.note = prev.note ? `${prev.note}; ${nextNote}` : nextNote;
+      const prev = existingByPersonDept.get(pairKey);
+      prev.months = mergeMonthStatusArrays(prev.months, months);
+      if (note && !prev.note.includes(note)) {
+        prev.note = prev.note ? `${prev.note}; ${note}` : note;
+      }
+    }
+
+    if (!statusByPerson.has(nameKey)) {
+      statusByPerson.set(nameKey, { months: [...months], note });
+    } else {
+      const prevPerson = statusByPerson.get(nameKey);
+      prevPerson.months = mergeMonthStatusArrays(prevPerson.months, months);
+      if (note && !prevPerson.note.includes(note)) {
+        prevPerson.note = prevPerson.note ? `${prevPerson.note}; ${note}` : note;
       }
     }
   }
 
   const merged = [];
-  const seenInRoster = new Set();
+  const seenKeys = new Set();
 
   for (let idx = 0; idx < rosterRows.length; idx++) {
     const r = rosterRows[idx];
     const name = normalizeMemberName(r.name);
-    const key = buildMemberNameKey(name);
-    if (!key || seenInRoster.has(key)) continue;
+    const nameKey = buildMemberNameKey(name);
+    if (!nameKey) continue;
+    const dept = CTEC.normalizeDeptKey(r.dept || "CONTENT DEPARTMENT");
+    const pairKey = `${nameKey}||${dept}`;
+    if (seenKeys.has(pairKey)) continue;
 
-    seenInRoster.add(key);
-    const dept = CTEC.normalizeDeptKey(r.dept);
-    const found = existingMap.get(key);
+    seenKeys.add(pairKey);
+    const oldRow = existingByPersonDept.get(pairKey);
+    const personFallback = statusByPerson.get(nameKey);
 
-    if (found) {
-      found.name = name;
-      found.dept = found.dept || dept;
-      merged.push(found);
-      existingMap.delete(key);
+    if (oldRow) {
+      oldRow.name = name;
+      oldRow.dept = dept;
+      merged.push(oldRow);
+      existingByPersonDept.delete(pairKey);
     } else {
       merged.push({
         id: Date.now() + idx,
         name,
         dept,
-        months: ["UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID"],
-        note: ""
+        months: personFallback ? [...personFallback.months] : ["UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID"],
+        note: personFallback?.note || ""
       });
     }
   }
 
-  const removedCount = pruneMissing ? existingMap.size : 0;
+  const removedCount = pruneMissing ? existingByPersonDept.size : 0;
   if (!pruneMissing) {
-    existingMap.forEach(leftover => merged.push(leftover));
+    existingByPersonDept.forEach(leftover => merged.push(leftover));
   }
 
   fundRows = merged;
@@ -1280,13 +1329,36 @@ function syncMembersFromRosterToFund() {
 }
 
 async function saveFundToD1() {
-  const currentBankInfo = {
-    accountNumber: document.getElementById("bankStkInput").value.trim(),
-    bankName: document.getElementById("bankNameInput").value.trim(),
-    accountName: document.getElementById("bankAccountNameInput").value.trim(),
-    qrHtml10k: document.getElementById("bankQrInput").value.trim()
+  const accountNumber = document.getElementById("bankStkInput").value.trim();
+  const bankName = document.getElementById("bankNameInput").value.trim();
+  const accountName = document.getElementById("bankAccountNameInput").value.trim();
+  const qrHtml10k = document.getElementById("bankQrInput").value.trim();
+  const preservedRawHtml = String(bankInfo?.rawHtml || "");
+
+  const hasStructuredBank = Boolean(accountNumber || bankName || accountName || qrHtml10k);
+  const currentBankInfo = hasStructuredBank
+    ? {
+        accountNumber,
+        bankName,
+        accountName,
+        qrHtml10k,
+        ...(preservedRawHtml ? { rawHtml: preservedRawHtml } : {})
+      }
+    : preservedRawHtml
+      ? { rawHtml: preservedRawHtml }
+      : {
+          accountNumber: "",
+          bankName: "",
+          accountName: "",
+          qrHtml10k: ""
+        };
+  bankInfo = {
+    accountNumber,
+    bankName,
+    accountName,
+    qrHtml10k,
+    rawHtml: preservedRawHtml
   };
-  bankInfo = currentBankInfo;
 
   const cleanedMembers = [];
   for (let idx = 0; idx < fundRows.length; idx++) {
@@ -1314,12 +1386,15 @@ async function saveFundToD1() {
     });
   }
 
+  const normalizedDeadlines = fundDeadlines.map(d => Math.max(0, Math.min(31, parseInt(d, 10) || 0)));
+
   const payload = {
     rows: cleanedMembers,
     members: cleanedMembers,
     fund: cleanedMembers,
-    deadlines: fundDeadlines.map(d => parseInt(d, 10) || 0),
+    deadlines: normalizedDeadlines,
     bankInfo: currentBankInfo,
+    bank_info: currentBankInfo,
     allowEmpty: cleanedMembers.length === 0
   };
 
@@ -1363,3 +1438,4 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
+Processed and analyzed in code
