@@ -127,28 +127,223 @@ window.CTEC = (() => {
     syncThemeButtons(getSavedTheme());
   });
 
+  const DEPT_KEYS = [
+    "EXCUTIVE BOARD",
+    "CONTENT DEPARTMENT",
+    "DESIGN DEPARTMENT",
+    "EVENT DEPARTMENT",
+    "MEDIA DEPARTMENT",
+    "EXTERNAL RELATIONS DEPARTMENT"
+  ];
+
+  const DEFAULT_DEPT = "CONTENT DEPARTMENT";
+
   const escapeHtml = (str) =>
     String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  const normalizeDeptKey = (dept) => {
-    const upper = String(dept ?? '').trim().toUpperCase();
-    return upper === "EXECUTIVE BOARD" ? "EXCUTIVE BOARD" : upper;
+  const normText = (str) =>
+    String(str ?? '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // BUG-07: Chuẩn hóa tên ban về đúng 6 key chuẩn cũ (giữ nguyên "EXCUTIVE BOARD")
+  const canonDept = (rawDept, fallback = DEFAULT_DEPT) => {
+    const raw = String(rawDept ?? '').trim();
+    if (!raw) return fallback;
+    const upper = raw.toUpperCase().replace(/\s+/g, " ");
+    if (DEPT_KEYS.includes(upper)) return upper;
+
+    const norm = normText(raw);
+    if (
+      norm.includes("excutive") ||
+      norm.includes("executive") ||
+      norm.includes("chu nhiem") ||
+      norm === "bcn"
+    ) {
+      return "EXCUTIVE BOARD";
+    }
+    if (norm.includes("content") || norm.includes("noi dung")) {
+      return "CONTENT DEPARTMENT";
+    }
+    if (norm.includes("design") || norm.includes("thiet ke")) {
+      return "DESIGN DEPARTMENT";
+    }
+    if (norm.includes("event") || norm.includes("su kien")) {
+      return "EVENT DEPARTMENT";
+    }
+    if (norm.includes("media") || norm.includes("truyen thong")) {
+      return "MEDIA DEPARTMENT";
+    }
+    if (
+      norm.includes("external") ||
+      norm.includes("relation") ||
+      norm.includes("doi ngoai")
+    ) {
+      return "EXTERNAL RELATIONS DEPARTMENT";
+    }
+    return fallback;
   };
+
+  const normalizeDeptKey = (dept) => canonDept(dept, String(dept ?? '').trim().toUpperCase());
 
   const normalizeMemberName = (name) =>
     String(name ?? '').trim().replace(/\s+/g, ' ');
 
   const buildMemberNameKey = (name) =>
-    normalizeMemberName(name).toLowerCase();
+    normText(normalizeMemberName(name));
 
-  const countUniquePeople = (rows) => {
-    const uniqueNames = new Set();
-    if (!Array.isArray(rows)) return 0;
-    for (let i = 0; i < rows.length; i++) {
-      const key = buildMemberNameKey(rows[i]?.name ?? rows[i]?.full_name);
-      if (key) uniqueNames.add(key);
+  // Nhận diện tag Trưởng ban / Phó ban (không nhầm với Chủ nhiệm / Phó chủ nhiệm)
+  const isDeptLeadTag = (roleOrTags) => {
+    const norm = normText(
+      Array.isArray(roleOrTags) ? roleOrTags.join(" ") : roleOrTags
+    );
+    if (!norm) return false;
+    const withoutExecTitle = norm
+      .replace(/\b(pho\s+)?chu\s+nhiem\b/g, "")
+      .replace(/\b(vice\s+)?president\b/g, "")
+      .trim();
+    if (!withoutExecTitle) return false;
+
+    return (
+      /\b(truong|pho)\s+ban\b/.test(withoutExecTitle) ||
+      /\b(head|vice\s*head|deputy\s*head|lead|leader)\b/.test(withoutExecTitle)
+    );
+  };
+
+  /**
+   * Quy tắc đếm quân số mới:
+   * - Các thành viên có tag Trưởng/Phó ban trực thuộc Ban Chủ nhiệm (EXCUTIVE BOARD)
+   *   và Ban chuyên môn được phép tính trùng giữa Ban chuyên môn và Ban Chủ nhiệm.
+   * - Các trường hợp kiêm nhiệm khác không mang tag Trưởng/Phó ban vẫn khử trùng theo người.
+   */
+  const countMembersWithLeadOverlap = (members) => {
+    if (!Array.isArray(members) || members.length === 0) return 0;
+
+    const personMap = new Map();
+    for (const m of members) {
+      const nameKey = buildMemberNameKey(m?.name ?? m?.full_name ?? m?.fullName ?? "");
+      if (!nameKey) continue;
+      const dept = canonDept(m?.dept ?? m?.department ?? "");
+      const roleText = `${m?.role || ""} ${m?.position || ""} ${m?.tag || ""}`;
+      const isLead = isDeptLeadTag(roleText);
+
+      if (!personMap.has(nameKey)) {
+        personMap.set(nameKey, {
+          depts: new Set(),
+          hasLeadTag: false
+        });
+      }
+      const entry = personMap.get(nameKey);
+      entry.depts.add(dept);
+      if (isLead) entry.hasLeadTag = true;
     }
-    return uniqueNames.size;
+
+    let total = 0;
+    for (const entry of personMap.values()) {
+      const hasExec = entry.depts.has("EXCUTIVE BOARD");
+      const specializedCount = [...entry.depts].filter(
+        (d) => d !== "EXCUTIVE BOARD"
+      ).length;
+
+      if (entry.hasLeadTag && hasExec && specializedCount > 0) {
+        total += 1 + specializedCount;
+      } else {
+        total += 1;
+      }
+    }
+    return total;
+  };
+
+  const countUniquePeople = (rows) => countMembersWithLeadOverlap(rows);
+
+  // BUG-06: Parse ngày hạn đóng (1..31), hỗ trợ "05/10/2026", "5", "15/10"
+  const parseDeadlineDay = (rawVal) => {
+    if (typeof rawVal === "number" && Number.isInteger(rawVal)) {
+      return rawVal >= 1 && rawVal <= 31 ? rawVal : 0;
+    }
+    const str = String(rawVal ?? "").trim();
+    if (!str) return 0;
+    const match = str.match(/(?:^|\D)(0?[1-9]|[12]\d|3[01])(?:\D|$)/);
+    if (!match) return 0;
+    const day = parseInt(match[1], 10);
+    return day >= 1 && day <= 31 ? day : 0;
+  };
+
+  // BUG-03: Sanitize HTML/SVG QR Code chống Stored XSS
+  const sanitizeQrHtml = (rawHtml) => {
+    const input = String(rawHtml ?? "").trim();
+    if (!input) return null;
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(input, "text/html");
+    const svgEl = doc.body.querySelector("svg");
+    const imgEl = doc.body.querySelector("img");
+
+    if (svgEl) {
+      const blockedTags = new Set([
+        "script",
+        "foreignobject",
+        "iframe",
+        "object",
+        "embed",
+        "link",
+        "meta",
+        "base",
+        "audio",
+        "video"
+      ]);
+      const cleanSvg = document.importNode(svgEl, true);
+      const walker = document.createTreeWalker(
+        cleanSvg,
+        NodeFilter.SHOW_ELEMENT,
+        null
+      );
+      const toRemove = [];
+      let curr = cleanSvg;
+      while (curr) {
+        const tag = curr.tagName.toLowerCase();
+        if (blockedTags.has(tag)) {
+          toRemove.push(curr);
+        } else {
+          for (const attr of Array.from(curr.attributes)) {
+            const attrName = attr.name.toLowerCase();
+            const attrVal = attr.value.trim();
+            if (attrName.startsWith("on")) {
+              curr.removeAttribute(attr.name);
+            } else if (
+              (attrName === "href" || attrName === "xlink:href") &&
+              !attrVal.startsWith("#")
+            ) {
+              curr.removeAttribute(attr.name);
+            }
+          }
+        }
+        curr = walker.nextNode();
+      }
+      toRemove.forEach((node) => node.remove());
+      return cleanSvg;
+    }
+
+    if (imgEl) {
+      const src = (imgEl.getAttribute("src") || "").trim();
+      const isSafeSrc =
+        /^https:\/\/[^\s"'<>]+$/i.test(src) ||
+        /^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(src);
+      if (!isSafeSrc) return null;
+
+      const cleanImg = document.createElement("img");
+      cleanImg.src = src;
+      cleanImg.alt = imgEl.getAttribute("alt") || "QR Code";
+      cleanImg.className = imgEl.className || "w-48 h-48 object-contain mx-auto";
+      return cleanImg;
+    }
+
+    return null;
   };
 
   const renderDeptBadge = (dept, displayText = null) => {
@@ -442,7 +637,7 @@ window.CTEC = (() => {
 
   /* ================= PARSE CSV & TSV (GOOGLE SHEETS) ================= */
   function parseDelimitedRows(text, delimiter = ',') {
-    const src = String(text ?? '');
+    const src = String(text ?? '').replace(/^\uFEFF/, '');
     if (!src.trim()) return [];
     const rows = [];
     let row = [];
@@ -501,51 +696,7 @@ window.CTEC = (() => {
     return parseDelimitedRows(str, delimiter);
   }
 
-  function parseCsvToCells(csvText) {
-    return parseCsvRows(csvText).map(r => r.map(v => ({ v })));
-  }
-
-  /* ================= FETCH QUA CLOUDFLARE WORKER ================= */
-  async function fetchWorkerSheet({ endpoint, mapRow, onSuccess, onError }) {
-    const reloadBtn = document.getElementById("reloadBtn");
-    const reloadIcon = document.getElementById("reloadIcon");
-    const loadingState = document.getElementById("loadingState");
-    const errorState = document.getElementById("errorState");
-    const noResults = document.getElementById("noResults");
-    const tableBody = document.getElementById("tableBody");
-
-    if (reloadBtn) reloadBtn.disabled = true;
-    if (reloadIcon) reloadIcon.classList.add("fa-spin");
-    if (tableBody) tableBody.innerHTML = "";
-    errorState?.classList.add("hidden");
-    noResults?.classList.add("hidden");
-    loadingState?.classList.remove("hidden");
-
-    try {
-      const payload = await fetchWorkerJson(endpoint);
-      if (!payload?.csv) {
-        throw new Error(payload?.error || "Invalid API payload");
-      }
-
-      const cellRows = parseCsvToCells(payload.csv);
-      const parsed = [];
-      for (let i = 0; i < cellRows.length; i++) {
-        const item = mapRow(cellRows[i]);
-        if (item) parsed.push(item);
-      }
-
-      loadingState?.classList.add("hidden");
-      onSuccess(parsed, payload);
-    } catch (err) {
-      console.error("Worker API synchronization error:", err);
-      loadingState?.classList.add("hidden");
-      errorState?.classList.remove("hidden");
-      onError?.(err);
-    } finally {
-      if (reloadBtn) reloadBtn.disabled = false;
-      if (reloadIcon) reloadIcon.classList.remove("fa-spin");
-    }
-  }
+  // BUG-11: Đã loại bỏ dead code parseCsvToCells() và fetchWorkerSheet()
 
   function copyTSV(headers, rows, message) {
     const lines = [headers.join("\t"), ...rows.map(r => r.join("\t"))];
@@ -586,6 +737,8 @@ window.CTEC = (() => {
 
   return {
     API_BASE_URL,
+    DEPT_KEYS,
+    DEFAULT_DEPT,
     getSavedLang,
     applyLang,
     toggleLang,
@@ -593,10 +746,16 @@ window.CTEC = (() => {
     applyTheme,
     toggleTheme,
     escapeHtml,
+    normText,
+    canonDept,
     normalizeDeptKey,
     normalizeMemberName,
     buildMemberNameKey,
+    isDeptLeadTag,
+    countMembersWithLeadOverlap,
     countUniquePeople,
+    parseDeadlineDay,
+    sanitizeQrHtml,
     renderDeptBadge,
     fetchWorkerJson,
     createWheelPicker,
@@ -606,8 +765,6 @@ window.CTEC = (() => {
     updateWheelOptions,
     parseCsvRows,
     parseSheetPasteText,
-    parseCsvToCells,
-    fetchWorkerSheet,
     copyTSV,
     downloadCSV,
     listeners
