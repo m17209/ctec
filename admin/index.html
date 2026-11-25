@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTEC Administrator</title>
+  <script>
+    tailwind = window.tailwind || {};
+    tailwind.config = { darkMode: 'class' };
+    (function () {
+      const m = document.cookie.match(/(?:^|;\s*)ctec_theme=(dark|light)(?:;|$)/);
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if ((m && m[1] === 'dark') || (!m && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+      const l = document.cookie.match(/(?:^|;\s*)ctec_lang=(vi|en)(?:;|$)/);
+      document.documentElement.lang = l ? l[1] : 'vi';
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/ctec-core.css">
+  <style>
+    .sheet-cell-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 13px;
+      transition: border-color 0.12s ease, background-color 0.12s ease;
+    }
+    .sheet-cell-input:hover {
+      border-color: #cbd5e1;
+      background-color: rgba(248, 250, 252, 0.7);
+    }
+    html.dark .sheet-cell-input:hover {
+      border-color: #334155;
+      background-color: rgba(30, 41, 59, 0.6);
+    }
+    .sheet-cell-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      background-color: #ffffff;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+    html.dark .sheet-cell-input:focus {
+      background-color: #0f172a;
+      border-color: #818cf8;
+    }
+    .status-pill-btn {
+      user-select: none;
+      transition: transform 0.08s ease;
+    }
+    .status-pill-btn:active {
+      transform: scale(0.94);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+  <header class="ctec-header shadow-lg">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="ctec-brand flex items-center gap-3">
+        <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
+          <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+        </a>
+        <div class="flex flex-col leading-tight">
+          <h1 class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Administrator</h1>
+          <span class="text-[11px] sm:text-xs font-medium text-amber-300 tracking-wide">Administrative Hub</span>
+        </div>
+      </div>
+
+      <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-2.5">
+        <a href="../roster/" target="_blank" rel="noopener noreferrer"
+           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-users text-xs"></i>
+          <span class="ctec-btn-label-full" data-i18n="navViewRosterFull">XEM ROSTER</span>
+          <span class="ctec-btn-label-short" data-i18n="navViewRosterShort">DS</span>
+        </a>
+        <a href="../fund/" target="_blank" rel="noopener noreferrer"
+           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-wallet text-xs"></i>
+          <span class="ctec-btn-label-full" data-i18n="navViewFundFull">XEM FUND</span>
+          <span class="ctec-btn-label-short" data-i18n="navViewFundShort">QUỸ</span>
+        </a>
+        <button id="logoutBtn" type="button" onclick="logoutAdmin()"
+                class="hidden ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-800/70 transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-right-from-bracket text-xs"></i>
+          <span class="ctec-btn-label-full" data-i18n="navLockFull">KHÓA</span>
+          <span class="ctec-btn-label-short" data-i18n="navLockShort">KHÓA</span>
+        </button>
+        <button type="button" data-theme-toggle onclick="CTEC.toggleTheme()" aria-pressed="false"
+                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+          <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
+          <span data-theme-label class="ctec-btn-label-full">TỐI</span>
+          <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
+        </button>
+        <button type="button" data-lang-toggle onclick="CTEC.toggleLang()" aria-pressed="false"
+                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-language text-amber-300 text-xs"></i>
+          <span data-lang-label class="ctec-btn-label-full">EN</span>
+          <span data-lang-label-short class="ctec-btn-label-short">EN</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="ctec-page-shell flex-grow flex flex-col">
+    <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 transition-all"></div>
+
+    <!-- GATE: MÀN HÌNH XÁC THỰC TOKEN -->
+    <section id="authGate" class="flex-grow flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
+        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xl mb-5">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight" data-i18n="gateTitle">Xác thực Quản trị viên</h2>
+        <p class="mt-2 text-sm text-slate-500 leading-relaxed" data-i18n-html="gateDesc">
+          Nhập <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-xs">ADMIN_SECRET_TOKEN</code> để mở khóa bảng điều khiển dữ liệu D1 của CTEC.
+        </p>
+
+        <form id="verifyForm" onsubmit="handleVerify(event)" class="mt-6 space-y-4">
+          <div>
+            <label for="adminTokenInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              Admin Secret Token
+            </label>
+            <div class="relative">
+              <input id="adminTokenInput" type="password" required autocomplete="current-password"
+                     data-i18n-placeholder="tokenPlaceholder"
+                     placeholder="Nhập mã bảo mật quản trị..."
+                     class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+              <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                <i id="eyeIcon" class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="authErrorBox" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 flex items-center gap-2">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span id="authErrorText">Token không hợp lệ hoặc máy chủ từ chối truy cập.</span>
+          </div>
+
+          <button id="verifySubmitBtn" type="submit"
+                  class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
+            <i id="verifySpinner" class="fa-solid fa-unlock-keyhole"></i>
+            <span data-i18n="unlockBtn">Mở khóa CTEC Administrator</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- DASHBOARD: 2 SHEET NATIVE -->
+    <main id="adminWorkspace" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 self-start">
+          <button id="tabBtnRoster" type="button" onclick="switchAdminTab('roster')"
+                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer">
+            <i class="fa-solid fa-users"></i>
+            <span data-i18n="tabRoster">Sheet 1: Nhân sự (Roster)</span>
+            <span id="badgeRosterCount" class="px-2 py-0.5 text-[11px] rounded-full bg-white/20 text-white">0</span>
+          </button>
+          <button id="tabBtnFund" type="button" onclick="switchAdminTab('fund')"
+                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
+            <i class="fa-solid fa-wallet"></i>
+            <span data-i18n="tabFund">Sheet 2: Quỹ CLB (Fund)</span>
+            <span id="badgeFundCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700">0</span>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button id="migrateWorkerBtn" type="button" onclick="migrateFromWorkerSheets()"
+                  class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 text-indigo-700 text-xs sm:text-sm font-bold border border-indigo-200 transition flex items-center gap-2 cursor-pointer">
+            <i id="migrateWorkerIcon" class="fa-solid fa-cloud-arrow-down"></i>
+            <span data-i18n="migrateWorkerBtn">Đồng bộ Sheet/Docs gốc</span>
+          </button>
+          <button type="button" onclick="loadAllAdminData()"
+                  class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-2 cursor-pointer">
+            <i id="syncAllIcon" class="fa-solid fa-rotate"></i>
+            <span data-i18n="reloadD1">Tải lại từ D1</span>
+          </button>
+          <button id="resetD1Btn" type="button" onclick="resetCurrentTabD1()"
+                  class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-700 text-xs sm:text-sm font-bold border border-red-200 transition flex items-center gap-2 cursor-pointer">
+            <i id="resetD1Icon" class="fa-solid fa-trash-arrow-up"></i>
+            <span data-i18n="resetD1Btn">Reset D1</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= TAB 1: ROSTER EDITOR ================= -->
+      <section id="panelRoster" class="space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="relative w-full sm:w-80">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+              <input type="text" id="rosterSearchInput" oninput="renderRosterEditor()"
+                     data-i18n-placeholder="filterMemberPlaceholder"
+                     placeholder="Lọc nhanh tên thành viên..."
+                     class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <span id="rosterStatsPill" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold whitespace-nowrap">
+              0 thành viên
+            </span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <button type="button" onclick="openSheetImportModal('roster')"
+                    class="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-file-import"></i>
+              <span data-i18n="importSheetBtn">Nhập từ Google Sheet</span>
+            </button>
+            <button type="button" onclick="addRosterRow()"
+                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-plus"></i>
+              <span data-i18n="addMemberBtn">Thêm thành viên</span>
+            </button>
+            <button id="saveRosterBtn" type="button" onclick="saveRosterToD1()"
+                    class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span data-i18n="saveRosterBtn">Lưu Roster lên D1</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                  <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[210px]" data-i18n="colFullName">Họ và tên</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[250px]" data-i18n="colDeptFull">Ban (Department)</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[190px]" data-i18n="colRoleFull">Chức vụ (Role)</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[150px]" data-i18n="colStatus">Trạng thái</th>
+                  <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
+                </tr>
+              </thead>
+              <tbody id="rosterEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: FUND EDITOR ================= -->
+      <section id="panelFund" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div class="lg:col-span-7 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                  <i class="fa-regular fa-calendar-days text-indigo-600"></i>
+                  <span data-i18n="deadlinesTitle">Cấu hình ngày hạn đóng hàng tháng (1 - 31, nhập 0 nếu chưa đặt hạn)</span>
+                </h3>
+              </div>
+              <div id="deadlinesGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3"></div>
+            </div>
+            <p class="mt-4 text-[11px] text-slate-400" data-i18n-html="deadlinesHint">
+              * Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.
+            </p>
+          </div>
+
+          <div class="lg:col-span-5 bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <i class="fa-solid fa-building-columns text-emerald-600"></i>
+              <span data-i18n="bankInfoTitle">Thông tin chuyển khoản (Bank Info)</span>
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankStkLabel">Số tài khoản (STK)</label>
+                <input id="bankStkInput" type="text" placeholder="VD: 0123456789"
+                       class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankNameLabel">Ngân hàng</label>
+                <input id="bankNameInput" type="text" placeholder="VD: MB Bank / Vietcombank"
+                       class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankHolderLabel">Tên chủ tài khoản</label>
+              <input id="bankAccountNameInput" type="text" placeholder="VD: LE SY NHAT MINH"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankQrLabel">URL ảnh QR / Mã HTML QR 10K</label>
+              <input id="bankQrInput" type="text" placeholder="https://img.vietqr.io/... hoặc <img>"
+                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="relative w-full sm:w-72">
+              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+              <input type="text" id="fundSearchInput" oninput="renderFundEditor()"
+                     data-i18n-placeholder="fundSearchPlaceholder"
+                     placeholder="Tìm thành viên trong bảng quỹ..."
+                     class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <span class="text-xs text-slate-500" data-i18n-html="fundTipHtml">
+              Mẹo: Bấm vào ô tháng để xoay vòng <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>
+            </span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer select-none px-2">
+              <input id="pruneMissingOnSyncCheckbox" type="checkbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+              <span data-i18n="pruneMissingLabel">Xóa người không có trong Roster</span>
+            </label>
+            <button type="button" onclick="openSheetImportModal('fund')"
+                    class="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-file-import"></i>
+              <span data-i18n="importSheetBtn">Nhập từ Google Sheet</span>
+            </button>
+            <button type="button" onclick="syncMembersFromRosterToFund()"
+                    data-i18n-title="syncFromRosterTitle"
+                    title="Đồng bộ danh sách thành viên từ tab Roster sang Fund"
+                    class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-people-arrows"></i>
+              <span data-i18n="syncFromRosterBtn">Đồng bộ từ Roster</span>
+            </button>
+            <button id="saveFundBtn" type="button" onclick="saveFundToD1()"
+                    class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span data-i18n="saveFundBtn">Lưu Fund lên D1</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto relative">
+            <table class="w-full text-left border-collapse">
+              <thead id="fundEditorHead"></thead>
+              <tbody id="fundEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MODAL NHẬP DỮ LIỆU TỪ GOOGLE SHEET -->
+    <div id="sheetImportModal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="closeSheetImportModal()">
+      <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4" onclick="event.stopPropagation()">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
+              <i class="fa-solid fa-table"></i> <span data-i18n="modalBadge">Tiền xử lý trước khi đẩy D1</span>
+            </span>
+            <h3 id="sheetImportTitle" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1.5">Nhập Roster từ Google Sheet</h3>
+            <p id="sheetImportHint" class="text-xs text-slate-500 mt-1"></p>
+          </div>
+          <button type="button" onclick="closeSheetImportModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+          <label for="sheetUrlInput" class="block text-xs font-bold text-slate-700" data-i18n="modalMethod1">
+            Cách 1: Tải từ Link Google Sheets (đã bật chia sẻ xem) hoặc link xuất CSV
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input id="sheetUrlInput" type="url"
+                   placeholder="https://docs.google.com/spreadsheets/d/... hoặc .../export?format=csv"
+                   class="flex-grow px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button id="fetchSheetUrlBtn" type="button" onclick="fetchFromGoogleSheetUrl()"
+                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 cursor-pointer">
+              <i id="fetchSheetUrlIcon" class="fa-solid fa-cloud-arrow-down"></i>
+              <span data-i18n="modalFetchBtn">Tải Sheet</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="space-y-1.5">
+          <label for="sheetPasteArea" class="block text-xs font-bold text-slate-700" data-i18n="modalMethod2">
+            Cách 2: Dán trực tiếp từ Google Sheets (Ctrl + C trên Sheet rồi Ctrl + V vào đây)
+          </label>
+          <textarea id="sheetPasteArea" rows="7"
+                    placeholder="Dán dữ liệu TSV/CSV tại đây..."
+                    class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none">
+            <input id="sheetReplaceMode" type="checkbox" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            <span data-i18n="modalReplaceCheck">Ghi đè danh sách hiện tại trong bảng nháp</span>
+          </label>
+
+          <div class="flex items-center justify-end gap-2">
+            <button type="button" onclick="closeSheetImportModal()"
+                    class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer"
+                    data-i18n="modalCancelBtn">
+              Hủy
+            </button>
+            <button type="button" onclick="applySheetImportToDraft()"
+                    class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-check"></i>
+              <span data-i18n="modalApplyBtn">Nạp vào bảng xem trước</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p class="font-medium text-slate-700">CTEC Administrator | D1 Cloud Database</p>
+        <span>Chau Thanh High School English Club</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="../assets/ctec-core.js"></script>
+  <script src="./admin-app.js"></script>
+</body>
+</html>
