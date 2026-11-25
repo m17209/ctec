@@ -250,7 +250,16 @@ function updateStats() {
   };
   for (const m of rawMembers) if (c[m.deptKey] !== undefined) c[m.deptKey]++;
 
-  document.getElementById("totalCount").textContent = rawMembers.length;
+  const totalEl = document.getElementById("totalCount");
+  if (totalEl) {
+    // BUG-05 + Quy tắc đếm Trưởng/Phó ban kiêm nhiệm Ban Chủ nhiệm
+    const count =
+      window.CTEC && typeof window.CTEC.countMembersWithLeadOverlap === "function"
+        ? window.CTEC.countMembersWithLeadOverlap(rawMembers)
+        : rawMembers.length;
+    totalEl.textContent = String(count);
+  }
+
   document.getElementById("cntExec").textContent = c["EXCUTIVE BOARD"];
   document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS DEPARTMENT"];
   document.getElementById("cntDesign").textContent = c["DESIGN DEPARTMENT"];
