@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CTEC Administrator</title>
+  <title>Cổng thông tin quản lý chính thức - Chau Thanh High School English Club (CTEC)</title>
   <script>
     tailwind = window.tailwind || {};
     tailwind.config = { darkMode: 'class' };
@@ -21,393 +21,383 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../assets/ctec-core.css">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/ctec-core.css">
   <style>
-    .sheet-cell-input {
-      width: 100%;
-      background: transparent;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 13px;
-      transition: border-color 0.12s ease, background-color 0.12s ease;
+    .portal-grid:has(.portal-card:hover) .portal-card:not(:hover),
+    .portal-grid:has(.portal-card:focus-within) .portal-card:not(:focus-within) {
+      opacity: 0.62;
+      transform: scale(0.985);
+      filter: saturate(0.75);
     }
-    .sheet-cell-input:hover {
-      border-color: #cbd5e1;
-      background-color: rgba(248, 250, 252, 0.7);
+    .portal-card {
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                  box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                  border-color 0.24s ease,
+                  opacity 0.24s ease,
+                  filter 0.24s ease;
     }
-    html.dark .sheet-cell-input:hover {
-      border-color: #334155;
-      background-color: rgba(30, 41, 59, 0.6);
-    }
-    .sheet-cell-input:focus {
-      outline: none;
-      border-color: #6366f1;
-      background-color: #ffffff;
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-    }
-    html.dark .sheet-cell-input:focus {
-      background-color: #0f172a;
-      border-color: #818cf8;
-    }
-    .status-pill-btn {
-      user-select: none;
-      transition: transform 0.08s ease;
-    }
-    .status-pill-btn:active {
-      transform: scale(0.94);
+    .portal-card:hover,
+    .portal-card:focus-visible {
+      transform: translateY(-4px) scale(1.015);
+      opacity: 1 !important;
+      filter: saturate(1) !important;
     }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
   <header class="ctec-header shadow-lg">
-    <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center gap-4">
       <div class="ctec-brand flex items-center gap-3">
-        <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
-          <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+        <a id="homeLink" href="./" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Trang chủ CTEC">
+          <img src="./assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
         </a>
-        <div class="flex flex-col leading-tight">
-          <h1 class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Administrator</h1>
-          <span class="text-[11px] sm:text-xs font-medium text-amber-300 tracking-wide">Administrative Hub</span>
-        </div>
+        <h1 id="brandTitle" class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Workspace</h1>
       </div>
 
-      <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-2.5">
-        <a href="../roster/" target="_blank" rel="noopener noreferrer"
-           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition flex items-center gap-1.5">
+      <nav aria-label="Liên kết nhanh chính" class="ctec-nav-group flex items-center gap-2 sm:gap-2.5">
+        <a id="navRoster" href="./roster/"
+           class="ctec-nav-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition flex items-center gap-2">
           <i class="fa-solid fa-users text-xs"></i>
-          <span class="ctec-btn-label-full" data-i18n="navViewRosterFull">XEM ROSTER</span>
-          <span class="ctec-btn-label-short" data-i18n="navViewRosterShort">DS</span>
+          <span class="ctec-btn-label-full" data-i18n="navRosterFull">DANH SÁCH</span>
+          <span class="ctec-btn-label-short" data-i18n="navRosterShort">DS</span>
         </a>
-        <a href="../fund/" target="_blank" rel="noopener noreferrer"
-           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition flex items-center gap-1.5">
+        <a id="navFund" href="./fund/"
+           class="ctec-nav-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition flex items-center gap-2">
           <i class="fa-solid fa-wallet text-xs"></i>
-          <span class="ctec-btn-label-full" data-i18n="navViewFundFull">XEM FUND</span>
-          <span class="ctec-btn-label-short" data-i18n="navViewFundShort">QUỸ</span>
+          <span class="ctec-btn-label-full" data-i18n="navFundFull">TRA CỨU QUỸ</span>
+          <span class="ctec-btn-label-short" data-i18n="navFundShort">QUỸ</span>
         </a>
-        <button id="logoutBtn" type="button" onclick="logoutAdmin()"
-                class="hidden ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-800/70 transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-right-from-bracket text-xs"></i>
-          <span class="ctec-btn-label-full" data-i18n="navLockFull">KHÓA</span>
-          <span class="ctec-btn-label-short" data-i18n="navLockShort">KHÓA</span>
-        </button>
-        <button type="button" data-theme-toggle onclick="CTEC.toggleTheme()" aria-pressed="false"
-                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+        <button type="button"
+                data-theme-toggle
+                onclick="CTEC.toggleTheme()"
+                aria-pressed="false"
+                class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
           <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
           <span data-theme-label class="ctec-btn-label-full">TỐI</span>
           <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
         </button>
-        <button type="button" data-lang-toggle onclick="CTEC.toggleLang()" aria-pressed="false"
-                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+        <button type="button"
+                data-lang-toggle
+                onclick="CTEC.toggleLang()"
+                aria-pressed="false"
+                class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
           <i class="fa-solid fa-language text-amber-300 text-xs"></i>
           <span data-lang-label class="ctec-btn-label-full">EN</span>
           <span data-lang-label-short class="ctec-btn-label-short">EN</span>
         </button>
-      </div>
+      </nav>
     </div>
   </header>
 
   <div class="ctec-page-shell flex-grow flex flex-col">
-    <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 transition-all"></div>
+    <!-- Ảnh bìa & Hero Section -->
+    <section class="relative w-full h-[380px] sm:h-[460px] lg:h-[520px] overflow-hidden bg-slate-900 flex items-center">
+      <img
+        src="./assets/DSC00205.jpg"
+        alt="Ảnh bìa Câu lạc bộ Tiếng Anh THPT Châu Thành"
+        class="absolute inset-0 w-full h-full object-cover object-center scale-[1.01]"
+      >
+      <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/65 to-slate-900/30"></div>
+      <div class="hero-fade-bottom absolute inset-0 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-transparent to-slate-950/25"></div>
 
-    <!-- GATE: MÀN HÌNH XÁC THỰC TOKEN -->
-    <section id="authGate" class="flex-grow flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
-        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xl mb-5">
-          <i class="fa-solid fa-shield-halved"></i>
+      <div class="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
+        <div class="max-w-2xl text-white">
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/15 backdrop-blur-md text-indigo-200 border border-white/20 mb-4">
+            <i class="fa-solid fa-sparkles text-amber-300"></i>
+            <span data-i18n="heroBadge">Cổng thông tin nội bộ chính thức</span>
+          </span>
+          <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight drop-shadow-sm" data-i18n="heroTitle">
+            Cổng thông tin CLB Tiếng Anh THPT Châu Thành
+          </h2>
+          <p class="mt-3 sm:mt-4 text-sm sm:text-base text-slate-200 max-w-xl font-normal leading-relaxed" data-i18n="heroDesc">
+            Tra cứu danh sách nhân sự theo ban, theo dõi đóng góp quỹ câu lạc bộ minh bạch theo thời gian thực và truy cập các phân hệ sắp ra mắt của CTEC.
+          </p>
+          <div class="mt-6 flex flex-wrap items-center gap-3">
+            <a href="https://www.facebook.com/CTEC.CTEnglishclub" target="_blank" rel="noopener noreferrer"
+               class="px-5 py-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-bold shadow-lg shadow-blue-950/40 transition flex items-center gap-2">
+              <i class="fa-brands fa-facebook-f"></i>
+              <span data-i18n="heroFbBtn">Facebook CTEC</span>
+            </a>
+          </div>
         </div>
-        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight" data-i18n="gateTitle">Xác thực Quản trị viên</h2>
-        <p class="mt-2 text-sm text-slate-500 leading-relaxed" data-i18n-html="gateDesc">
-          Nhập <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-xs">ADMIN_SECRET_TOKEN</code> để mở khóa bảng điều khiển dữ liệu D1 của CTEC.
-        </p>
-
-        <form id="verifyForm" onsubmit="handleVerify(event)" class="mt-6 space-y-4">
-          <div>
-            <label for="adminTokenInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-              Admin Secret Token
-            </label>
-            <div class="relative">
-              <input id="adminTokenInput" type="password" required autocomplete="current-password"
-                     data-i18n-placeholder="tokenPlaceholder"
-                     placeholder="Nhập mã bảo mật quản trị..."
-                     class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-              <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-                <i id="eyeIcon" class="fa-regular fa-eye"></i>
-              </button>
-            </div>
-          </div>
-
-          <div id="authErrorBox" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 flex items-center gap-2">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span id="authErrorText">Token không hợp lệ hoặc máy chủ từ chối truy cập.</span>
-          </div>
-
-          <button id="verifySubmitBtn" type="submit"
-                  class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
-            <i id="verifySpinner" class="fa-solid fa-unlock-keyhole"></i>
-            <span data-i18n="unlockBtn">Mở khóa CTEC Administrator</span>
-          </button>
-        </form>
       </div>
     </section>
 
-    <!-- DASHBOARD: 2 SHEET NATIVE -->
-    <main id="adminWorkspace" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 self-start">
-          <button id="tabBtnRoster" type="button" onclick="switchAdminTab('roster')"
-                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer">
-            <i class="fa-solid fa-users"></i>
-            <span data-i18n="tabRoster">Sheet 1: Nhân sự (Roster)</span>
-            <span id="badgeRosterCount" class="px-2 py-0.5 text-[11px] rounded-full bg-white/20 text-white">0</span>
-          </button>
-          <button id="tabBtnFund" type="button" onclick="switchAdminTab('fund')"
-                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
-            <i class="fa-solid fa-wallet"></i>
-            <span data-i18n="tabFund">Sheet 2: Quỹ CLB (Fund)</span>
-            <span id="badgeFundCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700">0</span>
-          </button>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2.5">
-          <button id="migrateWorkerBtn" type="button" onclick="migrateFromWorkerSheets()"
-                  class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 text-indigo-700 text-xs sm:text-sm font-bold border border-indigo-200 transition flex items-center gap-2 cursor-pointer">
-            <i id="migrateWorkerIcon" class="fa-solid fa-cloud-arrow-down"></i>
-            <span data-i18n="migrateWorkerBtn">Đồng bộ Sheet/Docs gốc</span>
-          </button>
-          <button type="button" onclick="loadAllAdminData()"
-                  class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-2 cursor-pointer">
-            <i id="syncAllIcon" class="fa-solid fa-rotate"></i>
-            <span data-i18n="reloadD1">Tải lại từ D1</span>
-          </button>
-          <button id="resetD1Btn" type="button" onclick="resetCurrentTabD1()"
-                  class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-700 text-xs sm:text-sm font-bold border border-red-200 transition flex items-center gap-2 cursor-pointer">
-            <i id="resetD1Icon" class="fa-solid fa-trash-arrow-up"></i>
-            <span data-i18n="resetD1Btn">Reset D1</span>
-          </button>
-        </div>
+    <main id="modules" class="flex-grow max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
+      <div class="mb-8">
+        <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" data-i18n="dirTitle">
+          Danh mục hệ thống
+        </h3>
       </div>
 
-      <!-- ================= TAB 1: ROSTER EDITOR ================= -->
-      <section id="panelRoster" class="space-y-4">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div class="relative w-full sm:w-80">
-            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
-            <input type="text" id="rosterSearchInput" oninput="renderRosterEditor()"
-                   data-i18n-placeholder="filterMemberPlaceholder"
-                   placeholder="Lọc nhanh tên thành viên..."
-                   class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2.5">
-            <button type="button" onclick="openSheetImportModal('roster')"
-                    class="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-file-import"></i>
-              <span data-i18n="importSheetBtn">Nhập từ Google Sheet</span>
-            </button>
-            <button type="button" onclick="addRosterRow()"
-                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-plus"></i>
-              <span data-i18n="addMemberBtn">Thêm thành viên</span>
-            </button>
-            <button id="saveRosterBtn" type="button" onclick="saveRosterToD1()"
-                    class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span data-i18n="saveRosterBtn">Lưu Roster lên D1</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-                  <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[210px]" data-i18n="colFullName">Họ và tên</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[250px]" data-i18n="colDeptFull">Ban (Department)</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[190px]" data-i18n="colRoleFull">Chức vụ (Role)</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[150px]" data-i18n="colStatus">Trạng thái</th>
-                  <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
-                </tr>
-              </thead>
-              <tbody id="rosterEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= TAB 2: FUND EDITOR ================= -->
-      <section id="panelFund" class="hidden space-y-6">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div class="lg:col-span-7 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                  <i class="fa-regular fa-calendar-days text-indigo-600"></i>
-                  <span data-i18n="deadlinesTitle">Cấu hình ngày hạn đóng hàng tháng (1 - 31, nhập 0 nếu chưa đặt hạn)</span>
-                </h3>
+      <div class="portal-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 1. Official Member Roster -->
+        <a href="./roster/"
+           class="portal-card group bg-white p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-slate-200/90 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/15 ring-0 hover:ring-4 hover:ring-indigo-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-users"></i>
               </div>
-              <div id="deadlinesGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3"></div>
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md" data-i18n="card1Badge">Nhân sự</span>
             </div>
-            <p class="mt-4 text-[11px] text-slate-400" data-i18n-html="deadlinesHint">
-              * Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.
+            <h4 class="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors" data-i18n="card1Title">Danh sách thành viên chính thức</h4>
+            <p class="mt-2 text-sm text-slate-500 leading-relaxed" data-i18n="card1Desc">
+              Xem danh bạ thành viên đầy đủ, phân bổ theo từng ban, chức vụ đảm nhận và trạng thái thành viên hiện tại trong toàn câu lạc bộ.
             </p>
           </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-indigo-600">
+            <span data-i18n="card1Action">Mở danh sách thành viên</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
 
-          <div class="lg:col-span-5 bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <i class="fa-solid fa-building-columns text-emerald-600"></i>
-              <span data-i18n="bankInfoTitle">Thông tin chuyển khoản (Bank Info)</span>
-            </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankStkLabel">Số tài khoản (STK)</label>
-                <input id="bankStkInput" type="text" placeholder="VD: 0123456789"
-                       class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+        <!-- 2. Club Fund Tracker -->
+        <a href="./fund/"
+           class="portal-card group bg-white p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-slate-200/90 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/15 ring-0 hover:ring-4 hover:ring-emerald-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center text-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-wallet"></i>
               </div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankNameLabel">Ngân hàng</label>
-                <input id="bankNameInput" type="text" placeholder="VD: MB Bank / Vietcombank"
-                       class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md" data-i18n="card2Badge">Tài chính</span>
+            </div>
+            <h4 class="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors" data-i18n="card2Title">Theo dõi quỹ CLB</h4>
+            <p class="mt-2 text-sm text-slate-500 leading-relaxed" data-i18n="card2Desc">
+              Theo dõi đóng góp hàng tháng từ Tháng 10/26 đến Tháng 5/27, tỷ lệ hoàn thành theo ban và các ghi chú tài chính chi tiết.
+            </p>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-emerald-600">
+            <span data-i18n="card2Action">Mở báo cáo tài chính</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
+
+        <!-- 3. Upcoming Project Slot 1 -->
+        <a href="#modules" onclick="event.preventDefault()" data-i18n-aria="slot1Aria"
+           class="portal-card group bg-white/90 p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-dashed border-slate-300 hover:border-amber-500 hover:bg-white hover:shadow-xl hover:shadow-amber-500/10 ring-0 hover:ring-4 hover:ring-amber-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center text-xl group-hover:bg-amber-500 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-plus"></i>
               </div>
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md" data-i18n="slotBadge">Sắp ra mắt</span>
             </div>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankHolderLabel">Tên chủ tài khoản</label>
-              <input id="bankAccountNameInput" type="text" placeholder="VD: LE SY NHAT MINH"
-                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <h4 class="text-lg font-bold text-slate-400 group-hover:text-slate-800 transition-colors" data-i18n="slot1Title">Dự án số 01</h4>
+            <p class="mt-2 text-sm text-slate-400 group-hover:text-slate-500 leading-relaxed transition-colors" data-i18n="slot1Desc">
+              Vị trí dành cho các công cụ nội bộ và phân hệ quản lý sự kiện sắp tới của CTEC.
+            </p>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-slate-400 group-hover:text-amber-600 transition-colors">
+            <span data-i18n="slotPending">Đang cập nhật liên kết</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
+
+        <!-- 4. Upcoming Project Slot 2 -->
+        <a href="#modules" onclick="event.preventDefault()" data-i18n-aria="slot2Aria"
+           class="portal-card group bg-white/90 p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-dashed border-slate-300 hover:border-sky-500 hover:bg-white hover:shadow-xl hover:shadow-sky-500/10 ring-0 hover:ring-4 hover:ring-sky-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 border border-sky-100 flex items-center justify-center text-xl group-hover:bg-sky-500 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-plus"></i>
+              </div>
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-1 rounded-md" data-i18n="slotBadge">Sắp ra mắt</span>
             </div>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-500 mb-1" data-i18n="bankQrLabel">URL ảnh QR / Mã HTML QR 10K</label>
-              <input id="bankQrInput" type="text" placeholder="https://img.vietqr.io/... hoặc <img>"
-                     class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <h4 class="text-lg font-bold text-slate-400 group-hover:text-slate-800 transition-colors" data-i18n="slot2Title">Dự án số 02</h4>
+            <p class="mt-2 text-sm text-slate-400 group-hover:text-slate-500 leading-relaxed transition-colors" data-i18n="slot2Desc">
+              Vị trí dành cho các sáng kiến câu lạc bộ, kho lưu trữ hoặc tài nguyên các ban trong tương lai.
+            </p>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-slate-400 group-hover:text-sky-600 transition-colors">
+            <span data-i18n="slotPending">Đang cập nhật liên kết</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
+
+        <!-- 5. Upcoming Project Slot 3 -->
+        <a href="#modules" onclick="event.preventDefault()" data-i18n-aria="slot3Aria"
+           class="portal-card group bg-white/90 p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-dashed border-slate-300 hover:border-violet-500 hover:bg-white hover:shadow-xl hover:shadow-violet-500/10 ring-0 hover:ring-4 hover:ring-violet-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center text-xl group-hover:bg-violet-500 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-plus"></i>
+              </div>
+              <span class="text-xs font-bold uppercase tracking-wider text-violet-700 bg-violet-50 px-2.5 py-1 rounded-md" data-i18n="slotBadge">Sắp ra mắt</span>
             </div>
+            <h4 class="text-lg font-bold text-slate-400 group-hover:text-slate-800 transition-colors" data-i18n="slot3Title">Dự án số 03</h4>
+            <p class="mt-2 text-sm text-slate-400 group-hover:text-slate-500 leading-relaxed transition-colors" data-i18n="slot3Desc">
+              Vị trí dành cho các ứng dụng web và cổng hoạt động CTEC đang được phát triển.
+            </p>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-slate-400 group-hover:text-violet-600 transition-colors">
+            <span data-i18n="slotPending">Đang cập nhật liên kết</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
+
+        <!-- 6. Upcoming Project Slot 4 -->
+        <a href="#modules" onclick="event.preventDefault()" data-i18n-aria="slot4Aria"
+           class="portal-card group bg-white/90 p-6 sm:p-7 rounded-2xl shadow-sm border-2 border-dashed border-slate-300 hover:border-slate-500 hover:bg-white hover:shadow-xl hover:shadow-slate-500/10 ring-0 hover:ring-4 hover:ring-slate-500/10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-5">
+              <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center text-xl group-hover:bg-slate-600 group-hover:text-white transition-colors duration-200">
+                <i class="fa-solid fa-plus"></i>
+              </div>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md" data-i18n="slotBadge">Sắp ra mắt</span>
+            </div>
+            <h4 class="text-lg font-bold text-slate-400 group-hover:text-slate-800 transition-colors" data-i18n="slot4Title">Dự án số 04</h4>
+            <p class="mt-2 text-sm text-slate-400 group-hover:text-slate-500 leading-relaxed transition-colors" data-i18n="slot4Desc">
+              Vị trí dành cho ấn phẩm số, biểu mẫu hoặc công cụ thành viên CTEC sắp ra mắt.
+            </p>
+          </div>
+          <div class="mt-7 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-slate-400 group-hover:text-slate-600 transition-colors">
+            <span data-i18n="slotPending">Đang cập nhật liên kết</span>
+            <i class="fa-solid fa-arrow-right transform group-hover:translate-x-1.5 transition-transform"></i>
+          </div>
+        </a>
+      </div>
+
+      <!-- Khu vực nút Facebook phía dưới -->
+      <div class="mt-10 bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5 text-center sm:text-left">
+          <div class="w-11 h-11 rounded-xl bg-blue-50 text-[#1877F2] border border-blue-100 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-brands fa-facebook-f"></i>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-slate-900" data-i18n="fbBannerTitle">Kết nối với Chau Thanh English Club trên Facebook</p>
+            <p class="text-xs text-slate-500 mt-0.5" data-i18n="fbBannerDesc">Theo dõi thông báo, sự kiện và cập nhật mới nhất trên fanpage chính thức.</p>
           </div>
         </div>
-
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <div class="relative w-full sm:w-72">
-              <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
-              <input type="text" id="fundSearchInput" oninput="renderFundEditor()"
-                     data-i18n-placeholder="fundSearchPlaceholder"
-                     placeholder="Tìm thành viên trong bảng quỹ..."
-                     class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-            </div>
-            <span class="text-xs text-slate-500" data-i18n-html="fundTipHtml">
-              Mẹo: Bấm vào ô tháng để xoay vòng <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>
-            </span>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2.5">
-            <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer select-none px-2">
-              <input id="pruneMissingOnSyncCheckbox" type="checkbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
-              <span data-i18n="pruneMissingLabel">Xóa người không có trong Roster</span>
-            </label>
-            <button type="button" onclick="openSheetImportModal('fund')"
-                    class="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-file-import"></i>
-              <span data-i18n="importSheetBtn">Nhập từ Google Sheet</span>
-            </button>
-            <button type="button" onclick="syncMembersFromRosterToFund()"
-                    data-i18n-title="syncFromRosterTitle"
-                    title="Đồng bộ danh sách thành viên từ tab Roster sang Fund"
-                    class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-people-arrows"></i>
-              <span data-i18n="syncFromRosterBtn">Đồng bộ từ Roster</span>
-            </button>
-            <button id="saveFundBtn" type="button" onclick="saveFundToD1()"
-                    class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span data-i18n="saveFundBtn">Lưu Fund lên D1</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="overflow-x-auto relative">
-            <table class="w-full text-left border-collapse">
-              <thead id="fundEditorHead"></thead>
-              <tbody id="fundEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+        <a href="https://www.facebook.com/CTEC.CTEnglishclub" target="_blank" rel="noopener noreferrer"
+           class="px-5 py-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] text-white text-sm font-bold shadow-sm transition flex items-center gap-2 shrink-0">
+          <i class="fa-brands fa-facebook"></i>
+          <span data-i18n="fbBannerBtn">Ghé thăm Facebook CTEC</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+        </a>
+      </div>
     </main>
 
-    <!-- MODAL NHẬP DỮ LIỆU TỪ GOOGLE SHEET -->
-    <div id="sheetImportModal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="closeSheetImportModal()">
-      <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4" onclick="event.stopPropagation()">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
-              <i class="fa-solid fa-table"></i> <span data-i18n="modalBadge">Tiền xử lý trước khi đẩy D1</span>
-            </span>
-            <h3 id="sheetImportTitle" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1.5">Nhập Roster từ Google Sheet</h3>
-            <p id="sheetImportHint" class="text-xs text-slate-500 mt-1"></p>
-          </div>
-          <button type="button" onclick="closeSheetImportModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-          <label for="sheetUrlInput" class="block text-xs font-bold text-slate-700" data-i18n="modalMethod1">
-            Cách 1: Tải từ Link Google Sheets (đã bật chia sẻ xem) hoặc link xuất CSV
-          </label>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <input id="sheetUrlInput" type="url"
-                   placeholder="https://docs.google.com/spreadsheets/d/... hoặc .../export?format=csv"
-                   class="flex-grow px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button id="fetchSheetUrlBtn" type="button" onclick="fetchFromGoogleSheetUrl()"
-                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold shrink-0 flex items-center justify-center gap-1.5 cursor-pointer">
-              <i id="fetchSheetUrlIcon" class="fa-solid fa-cloud-arrow-down"></i>
-              <span data-i18n="modalFetchBtn">Tải Sheet</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <label for="sheetPasteArea" class="block text-xs font-bold text-slate-700" data-i18n="modalMethod2">
-            Cách 2: Dán trực tiếp từ Google Sheets (Ctrl + C trên Sheet rồi Ctrl + V vào đây)
-          </label>
-          <textarea id="sheetPasteArea" rows="7"
-                    placeholder="Dán dữ liệu TSV/CSV tại đây..."
-                    class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-        </div>
-
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none">
-            <input id="sheetReplaceMode" type="checkbox" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-            <span data-i18n="modalReplaceCheck">Ghi đè danh sách hiện tại trong bảng nháp</span>
-          </label>
-
-          <div class="flex items-center justify-end gap-2">
-            <button type="button" onclick="closeSheetImportModal()"
-                    class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold cursor-pointer"
-                    data-i18n="modalCancelBtn">
-              Hủy
-            </button>
-            <button type="button" onclick="applySheetImportToDraft()"
-                    class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-bold shadow-sm flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-check"></i>
-              <span data-i18n="modalApplyBtn">Nạp vào bảng xem trước</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <p class="font-medium text-slate-700">CTEC Administrator | D1 Cloud Database</p>
-        <span>Chau Thanh High School English Club</span>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="font-medium text-slate-700" data-i18n="footerText">Cổng thông tin chính thức CTEC | Thực hiện bởi Nhat Minh</p>
+        <a href="https://www.facebook.com/CTEC.CTEnglishclub" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-1.5 font-semibold text-[#1877F2] hover:underline">
+          <i class="fa-brands fa-facebook"></i>
+          <span>facebook.com/CTEC.CTEnglishclub</span>
+        </a>
       </div>
     </footer>
   </div>
 
-  <script src="../assets/ctec-core.js"></script>
-  <script src="./admin-app.js"></script>
+  <script src="./assets/ctec-core.js"></script>
+  <script>
+    const PORTAL_I18N = {
+      vi: {
+        pageTitle: "Cổng thông tin quản lý chính thức - Chau Thanh High School English Club (CTEC)",
+        homeTitle: "Trang chủ CTEC",
+        brandTitle: "CTEC Workspace",
+        navRosterFull: "DANH SÁCH",
+        navRosterShort: "DS",
+        navFundFull: "TRA CỨU QUỸ",
+        navFundShort: "QUỸ",
+        heroBadge: "Cổng thông tin nội bộ chính thức",
+        heroTitle: "Cổng thông tin CLB Tiếng Anh THPT Châu Thành",
+        heroDesc: "Tra cứu danh sách nhân sự theo ban, theo dõi đóng góp quỹ câu lạc bộ minh bạch theo thời gian thực và truy cập các phân hệ sắp ra mắt của CTEC.",
+        heroFbBtn: "Facebook CTEC",
+        dirTitle: "Danh mục hệ thống",
+        card1Badge: "Nhân sự",
+        card1Title: "Danh sách thành viên chính thức",
+        card1Desc: "Xem danh bạ thành viên đầy đủ, phân bổ theo từng ban, chức vụ đảm nhận và trạng thái thành viên hiện tại trong toàn câu lạc bộ.",
+        card1Action: "Mở danh sách thành viên",
+        card2Badge: "Tài chính",
+        card2Title: "Theo dõi quỹ CLB",
+        card2Desc: "Theo dõi đóng góp hàng tháng từ Tháng 10/26 đến Tháng 5/27, tỷ lệ hoàn thành theo ban và các ghi chú tài chính chi tiết.",
+        card2Action: "Mở báo cáo tài chính",
+        slotBadge: "Sắp ra mắt",
+        slot1Aria: "Dự án sắp triển khai số 1",
+        slot1Title: "Dự án số 01",
+        slot1Desc: "Vị trí dành cho các công cụ nội bộ và phân hệ quản lý sự kiện sắp tới của CTEC.",
+        slot2Aria: "Dự án sắp triển khai số 2",
+        slot2Title: "Dự án số 02",
+        slot2Desc: "Vị trí dành cho các sáng kiến câu lạc bộ, kho lưu trữ hoặc tài nguyên các ban trong tương lai.",
+        slot3Aria: "Dự án sắp triển khai số 3",
+        slot3Title: "Dự án số 03",
+        slot3Desc: "Vị trí dành cho các ứng dụng web và cổng hoạt động CTEC đang được phát triển.",
+        slot4Aria: "Dự án sắp triển khai số 4",
+        slot4Title: "Dự án số 04",
+        slot4Desc: "Vị trí dành cho ấn phẩm số, biểu mẫu hoặc công cụ thành viên CTEC sắp ra mắt.",
+        slotPending: "Đang cập nhật liên kết",
+        fbBannerTitle: "Kết nối với Chau Thanh English Club trên Facebook",
+        fbBannerDesc: "Theo dõi thông báo, sự kiện và cập nhật mới nhất trên fanpage chính thức.",
+        fbBannerBtn: "Ghé thăm Facebook CTEC",
+        footerText: "Cổng thông tin chính thức CTEC | Thực hiện bởi Nhat Minh"
+      },
+      en: {
+        pageTitle: "Official Management Portal - Chau Thanh High School English Club (CTEC)",
+        homeTitle: "CTEC Home",
+        brandTitle: "CTEC Workspace",
+        navRosterFull: "ROSTER",
+        navRosterShort: "ROSTER",
+        navFundFull: "FUND LOOKUP",
+        navFundShort: "FUND",
+        heroBadge: "Official Internal Portal",
+        heroTitle: "Chau Thanh High School English Club Portal",
+        heroDesc: "Browse the official departmental roster, monitor club treasury contributions transparently in real time, and access upcoming CTEC modules.",
+        heroFbBtn: "CTEC Facebook",
+        dirTitle: "Workspace Directory",
+        card1Badge: "Personnel",
+        card1Title: "Official Member Roster",
+        card1Desc: "Explore the complete member directory, departmental allocation, designated roles, and current membership status across the club.",
+        card1Action: "Access Member Directory",
+        card2Badge: "Treasury",
+        card2Title: "Club Fund Tracker",
+        card2Desc: "Track monthly dues from Oct 26 to May 27, review departmental completion rates, and inspect detailed financial remarks.",
+        card2Action: "Access Treasury Report",
+        slotBadge: "Upcoming",
+        slot1Aria: "Upcoming Project Slot 1",
+        slot1Title: "Project Slot 01",
+        slot1Desc: "Reserved for upcoming CTEC internal tools and event management modules.",
+        slot2Aria: "Upcoming Project Slot 2",
+        slot2Title: "Project Slot 02",
+        slot2Desc: "Reserved for future club initiatives, archives, or departmental resources.",
+        slot3Aria: "Upcoming Project Slot 3",
+        slot3Title: "Project Slot 03",
+        slot3Desc: "Reserved for additional CTEC web apps and activity portals in development.",
+        slot4Aria: "Upcoming Project Slot 4",
+        slot4Title: "Project Slot 04",
+        slot4Desc: "Reserved for upcoming CTEC digital publications, forms, or member tools.",
+        slotPending: "Link pending",
+        fbBannerTitle: "Connect with Chau Thanh English Club on Facebook",
+        fbBannerDesc: "Follow announcements, events, and updates on our official fanpage.",
+        fbBannerBtn: "Visit CTEC Facebook",
+        footerText: "Official CTEC Information Portal | Crafted by Nhat Minh"
+      }
+    };
+
+    function applyPortalLanguage(lang) {
+      const t = PORTAL_I18N[lang] || PORTAL_I18N.vi;
+      document.title = t.pageTitle;
+      const homeLink = document.getElementById("homeLink");
+      if (homeLink) homeLink.title = t.homeTitle;
+      const brandTitle = document.getElementById("brandTitle");
+      if (brandTitle) brandTitle.textContent = t.brandTitle;
+
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (t[key] !== undefined) el.textContent = t[key];
+      });
+      document.querySelectorAll("[data-i18n-aria]").forEach(el => {
+        const key = el.getAttribute("data-i18n-aria");
+        if (t[key] !== undefined) el.setAttribute("aria-label", t[key]);
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      applyPortalLanguage(CTEC.getSavedLang());
+      window.addEventListener("ctec:langchange", e => applyPortalLanguage(e.detail.lang));
+    });
+  </script>
 </body>
 </html>
