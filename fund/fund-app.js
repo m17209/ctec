@@ -101,7 +101,7 @@ const FUND_I18N = {
     statusDebt: "In Debt",
     clearedText: "Cleared",
     pendingText: "Pending",
-    overdueFromPrefix: "Overdued from",
+    overdueFromPrefix: "Overdue from",
     entriesSuffix: "entries",
     colNo: "No.",
     colFullName: "Full Name",
@@ -140,46 +140,32 @@ function normalizeDocKey(str) {
     .trim();
 }
 
+// BUG-03: Sanitize QR HTML/SVG chống Stored XSS qua CTEC.sanitizeQrHtml()
 function renderQrFromHtml(containerId, qrHtmlInput) {
-  const container = document.getElementById(containerId);
+  const container = typeof containerId === "string"
+    ? document.getElementById(containerId)
+    : containerId;
   if (!container) return;
 
   const trimmed = String(qrHtmlInput ?? "").trim();
-  if (!trimmed) {
-    container.innerHTML = "";
-    container.classList.add("border-2", "border-dashed", "border-slate-300", "p-1");
-    container.classList.remove("border", "border-slate-200", "p-1.5", "bg-white");
-    return;
-  }
-
-  const parser = new DOMParser();
-  const parsedDoc = parser.parseFromString(trimmed, "text/html");
-  const qrEl = parsedDoc.body.querySelector(".qr-body img, img, svg, canvas");
-
   container.innerHTML = "";
 
-  if (qrEl) {
-    if (qrEl.tagName.toLowerCase() === "img") {
-      const src = qrEl.getAttribute("src");
-      if (src) {
-        const img = document.createElement("img");
-        img.src = src;
-        img.alt = qrEl.getAttribute("alt") || "QR Code 10,000 VND";
-        img.loading = "lazy";
-        container.appendChild(img);
-      }
-    } else {
-      container.appendChild(document.importNode(qrEl, true));
+  let safeNode = null;
+  if (trimmed) {
+    if (window.CTEC && typeof window.CTEC.sanitizeQrHtml === "function") {
+      safeNode = window.CTEC.sanitizeQrHtml(trimmed);
     }
-  } else if (/^https?:\/\/\S+$/i.test(trimmed)) {
-    const img = document.createElement("img");
-    img.src = trimmed;
-    img.alt = "QR Code 10,000 VND";
-    img.loading = "lazy";
-    container.appendChild(img);
+    if (!safeNode && /^https:\/\/[^\s"'<>]+$/i.test(trimmed)) {
+      const img = document.createElement("img");
+      img.src = trimmed;
+      img.alt = "QR Code 10,000 VND";
+      img.loading = "lazy";
+      safeNode = img;
+    }
   }
 
-  if (container.children.length > 0) {
+  if (safeNode) {
+    container.appendChild(safeNode);
     container.classList.remove("border-2", "border-dashed", "border-slate-300", "p-1");
     container.classList.add("border", "border-slate-200", "p-1.5", "bg-white");
   } else {
@@ -278,9 +264,18 @@ let deadlines = new Array(MONTHS_EN.length).fill(0);
 let currentDept = "ALL";
 let selectedMonthIndex = "ALL";
 
+// BUG-06: Đồng bộ parse ngày hạn đóng qua CTEC.parseDeadlineDay()
+function getDeadlineDayNumber(deadlineVal) {
+  if (window.CTEC && typeof window.CTEC.parseDeadlineDay === "function") {
+    return window.CTEC.parseDeadlineDay(deadlineVal);
+  }
+  const day = parseInt(deadlineVal, 10);
+  return Number.isInteger(day) && day >= 1 && day <= 31 ? day : 0;
+}
+
 function getDeadlineDate(monthIdx, dayVal) {
-  const day = parseInt(dayVal, 10);
-  if (!Number.isInteger(day) || day <= 0 || day > 31) return null;
+  const day = getDeadlineDayNumber(dayVal);
+  if (day <= 0 || day > 31) return null;
   const [mStr, yStr] = MONTHS_EN[monthIdx].split(" ");
   const m = MONTH_MAP[mStr];
   const y = 2000 + parseInt(yStr, 10);
@@ -303,8 +298,8 @@ function normalizeStatus(status, monthIdx) {
 
 function renderArrearsBadge(dayVal, lang) {
   const t = FUND_I18N[lang] || FUND_I18N.vi;
-  const day = parseInt(dayVal, 10);
-  const label = (Number.isInteger(day) && day > 0 && day <= 31)
+  const day = getDeadlineDayNumber(dayVal);
+  const label = (day > 0 && day <= 31)
     ? `${t.overdueFromPrefix} ${day}`
     : t.statusDebt;
   return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">${CTEC.escapeHtml(label)}</span>`;
@@ -370,7 +365,7 @@ async function refreshAllData() {
     const list = payload.rows || payload.members || payload.fund || payload.data;
     if (Array.isArray(list)) {
       if (Array.isArray(payload.deadlines)) {
-        deadlines = MONTHS_EN.map((_, i) => parseInt(payload.deadlines[i], 10) || 0);
+        deadlines = MONTHS_EN.map((_, i) => getDeadlineDayNumber(payload.deadlines[i]));
       }
       rawFunds = list.map(m => {
         const name = String(m.name ?? m.full_name ?? "").trim();
@@ -395,7 +390,7 @@ async function refreshAllData() {
       cells.forEach(c => {
         const label = c.slice(0, 3).join(" ").toLowerCase();
         if (label.includes("deadline") || label.includes("hạn đóng") || label.includes("kỳ hạn")) {
-          deadlines = MONTHS_EN.map((_, m) => parseInt(String(c[3 + m] ?? "").replace(/\D/g, ""), 10) || 0);
+          deadlines = MONTHS_EN.map((_, m) => getDeadlineDayNumber(c[3 + m]));
           return;
         }
         const name = String(c[1] ?? "").trim();
@@ -432,6 +427,56 @@ async function refreshAllData() {
   }
 }
 
+// BUG-01: Hỗ trợ đa ban cho thành viên kiêm nhiệm (gom nhóm khi xem ALL, lọc đủ khi chọn ban)
+function getFilteredFundMembers(allRows, deptFilter) {
+  const normalizedRows = (Array.isArray(allRows) ? allRows : []).map((r) => ({
+    ...r,
+    deptKey: window.CTEC ? CTEC.normalizeDeptKey(r.deptKey || r.dept) : (r.deptKey || r.dept)
+  }));
+
+  if (!deptFilter || deptFilter === "ALL") {
+    const grouped = new Map();
+    for (const row of normalizedRows) {
+      const key = window.CTEC && typeof CTEC.normText === "function"
+        ? CTEC.normText(row.name)
+        : String(row.name || "").trim().toLowerCase();
+      if (!key) continue;
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          ...row,
+          monthKeys: Array.isArray(row.monthKeys) ? row.monthKeys.slice() : [],
+          depts: [row.deptKey]
+        });
+      } else {
+        const existing = grouped.get(key);
+        if (!existing.depts.includes(row.deptKey)) {
+          existing.depts.push(row.deptKey);
+        }
+        // Đồng bộ trạng thái đã đóng nếu thành viên đã hoàn thành ở 1 ban
+        if (Array.isArray(row.monthKeys)) {
+          existing.monthKeys = existing.monthKeys.map((st, idx) => {
+            const other = row.monthKeys[idx];
+            if (st === "PAID" || other === "PAID") return "PAID";
+            if (st === "DEBT" || other === "DEBT") return "DEBT";
+            return st || other || "UNPAID";
+          });
+        }
+        if (!existing.note && row.note) existing.note = row.note;
+      }
+    }
+    return Array.from(grouped.values());
+  }
+
+  const targetDept = window.CTEC ? CTEC.normalizeDeptKey(deptFilter) : deptFilter;
+  return normalizedRows
+    .filter((row) => row.deptKey === targetDept)
+    .map((row) => ({
+      ...row,
+      depts: [row.deptKey]
+    }));
+}
+
 function updateStats() {
   const lang = CTEC.getSavedLang();
   const t = FUND_I18N[lang] || FUND_I18N.vi;
@@ -444,9 +489,9 @@ function updateStats() {
     if (el) el.textContent = label;
   });
 
+  const filteredMembers = getFilteredFundMembers(rawFunds, currentDept);
   let total = 0, paid = 0, unpaid = 0;
-  for (const item of rawFunds) {
-    if (currentDept !== "ALL" && item.deptKey !== currentDept) continue;
+  for (const item of filteredMembers) {
     total++;
     if (isAll) {
       for (const k of item.monthKeys) k === "PAID" ? paid++ : unpaid++;
@@ -497,8 +542,9 @@ function renderTable() {
   const rows = [];
   let idx = 0;
 
-  for (const item of rawFunds) {
-    if (currentDept !== "ALL" && item.deptKey !== currentDept) continue;
+  const filteredMembers = getFilteredFundMembers(rawFunds, currentDept);
+
+  for (const item of filteredMembers) {
     if (searchVal && !item.nameLower.includes(searchVal)) continue;
     if (statusFilter !== "ALL") {
       const ok = isAll ? item.monthKeys.includes(statusFilter) : item.monthKeys[selectedMonthIndex] === statusFilter;
@@ -506,12 +552,15 @@ function renderTable() {
     }
 
     idx++;
-    const deptDisplay = t.deptLabels[item.deptKey] || item.dept;
+    const deptList = Array.isArray(item.depts) && item.depts.length > 0 ? item.depts : [item.deptKey];
+    const deptBadgesHtml = deptList
+      .map(dKey => CTEC.renderDeptBadge(dKey, t.deptLabels[dKey] || item.dept))
+      .join(" ");
     const prefix =
       `<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/60 transition duration-150 border-b border-slate-100 dark:border-slate-800">` +
         `<td class="py-3 px-4 text-center text-xs font-semibold text-slate-400 border-r border-slate-100 dark:border-slate-800">${idx}</td>` +
         `<td class="sticky-name-col bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 py-3 px-4 sm:px-5 font-semibold text-slate-800 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap transition duration-150"><span>${CTEC.escapeHtml(item.name)}</span></td>` +
-        `<td class="py-3 px-5 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap">${CTEC.renderDeptBadge(item.deptKey, deptDisplay)}</td>`;
+        `<td class="py-3 px-5 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap"><div class="flex flex-wrap items-center gap-1.5">${deptBadgesHtml}</div></td>`;
 
     if (isAll) {
       const cells = item.monthKeys.map((k, mIdx) => `<td class="py-3 px-3 text-center ${mIdx < item.monthKeys.length - 1 ? "border-r border-slate-100 dark:border-slate-800" : ""}">${getBadgeHtml(k, lang)}</td>`).join("");
