@@ -1,4 +1,12 @@
 :root {
+  --page-bg: #f8fafc;
+  --surface-bg: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-subtle: #e2e8f0;
+  --hero-gradient-start: #e0f2fe;
+  --hero-gradient-mid: #f0f9ff;
+  --hero-gradient-end: var(--page-bg);
   --ctec-header-bg: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%);
   --ctec-header-text: #ffffff;
   --ctec-surface: #ffffff;
@@ -9,6 +17,14 @@
 }
 
 html.dark {
+  --page-bg: #0b1120;
+  --surface-bg: #111827;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border-subtle: #1e293b;
+  --hero-gradient-start: #0f2942;
+  --hero-gradient-mid: #0d192e;
+  --hero-gradient-end: var(--page-bg);
   --ctec-header-bg: linear-gradient(135deg, #020617 0%, #0f172a 60%, #1e1b4b 100%);
   --ctec-header-text: #f8fafc;
   --ctec-surface: #0f172a;
@@ -330,4 +346,48 @@ html.dark .wheel-item.active-item {
   background: #4f46e5;
   color: #ffffff;
   cursor: pointer;
+}
+
+
+/* Vùng hero / header gradient tệp màu đáy liền mạch xuống nền bên dưới */
+.hero-gradient,
+.page-hero,
+.ctec-hero-bg {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    var(--hero-gradient-start) 0%,
+    var(--hero-gradient-mid) 58%,
+    var(--hero-gradient-end) 100%
+  );
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+/* Lớp phủ mờ chuyển tiếp đáy gradient (nếu trang có wrapper ảnh/banner) */
+.hero-gradient::after,
+.page-hero::after,
+.ctec-hero-bg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 0%, var(--page-bg) 100%);
+}
+
+html.dark .hero-gradient::after,
+html.dark .page-hero::after,
+html.dark .ctec-hero-bg::after {
+  background: linear-gradient(180deg, rgba(11, 17, 32, 0) 0%, var(--page-bg) 100%);
+}
+
+/* BUG-10: Đảm bảo tương phản badge số lượng trong Dark Mode */
+html.dark #badgeFundCount,
+html.dark #badgeRosterCount {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #334155;
 }
