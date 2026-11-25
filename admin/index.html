@@ -1,3 +1,8 @@
+
+
+
+Biểu tượng HTML
+index
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -200,9 +205,16 @@
                      placeholder="Lọc nhanh tên thành viên..."
                      class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
-            <span id="rosterStatsPill" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold whitespace-nowrap">
+            <span id="rosterStatsPill" data-i18n-count="roster_members" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold whitespace-nowrap">
               0 thành viên
             </span>
+            <script>
+              (function () {
+                const isEn = document.cookie.includes("ctec_lang=en") || localStorage.getItem("ctec_lang") === "en";
+                const pill = document.getElementById("rosterStatsPill");
+                if (pill && isEn) pill.textContent = "0 members";
+              })();
+            </script>
           </div>
 
           <div class="flex flex-wrap items-center gap-2.5">
@@ -416,3 +428,4 @@
   <script src="./admin-app.js"></script>
 </body>
 </html>
+Analyzing
