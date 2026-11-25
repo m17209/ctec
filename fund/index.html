@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTEC Workspace - Fund Management</title>
+  <script>
+    tailwind = window.tailwind || {};
+    tailwind.config = { darkMode: 'class' };
+    (function () {
+      const m = document.cookie.match(/(?:^|;\s*)ctec_theme=(dark|light)(?:;|$)/);
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if ((m && m[1] === 'dark') || (!m && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+      const l = document.cookie.match(/(?:^|;\s*)ctec_lang=(vi|en)(?:;|$)/);
+      document.documentElement.lang = l ? l[1] : 'vi';
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/ctec-core.css">
+  <style>
+    html.dark #selectedPeriodLabel1 {
+      background-color: rgba(16, 185, 129, 0.2) !important;
+      color: #6ee7b7 !important;
+      border-color: rgba(16, 185, 129, 0.35) !important;
+    }
+    html.dark #selectedPeriodLabel2 {
+      background-color: rgba(245, 158, 11, 0.2) !important;
+      color: #fcd34d !important;
+      border-color: rgba(245, 158, 11, 0.35) !important;
+    }
+    html.dark #selectedPeriodLabel3 {
+      background-color: rgba(99, 102, 241, 0.24) !important;
+      color: #a5b4fc !important;
+      border-color: rgba(99, 102, 241, 0.4) !important;
+    }
+    .qr-render-box {
+      width: 100%;
+      max-width: 156px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .qr-render-box img,
+    .qr-render-box svg,
+    .qr-render-box canvas {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain;
+      border-radius: 0.5rem;
+      display: block;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen">
+<header class="ctec-header shadow-lg">
+  <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="ctec-brand flex items-center gap-3">
+      <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
+        <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+      </a>
+      <div class="flex flex-col leading-tight">
+        <h1 class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Workspace</h1>
+        <span class="text-[11px] sm:text-xs font-medium text-slate-300 tracking-wide">Fund Management</span>
+      </div>
+    </div>
+    <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-2.5">
+      <button id="reloadBtn" type="button" onclick="refreshAllData()" class="ctec-nav-btn px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-2 cursor-pointer" data-i18n-title="syncTitle">
+        <i id="reloadIcon" class="fa-solid fa-rotate-right"></i>
+        <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
+        <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
+      </button>
+      <button type="button" onclick="copySheet()" class="ctec-nav-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-copy"></i>
+        <span class="ctec-btn-label-full hidden sm:inline" data-i18n="copyFull">Sao chép cho Google Sheets</span>
+        <span class="ctec-btn-label-full sm:hidden" data-i18n="copyMobile">Sao chép</span>
+        <span class="ctec-btn-label-short" data-i18n="copyShort">CHÉP</span>
+      </button>
+      <button type="button" onclick="downloadCsv()" class="ctec-nav-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer">
+        <i class="fa-solid fa-file-excel"></i>
+        <span class="ctec-btn-label-full hidden sm:inline" data-i18n="csvFull">Xuất CSV</span>
+        <span class="ctec-btn-label-full sm:hidden" data-i18n="csvMobile">CSV</span>
+        <span class="ctec-btn-label-short" data-i18n="csvShort">CSV</span>
+      </button>
+      <button type="button"
+              data-theme-toggle
+              onclick="CTEC.toggleTheme()"
+              aria-pressed="false"
+              class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+        <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
+        <span data-theme-label class="ctec-btn-label-full">TỐI</span>
+        <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
+      </button>
+      <button type="button"
+              data-lang-toggle
+              onclick="CTEC.toggleLang()"
+              aria-pressed="false"
+              class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-language text-amber-300 text-xs"></i>
+        <span data-lang-label class="ctec-btn-label-full">EN</span>
+        <span data-lang-label-short class="ctec-btn-label-short">EN</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="ctec-page-shell">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-stretch">
+      <div class="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+          <i class="fa-solid fa-building-columns text-indigo-600 dark:text-indigo-400"></i>
+          <span data-i18n="transferSubtitle">Thông tin chuyển khoản</span>
+        </div>
+
+        <div class="flex flex-row items-stretch justify-between gap-4 flex-1">
+          <div class="flex flex-col items-center justify-between flex-1 min-w-0 gap-2.5">
+            <p class="text-[11px] font-semibold text-amber-700 dark:text-amber-300 text-center leading-snug max-w-[175px]" data-i18n="transferDeptNote">
+              Lưu ý: thêm tên ban vào nội dung chuyển khoản!
+            </p>
+
+            <div class="flex flex-col items-center justify-center w-full min-w-0 my-auto">
+              <div id="qrContainer2" class="qr-render-box rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 p-1"></div>
+              <div class="mt-2 px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-700/50 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 tracking-wide text-center whitespace-nowrap" data-i18n="qr2AmountNote">
+                10 000 VND
+              </div>
+            </div>
+          </div>
+
+          <div class="w-40 sm:w-44 shrink-0 flex flex-col justify-between gap-2 text-sm">
+            <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+              <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNumberLabel">Số tài khoản</div>
+              <div id="bankAccountNumber" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+              <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNameLabel">Tên tài khoản</div>
+              <div id="bankAccountName" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+              <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="bankNameLabel">Ngân hàng</div>
+              <div id="bankName" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div class="flex-1 bg-white dark:bg-slate-900 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+          <div class="text-xs font-semibold uppercase text-slate-400" data-i18n="statTotalLabel">Tổng người đóng góp</div>
+          <div class="font-display text-2xl font-extrabold text-slate-900 dark:text-white mt-3 leading-none" id="totalCount">0</div>
+        </div>
+
+        <div class="flex-1 bg-emerald-50 dark:bg-emerald-950/40 border-l-4 border-emerald-600 p-5 rounded-r-xl shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-bold text-emerald-900 dark:text-emerald-200 uppercase" data-i18n="statPaidLabel">ĐÃ ĐÓNG</span>
+            <span id="selectedPeriodLabel1" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-800 border border-emerald-200/80 shrink-0 leading-tight">CẢ KỲ</span>
+          </div>
+          <div class="font-display text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 mt-3 leading-none" id="cntPaid">0</div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <div class="flex-1 bg-indigo-50 dark:bg-indigo-950/40 border-l-4 border-indigo-600 p-5 rounded-r-xl shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase" data-i18n="statRateLabel">Tỷ lệ hoàn thành</span>
+            <span id="selectedPeriodLabel3" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-100/80 text-indigo-800 border border-indigo-200/80 shrink-0 leading-tight">CẢ KỲ</span>
+          </div>
+          <div class="font-display text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 mt-3 leading-none" id="completionRate">0%</div>
+        </div>
+
+        <div class="flex-1 bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-500 p-5 rounded-r-xl shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2">
+            <span class="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase" data-i18n="statUnpaidLabel">Chưa đóng / Quá hạn</span>
+            <span id="selectedPeriodLabel2" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100/80 text-amber-800 border border-amber-200/80 shrink-0 leading-tight">CẢ KỲ</span>
+          </div>
+          <div class="font-display text-2xl font-extrabold text-amber-700 dark:text-amber-400 mt-3 leading-none" id="cntUnpaid">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4">
+      <div class="relative w-full lg:w-80 shrink-0">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+        <input type="text" id="searchInput" oninput="renderTable()" data-i18n-placeholder="searchPlaceholder" placeholder="Tìm theo tên thành viên..." class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Ban:</span></span>
+          <div class="wheel-picker-wrap" id="deptWheelPicker">
+            <button type="button" class="wheel-trigger min-w-[165px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
+              <span id="deptWheelLabel">Tất cả các ban</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </button>
+            <div class="wheel-popover !w-[235px]" onclick="event.stopPropagation()">
+              <div class="wheel-drum-viewport">
+                <div class="wheel-center-highlight"></div>
+                <div class="wheel-drum-list" id="deptDrumList"></div>
+              </div>
+              <div class="wheel-footer">
+                <span data-i18n="wheelHint">Kéo hoặc cuộn</span>
+                <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelDone">Xong</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-regular fa-calendar-check"></i> <span data-i18n="filterPeriodLabel">Kỳ thu:</span></span>
+          <div class="wheel-picker-wrap" id="monthWheelPicker">
+            <button type="button" class="wheel-trigger min-w-[110px]" onclick="CTEC.toggleWheel('monthWheelPicker', event)">
+              <span id="monthWheelLabel">CẢ KỲ</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </button>
+            <div class="wheel-popover" onclick="event.stopPropagation()">
+              <div class="wheel-drum-viewport">
+                <div class="wheel-center-highlight"></div>
+                <div class="wheel-drum-list" id="monthDrumList"></div>
+              </div>
+              <div class="wheel-footer">
+                <span data-i18n="wheelHint">Kéo hoặc cuộn</span>
+                <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelDone">Xong</button>
+              </div>
+            </div>
+          </div>
+          <select id="monthSelect" class="hidden">
+            <option value="ALL" selected>ALL</option>
+            <option value="0">0</option><option value="1">1</option>
+            <option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option>
+            <option value="6">6</option><option value="7">7</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-solid fa-circle-check"></i> <span data-i18n="filterStatusLabel">Trạng thái:</span></span>
+          <div class="wheel-picker-wrap" id="statusWheelPicker">
+            <button type="button" class="wheel-trigger min-w-[125px]" onclick="CTEC.toggleWheel('statusWheelPicker', event)">
+              <span id="statusWheelLabel">Tất cả trạng thái</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </button>
+            <div class="wheel-popover" onclick="event.stopPropagation()">
+              <div class="wheel-drum-viewport">
+                <div class="wheel-center-highlight"></div>
+                <div class="wheel-drum-list" id="statusDrumList"></div>
+              </div>
+              <div class="wheel-footer">
+                <span data-i18n="wheelHint">Kéo hoặc cuộn</span>
+                <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelDone">Xong</button>
+              </div>
+            </div>
+          </div>
+          <select id="statusSelect" class="hidden">
+            <option value="ALL" selected>ALL</option>
+            <option value="PAID">PAID</option>
+            <option value="UNPAID">UNPAID</option>
+            <option value="DEBT">DEBT</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex md:hidden items-center justify-end gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-2">
+      <i class="fa-solid fa-arrows-left-right text-indigo-500"></i>
+      <span data-i18n="mobileSwipeHint">Vuốt ngang để xem từng tháng (cột Tên được ghim)</span>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto relative">
+        <table class="w-full text-left border-collapse" id="fundTable">
+          <thead id="tableHead"></thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-sm font-medium" id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <div id="loadingState" class="py-12 text-center text-slate-500 dark:text-slate-400">
+        <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-600 mb-3"></i>
+        <p class="text-sm font-medium" data-i18n="loadingText">Đang đồng bộ dữ liệu quỹ qua hệ thống CTEC...</p>
+      </div>
+
+      <div id="errorState" class="hidden py-12 text-center text-red-500 px-4">
+        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+        <p class="text-sm font-semibold" data-i18n="errorTitle">Không thể lấy dữ liệu quỹ!</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" data-i18n="errorDesc">Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.</p>
+      </div>
+
+      <div id="noResults" class="hidden py-12 text-center text-slate-400">
+        <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
+        <p class="text-sm" data-i18n="noResultsText">Không có người đóng góp nào khớp với từ khóa hoặc bộ lọc đã chọn.</p>
+      </div>
+    </div>
+
+    <footer class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
+      <p class="font-medium text-slate-700 dark:text-slate-300" data-i18n="footerText">Báo cáo quỹ &amp; tài chính chính thức CTEC | Thực hiện bởi Nhat Minh</p>
+    </footer>
+  </main>
+</div>
+
+<script src="../assets/ctec-core.js"></script>
+<script src="./fund-app.js"></script>
+</body>
+</html>
