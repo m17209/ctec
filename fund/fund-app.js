@@ -9,12 +9,6 @@ const FUND_I18N = {
     syncTitle: "Đồng bộ dữ liệu quỹ mới nhất",
     refreshFull: "Làm mới dữ liệu",
     refreshShort: "ĐỒNG BỘ",
-    copyFull: "Sao chép cho Google Sheets",
-    copyMobile: "Sao chép",
-    copyShort: "CHÉP",
-    csvFull: "Xuất CSV",
-    csvMobile: "CSV",
-    csvShort: "CSV",
     transferSubtitle: "Thông tin chuyển khoản",
     transferDeptNote: "Lưu ý: thêm tên ban vào nội dung chuyển khoản!",
     qr2AmountNote: "10 000 VND",
@@ -56,9 +50,6 @@ const FUND_I18N = {
     errorDesc: "Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.",
     noResultsText: "Không có người đóng góp nào khớp với từ khóa hoặc bộ lọc đã chọn.",
     footerText: "Báo cáo quỹ & tài chính chính thức CTEC | Thực hiện bởi Nhat Minh",
-    copiedMsg: "Đã sao chép bảng quỹ! Dán (Ctrl + V) trực tiếp vào Google Sheets.",
-    csvFile: "Quan_ly_quy_CTEC.csv",
-    exportHeaders: ["STT", "Họ và tên", "Ban", ...MONTHS_VI, "GHI CHÚ"],
     deptLabels: {
       "EXCUTIVE BOARD": "Ban Chủ nhiệm",
       "PUBLIC RELATIONS DEPARTMENT": "Ban Truyền thông",
@@ -74,12 +65,6 @@ const FUND_I18N = {
     syncTitle: "Sync latest treasury records",
     refreshFull: "Refresh Data",
     refreshShort: "SYNC",
-    copyFull: "Copy for Google Sheets",
-    copyMobile: "Copy",
-    copyShort: "COPY",
-    csvFull: "Export CSV",
-    csvMobile: "CSV",
-    csvShort: "CSV",
     transferSubtitle: "Transfer Information",
     transferDeptNote: "Note: include your department name in the transfer memo!",
     qr2AmountNote: "10 000 VND",
@@ -121,9 +106,6 @@ const FUND_I18N = {
     errorDesc: "Please try again in a moment or check your network connection.",
     noResultsText: "No contributors match your search query or selected filters.",
     footerText: "Official CTEC Treasury & Financial Report | Crafted by Nhat Minh",
-    copiedMsg: "Treasury table copied! Paste (Ctrl + V) directly into Google Sheets.",
-    csvFile: "CTEC_Fund_Management.csv",
-    exportHeaders: ["No.", "Name", "Department", ...MONTHS_EN, "NOTE"],
     deptLabels: {
       "EXCUTIVE BOARD": "Executive Board",
       "PUBLIC RELATIONS DEPARTMENT": "Public Relations",
@@ -178,7 +160,6 @@ function normalizeDocKey(str) {
     .trim();
 }
 
-// DEF-04 & DEF-05: Sanitize QR HTML/SVG & giữ nền trắng qr-safe-surface trong Dark Mode
 function renderQrFromHtml(containerId, qrHtmlInput) {
   const container = typeof containerId === "string"
     ? document.getElementById(containerId)
@@ -320,7 +301,6 @@ function getDeadlineDayNumber(deadlineVal) {
   return CTEC.parseDeadlineDay(deadlineVal);
 }
 
-// DEF-10: Chuẩn hóa mốc 00:00:00 theo múi giờ UTC+7 (Asia/Ho_Chi_Minh)
 function getDeadlineUtcMs(monthIdx, dayVal) {
   const day = getDeadlineDayNumber(dayVal);
   if (day <= 0 || day > 31) return null;
@@ -331,7 +311,6 @@ function getDeadlineUtcMs(monthIdx, dayVal) {
   if (checkDt.getUTCFullYear() !== y || checkDt.getUTCMonth() !== m || checkDt.getUTCDate() !== day) {
     return null;
   }
-  // 00:00:00 UTC+7 = 17:00:00 UTC ngày hôm trước
   return Date.UTC(y, m, day, 0, 0, 0, 0) - 7 * 60 * 60 * 1000;
 }
 
@@ -641,39 +620,6 @@ function renderTable() {
   document.getElementById("noResults").classList.toggle("hidden", rows.length > 0);
   document.getElementById("tableBody").innerHTML = rows.join("");
 }
-
-const formatExportStatus = (k, lang) => {
-  const t = FUND_I18N[lang] || FUND_I18N.vi;
-  return k === "PAID" ? t.statusPaid : k === "DEBT" ? t.statusDebt : t.statusUnpaid;
-};
-
-// DEF-09: Xuất đúng dữ liệu đã hợp nhất đa ban và lọc theo trạng thái hiển thị
-const toExportRows = () => {
-  const lang = CTEC.getSavedLang();
-  const t = FUND_I18N[lang] || FUND_I18N.vi;
-  const visibleMembers = getVisibleFundRows();
-  return visibleMembers.map((m, i) => {
-    const deptList = Array.isArray(m.depts) && m.depts.length > 0 ? m.depts : [m.deptKey];
-    const deptStr = deptList.map(dKey => t.deptLabels[dKey] || m.dept).join(", ");
-    return [
-      i + 1,
-      m.name,
-      deptStr,
-      ...m.monthKeys.map(k => formatExportStatus(k, lang)),
-      m.note
-    ];
-  });
-};
-
-const copySheet = () => {
-  const t = FUND_I18N[CTEC.getSavedLang()] || FUND_I18N.vi;
-  CTEC.copyTSV(t.exportHeaders, toExportRows(), t.copiedMsg);
-};
-
-const downloadCsv = () => {
-  const t = FUND_I18N[CTEC.getSavedLang()] || FUND_I18N.vi;
-  CTEC.downloadCSV(t.exportHeaders, toExportRows(), t.csvFile);
-};
 
 document.addEventListener("DOMContentLoaded", () => {
   const initLang = CTEC.getSavedLang();
