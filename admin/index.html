@@ -62,7 +62,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
   <header class="ctec-header shadow-lg">
-    <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
       <div class="ctec-brand flex items-center gap-3">
         <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
           <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
@@ -73,33 +73,33 @@
         </div>
       </div>
 
-      <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-2.5">
+      <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
         <a href="../roster/" target="_blank" rel="noopener noreferrer"
-           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition flex items-center gap-1.5">
+           class="ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition flex items-center gap-1.5">
           <i class="fa-solid fa-users text-xs"></i>
           <span class="ctec-btn-label-full" data-i18n="navViewRosterFull">XEM ROSTER</span>
           <span class="ctec-btn-label-short" data-i18n="navViewRosterShort">DS</span>
         </a>
         <a href="../fund/" target="_blank" rel="noopener noreferrer"
-           class="ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition flex items-center gap-1.5">
+           class="ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition flex items-center gap-1.5">
           <i class="fa-solid fa-wallet text-xs"></i>
           <span class="ctec-btn-label-full" data-i18n="navViewFundFull">XEM FUND</span>
           <span class="ctec-btn-label-short" data-i18n="navViewFundShort">QUỸ</span>
         </a>
         <button id="logoutBtn" type="button" onclick="logoutAdmin()"
-                class="hidden ctec-nav-btn px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-800/70 transition flex items-center gap-1.5 cursor-pointer">
+                class="hidden ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-800/70 transition flex items-center gap-1.5 cursor-pointer">
           <i class="fa-solid fa-right-from-bracket text-xs"></i>
           <span class="ctec-btn-label-full" data-i18n="navLockFull">KHÓA</span>
           <span class="ctec-btn-label-short" data-i18n="navLockShort">KHÓA</span>
         </button>
         <button type="button" data-theme-toggle onclick="CTEC.toggleTheme()" aria-pressed="false"
-                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+                class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
           <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
           <span data-theme-label class="ctec-btn-label-full">TỐI</span>
           <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
         </button>
         <button type="button" data-lang-toggle onclick="CTEC.toggleLang()" aria-pressed="false"
-                class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+                class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
           <i class="fa-solid fa-language text-amber-300 text-xs"></i>
           <span data-lang-label class="ctec-btn-label-full">EN</span>
           <span data-lang-label-short class="ctec-btn-label-short">EN</span>
@@ -109,7 +109,7 @@
   </header>
 
   <div class="ctec-page-shell flex-grow flex flex-col">
-    <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 transition-all"></div>
+    <div id="toastBanner" class="fixed bottom-5 right-5 left-5 sm:left-auto z-50 hidden sm:max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 transition-all"></div>
 
     <!-- GATE: MÀN HÌNH XÁC THỰC TOKEN -->
     <section id="authGate" class="flex-grow flex items-center justify-center px-4 py-12">
@@ -132,7 +132,7 @@
                      data-i18n-placeholder="tokenPlaceholder"
                      placeholder="Nhập mã bảo mật quản trị..."
                      class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-              <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+              <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer">
                 <i id="eyeIcon" class="fa-regular fa-eye"></i>
               </button>
             </div>
@@ -153,36 +153,36 @@
     </section>
 
     <!-- DASHBOARD: 2 SHEET NATIVE -->
-    <main id="adminWorkspace" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main id="adminWorkspace" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 self-start">
+        <div class="grid grid-cols-2 w-full sm:w-auto sm:inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
           <button id="tabBtnRoster" type="button" onclick="switchAdminTab('roster')"
-                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer">
+                  class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer">
             <i class="fa-solid fa-users"></i>
-            <span data-i18n="tabRoster">Sheet 1: Nhân sự (Roster)</span>
-            <span id="badgeRosterCount" class="px-2 py-0.5 text-[11px] rounded-full bg-white/20 text-white">0</span>
+            <span class="truncate" data-i18n="tabRoster">Sheet 1: Nhân sự (Roster)</span>
+            <span id="badgeRosterCount" class="px-2 py-0.5 text-[11px] rounded-full bg-white/20 text-white shrink-0">0</span>
           </button>
           <button id="tabBtnFund" type="button" onclick="switchAdminTab('fund')"
-                  class="px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
+                  class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
             <i class="fa-solid fa-wallet"></i>
-            <span data-i18n="tabFund">Sheet 2: Quỹ CLB (Fund)</span>
-            <span id="badgeFundCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700">0</span>
+            <span class="truncate" data-i18n="tabFund">Sheet 2: Quỹ CLB (Fund)</span>
+            <span id="badgeFundCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700 shrink-0">0</span>
           </button>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <button id="migrateWorkerBtn" type="button" onclick="migrateFromWorkerSheets()"
-                  class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 text-indigo-700 text-xs sm:text-sm font-bold border border-indigo-200 transition flex items-center gap-2 cursor-pointer">
+                  class="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 disabled:opacity-60 text-indigo-700 text-xs sm:text-sm font-bold border border-indigo-200 transition flex items-center gap-2 cursor-pointer">
             <i id="migrateWorkerIcon" class="fa-solid fa-cloud-arrow-down"></i>
             <span data-i18n="migrateWorkerBtn">Đồng bộ Sheet/Docs gốc</span>
           </button>
           <button type="button" onclick="loadAllAdminData()"
-                  class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-2 cursor-pointer">
+                  class="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold border border-slate-200 transition flex items-center gap-2 cursor-pointer">
             <i id="syncAllIcon" class="fa-solid fa-rotate"></i>
             <span data-i18n="reloadD1">Tải lại từ D1</span>
           </button>
           <button id="resetD1Btn" type="button" onclick="resetCurrentTabD1()"
-                  class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-700 text-xs sm:text-sm font-bold border border-red-200 transition flex items-center gap-2 cursor-pointer">
+                  class="px-3 sm:px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 disabled:opacity-60 text-red-700 text-xs sm:text-sm font-bold border border-red-200 transition flex items-center gap-2 cursor-pointer">
             <i id="resetD1Icon" class="fa-solid fa-trash-arrow-up"></i>
             <span data-i18n="resetD1Btn">Reset D1</span>
           </button>
@@ -205,14 +205,14 @@
             </span>
             <script>
               (function () {
-                const isEn = document.cookie.includes("ctec_lang=en") || localStorage.getItem("ctec_lang") === "en";
+                const isEn = /(?:^|;\s*)ctec_lang=en(?:;|$)/.test(document.cookie);
                 const pill = document.getElementById("rosterStatsPill");
                 if (pill && isEn) pill.textContent = "0 members";
               })();
             </script>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <button type="button" onclick="openSheetImportModal('roster')"
                     class="px-3.5 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
               <i class="fa-solid fa-file-import"></i>
@@ -232,13 +232,13 @@
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto relative">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
                   <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[210px]" data-i18n="colFullName">Họ và tên</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[250px]" data-i18n="colDeptFull">Ban (Department)</th>
+                  <th class="sticky-name-col bg-slate-900 py-3 px-4 border-r border-slate-700 min-w-[175px] sm:min-w-[210px]" data-i18n="colFullName">Họ và tên</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[240px]" data-i18n="colDeptFull">Ban (Department)</th>
                   <th class="py-3 px-4 border-r border-slate-800 min-w-[190px]" data-i18n="colRoleFull">Chức vụ (Role)</th>
                   <th class="py-3 px-4 border-r border-slate-800 min-w-[150px]" data-i18n="colStatus">Trạng thái</th>
                   <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
@@ -348,9 +348,9 @@
       </section>
     </main>
 
-    <!-- MODAL NHẬP DỮ LIỆU TỪ GOOGLE SHEET -->
-    <div id="sheetImportModal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="closeSheetImportModal()">
-      <div class="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4" onclick="event.stopPropagation()">
+    <!-- MODAL NHẬP DỮ LIỆU TỪ GOOGLE SHEET (DEF-14: backdrop-blur-sm + cuộn mobile) -->
+    <div id="sheetImportModal" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeSheetImportModal()">
+      <div class="w-full max-w-2xl max-h-[88vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 sm:p-6 space-y-4" onclick="event.stopPropagation()">
         <div class="flex items-start justify-between gap-3">
           <div>
             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
@@ -359,7 +359,7 @@
             <h3 id="sheetImportTitle" class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1.5">Nhập Roster từ Google Sheet</h3>
             <p id="sheetImportHint" class="text-xs text-slate-500 mt-1"></p>
           </div>
-          <button type="button" onclick="closeSheetImportModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer">
+          <button type="button" onclick="closeSheetImportModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer shrink-0">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
@@ -384,7 +384,7 @@
           <label for="sheetPasteArea" class="block text-xs font-bold text-slate-700" data-i18n="modalMethod2">
             Cách 2: Dán trực tiếp từ Google Sheets (Ctrl + C trên Sheet rồi Ctrl + V vào đây)
           </label>
-          <textarea id="sheetPasteArea" rows="7"
+          <textarea id="sheetPasteArea" rows="6"
                     placeholder="Dán dữ liệu TSV/CSV tại đây..."
                     class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
         </div>
