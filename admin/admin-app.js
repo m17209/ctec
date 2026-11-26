@@ -725,7 +725,7 @@ function openSheetImportModal(type) {
       : "Hỗ trợ tải từ link Google Sheets (đã bật chia sẻ xem) hoặc dán trực tiếp (cột: <code>STT, Họ và tên, Ban, T10/26..T5/27, Ghi chú</code>; tự đọc dòng hạn đóng nếu có).");
 
   document.getElementById("sheetPasteArea").placeholder = isRoster
-    ? "1\tNguyễn Văn A\tExecutive Board\tVice President\tOfficial\n2\tNguyễn Văn A\tBan Nội dung\tHead of Department\tOfficial"
+    ? "1\tNguyễn Văn A\tExcutive Board\tVice President\tOfficial\n2\tNguyễn Văn A\tBan Nội dung\tHead of Department\tOfficial"
     : "1\tNguyễn Văn A\tBan Nội dung\tPAID\tUNPAID\tUNPAID\tUNPAID\tUNPAID\tUNPAID\tUNPAID\tUNPAID\tGhi chú";
   document.getElementById("sheetImportModal").classList.remove("hidden");
 }
