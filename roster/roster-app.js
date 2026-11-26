@@ -32,11 +32,11 @@ const ROSTER_I18N = {
     allDeptsOption: "Tất cả các ban",
     deptLabels: {
       "EXCUTIVE BOARD": "Ban Chủ nhiệm",
-      "PUBLIC RELATIONS DEPARTMENT": "Ban Truyền thông",
-      "DESIGN DEPARTMENT": "Ban Thiết kế",
-      "CONTENT DEPARTMENT": "Ban Nội dung",
-      "HUMAN RESOURCES DEPARTMENT": "Ban Nhân sự",
-      "EVENT & EXTERNAL RELATIONS DEPARTMENT": "Ban Đối ngoại"
+      "PUBLIC RELATIONS": "Ban Truyền thông",
+      "DESIGN": "Ban Thiết kế",
+      "CONTENT": "Ban Nội dung",
+      "HUMAN RESOURCES": "Ban Nhân sự",
+      "EVENT & EXTERNAL RELATIONS": "Ban Đối ngoại"
     },
     roleLabels: {
       "president": "Chủ tịch",
@@ -84,11 +84,11 @@ const ROSTER_I18N = {
     allDeptsOption: "All Departments",
     deptLabels: {
       "EXCUTIVE BOARD": "Executive Board",
-      "PUBLIC RELATIONS DEPARTMENT": "Public Relations",
-      "DESIGN DEPARTMENT": "Design",
-      "CONTENT DEPARTMENT": "Content",
-      "HUMAN RESOURCES DEPARTMENT": "Human Resources",
-      "EVENT & EXTERNAL RELATIONS DEPARTMENT": "External Relations"
+      "PUBLIC RELATIONS": "Public Relations",
+      "DESIGN": "Design",
+      "CONTENT": "Content",
+      "HUMAN RESOURCES": "Human Resources",
+      "EVENT & EXTERNAL RELATIONS": "External Relations"
     },
     roleLabels: {
       "president": "President",
@@ -224,11 +224,11 @@ function updateStats() {
   if (totalEl) totalEl.textContent = String(stats.people);
 
   document.getElementById("cntExec").textContent = c["EXCUTIVE BOARD"] || 0;
-  document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS DEPARTMENT"] || 0;
-  document.getElementById("cntDesign").textContent = c["DESIGN DEPARTMENT"] || 0;
-  document.getElementById("cntContent").textContent = c["CONTENT DEPARTMENT"] || 0;
-  document.getElementById("cntHr").textContent = c["HUMAN RESOURCES DEPARTMENT"] || 0;
-  document.getElementById("cntEvent").textContent = c["EVENT & EXTERNAL RELATIONS DEPARTMENT"] || 0;
+  document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS"] || 0;
+  document.getElementById("cntDesign").textContent = c["DESIGN"] || 0;
+  document.getElementById("cntContent").textContent = c["CONTENT"] || 0;
+  document.getElementById("cntHr").textContent = c["HUMAN RESOURCES"] || 0;
+  document.getElementById("cntEvent").textContent = c["EVENT & EXTERNAL RELATIONS"] || 0;
 
   renderDeptChart(c);
 }
