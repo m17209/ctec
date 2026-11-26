@@ -17,7 +17,7 @@ const ROSTER_I18N = {
     wheelHint: "Kéo hoặc cuộn",
     wheelDone: "Xong",
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
-    headcountNote: "* Quân số thực tế đã khử trùng thành viên kiêm nhiệm (giữ tính trùng Trưởng/Phó ban thuộc Ban Chủ nhiệm); thẻ ban hiển thị lượt nhân sự theo từng ban.",
+    headcountNote: "* Quân số tính theo người (một người giữ nhiều ban chỉ tính một lần). Số ở thẻ ban và biểu đồ là số người của từng ban, nên Trưởng ban thuộc Ban Chủ nhiệm được tính ở cả Ban Chủ nhiệm và ban mình phụ trách.",
     chartHint: "Chọn một ban để lọc",
     headcountLabel: "Quân số",
     deptExecShort: "Ban Chủ nhiệm",
@@ -80,7 +80,7 @@ const ROSTER_I18N = {
     wheelHint: "Drag or scroll",
     wheelDone: "Done",
     chartTitle: "Personnel Distribution & Dept Stats",
-    headcountNote: "* Headcount deduplicates cross-department members (retaining Dept Leads in Executive Board); department cards show total role assignments per department.",
+    headcountNote: "* Headcount counts each person once, even if listed in several departments. Department cards and the chart show each department\u2019s own members, so Executive Board members who head another department appear in both.",
     chartHint: "Click a department to filter",
     headcountLabel: "Headcount",
     deptExecShort: "Executive Board",
@@ -239,31 +239,19 @@ async function loadMembers() {
 }
 
 function updateStats() {
-  const c = {
-    "EXCUTIVE BOARD": 0,
-    "PUBLIC RELATIONS DEPARTMENT": 0,
-    "DESIGN DEPARTMENT": 0,
-    "CONTENT DEPARTMENT": 0,
-    "HUMAN RESOURCES DEPARTMENT": 0,
-    "EVENT & EXTERNAL RELATIONS DEPARTMENT": 0
-  };
-  for (const m of rawMembers) if (c[m.deptKey] !== undefined) c[m.deptKey]++;
+  // Quân số = số người duy nhất; số liệu từng ban = số người của ban đó (xem CTEC.getHeadcountStats)
+  const stats = CTEC.getHeadcountStats(rawMembers);
+  const c = stats.perDept;
 
   const totalEl = document.getElementById("totalCount");
-  if (totalEl) {
-    const count =
-      window.CTEC && typeof window.CTEC.countMembersWithLeadOverlap === "function"
-        ? window.CTEC.countMembersWithLeadOverlap(rawMembers)
-        : rawMembers.length;
-    totalEl.textContent = String(count);
-  }
+  if (totalEl) totalEl.textContent = String(stats.people);
 
-  document.getElementById("cntExec").textContent = c["EXCUTIVE BOARD"];
-  document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS DEPARTMENT"];
-  document.getElementById("cntDesign").textContent = c["DESIGN DEPARTMENT"];
-  document.getElementById("cntContent").textContent = c["CONTENT DEPARTMENT"];
-  document.getElementById("cntHr").textContent = c["HUMAN RESOURCES DEPARTMENT"];
-  document.getElementById("cntEvent").textContent = c["EVENT & EXTERNAL RELATIONS DEPARTMENT"];
+  document.getElementById("cntExec").textContent = c["EXCUTIVE BOARD"] || 0;
+  document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS DEPARTMENT"] || 0;
+  document.getElementById("cntDesign").textContent = c["DESIGN DEPARTMENT"] || 0;
+  document.getElementById("cntContent").textContent = c["CONTENT DEPARTMENT"] || 0;
+  document.getElementById("cntHr").textContent = c["HUMAN RESOURCES DEPARTMENT"] || 0;
+  document.getElementById("cntEvent").textContent = c["EVENT & EXTERNAL RELATIONS DEPARTMENT"] || 0;
 
   renderDeptChart(c);
 }
