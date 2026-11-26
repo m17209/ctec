@@ -5,11 +5,11 @@ window.CTEC = (() => {
 
   const DEPT_STYLES = {
     "EXCUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200",
-    "PUBLIC RELATIONS DEPARTMENT": "bg-sky-50 text-sky-700 border-sky-200",
-    "DESIGN DEPARTMENT": "bg-red-50 text-red-700 border-red-200",
-    "CONTENT DEPARTMENT": "bg-amber-50 text-amber-700 border-amber-200",
-    "HUMAN RESOURCES DEPARTMENT": "bg-emerald-50 text-emerald-700 border-emerald-200",
-    "EVENT & EXTERNAL RELATIONS DEPARTMENT": "bg-pink-50 text-pink-700 border-pink-200"
+    "PUBLIC RELATIONS": "bg-sky-50 text-sky-700 border-sky-200",
+    "DESIGN": "bg-red-50 text-red-700 border-red-200",
+    "CONTENT": "bg-amber-50 text-amber-700 border-amber-200",
+    "HUMAN RESOURCES": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "EVENT & EXTERNAL RELATIONS": "bg-pink-50 text-pink-700 border-pink-200"
   };
   const DEFAULT_DEPT_STYLE = "bg-slate-100 text-slate-700 border-slate-200";
 
@@ -194,14 +194,14 @@ window.CTEC = (() => {
   // 6 ban chuẩn của CTEC (giữ nguyên key "EXCUTIVE BOARD" đã lưu trong D1)
   const DEPT_KEYS = [
     "EXCUTIVE BOARD",
-    "PUBLIC RELATIONS DEPARTMENT",
-    "DESIGN DEPARTMENT",
-    "CONTENT DEPARTMENT",
-    "HUMAN RESOURCES DEPARTMENT",
-    "EVENT & EXTERNAL RELATIONS DEPARTMENT"
+    "PUBLIC RELATIONS",
+    "DESIGN",
+    "CONTENT",
+    "HUMAN RESOURCES",
+    "EVENT & EXTERNAL RELATIONS"
   ];
 
-  const DEFAULT_DEPT = "CONTENT DEPARTMENT";
+  const DEFAULT_DEPT = "CONTENT";
 
   const escapeHtml = (str) =>
     String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -234,16 +234,16 @@ window.CTEC = (() => {
     }
     // Public Relations phải xét trước External Relations (cùng chứa "relation")
     if (norm.includes("public relation") || norm.includes("media") || norm.includes("truyen thong")) {
-      return "PUBLIC RELATIONS DEPARTMENT";
+      return "PUBLIC RELATIONS";
     }
     if (norm.includes("human resource") || norm.includes("nhan su") || norm === "hr") {
-      return "HUMAN RESOURCES DEPARTMENT";
+      return "HUMAN RESOURCES";
     }
     if (norm.includes("design") || norm.includes("thiet ke")) {
-      return "DESIGN DEPARTMENT";
+      return "DESIGN";
     }
     if (norm.includes("content") || norm.includes("noi dung")) {
-      return "CONTENT DEPARTMENT";
+      return "CONTENT";
     }
     if (
       norm.includes("event") ||
@@ -252,7 +252,7 @@ window.CTEC = (() => {
       norm.includes("su kien") ||
       norm.includes("doi ngoai")
     ) {
-      return "EVENT & EXTERNAL RELATIONS DEPARTMENT";
+      return "EVENT & EXTERNAL RELATIONS";
     }
     return fallback;
   };
@@ -806,11 +806,11 @@ window.CTEC = (() => {
   /* ================= DỮ LIỆU DÙNG CHUNG CHO TRANG ADMIN ================= */
   const DEPARTMENTS = [
     { value: "EXCUTIVE BOARD", vi: "Ban Chủ nhiệm", en: "Executive Board", viShort: "Ban Chủ nhiệm", enShort: "Executive Board", color: "#6366f1" },
-    { value: "PUBLIC RELATIONS DEPARTMENT", vi: "Ban Truyền thông", en: "Public Relations Department", viShort: "Truyền thông", enShort: "Public Relations", color: "#0ea5e9" },
-    { value: "DESIGN DEPARTMENT", vi: "Ban Thiết kế", en: "Design Department", viShort: "Thiết kế", enShort: "Design", color: "#ef4444" },
-    { value: "CONTENT DEPARTMENT", vi: "Ban Nội dung", en: "Content Department", viShort: "Nội dung", enShort: "Content", color: "#f59e0b" },
-    { value: "HUMAN RESOURCES DEPARTMENT", vi: "Ban Nhân sự", en: "Human Resources Department", viShort: "Nhân sự", enShort: "Human Resources", color: "#10b981" },
-    { value: "EVENT & EXTERNAL RELATIONS DEPARTMENT", vi: "Ban Đối ngoại", en: "Event & External Relations Department", viShort: "Đối ngoại", enShort: "External Relations", color: "#ec4899" }
+    { value: "PUBLIC RELATIONS", vi: "Ban Truyền thông", en: "Public Relations Department", viShort: "Truyền thông", enShort: "Public Relations", color: "#0ea5e9" },
+    { value: "DESIGN", vi: "Ban Thiết kế", en: "Design Department", viShort: "Thiết kế", enShort: "Design", color: "#ef4444" },
+    { value: "CONTENT", vi: "Ban Nội dung", en: "Content Department", viShort: "Nội dung", enShort: "Content", color: "#f59e0b" },
+    { value: "HUMAN RESOURCES", vi: "Ban Nhân sự", en: "Human Resources Department", viShort: "Nhân sự", enShort: "Human Resources", color: "#10b981" },
+    { value: "EVENT & EXTERNAL RELATIONS", vi: "Ban Đối ngoại", en: "Event & External Relations Department", viShort: "Đối ngoại", enShort: "External Relations", color: "#ec4899" }
   ];
 
   const ROLES = [
