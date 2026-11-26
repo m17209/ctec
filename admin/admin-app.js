@@ -1,5 +1,3 @@
-const TOKEN_STORAGE_KEY = "ctec_admin_secret_token";
-
 const EXECUTIVE_DEPT = "EXCUTIVE BOARD";
 
 const DEPARTMENTS = CTEC.DEPARTMENTS;
@@ -18,12 +16,6 @@ const ADMIN_I18N = {
     navViewRosterShort: "DS",
     navViewFundFull: "XEM FUND",
     navViewFundShort: "QUỸ",
-    navLockFull: "KHÓA",
-    navLockShort: "KHÓA",
-    gateTitle: "Xác thực Quản trị viên",
-    gateDesc: 'Nhập <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-xs">ADMIN_SECRET_TOKEN</code> để mở khóa bảng điều khiển dữ liệu D1 của CTEC.',
-    tokenPlaceholder: "Nhập mã bảo mật quản trị...",
-    unlockBtn: "Mở khóa CTEC Administrator",
     tabRoster: "Sheet 1: Nhân sự (Roster)",
     tabFund: "Sheet 2: Quỹ CLB (Fund)",
     migrateWorkerBtn: "Đồng bộ Sheet/Docs gốc",
@@ -83,9 +75,6 @@ const ADMIN_I18N = {
     toastResetRosterDone: "Đã reset toàn bộ dữ liệu Roster trên D1!",
     toastResetFundDone: "Đã reset toàn bộ dữ liệu thành viên & hạn đóng Fund trên D1!",
     toastResetErr: (msg) => `Reset D1 thất bại: ${msg}`,
-    toastVerified: "Đã xác thực quyền quản trị thành công!",
-    toastAuthFail: (msg) => `Xác thực thất bại: ${msg}`,
-    toastLocked: "Đã khóa phiên quản trị.",
     toastLoadErr: (msg) => `Lỗi tải dữ liệu: ${msg}`,
     toastInvalidUrl: "Vui lòng nhập đường dẫn Google Sheets hợp lệ.",
     toastFetched: "Đã tải dữ liệu từ Google Sheet. Kiểm tra rồi nhấn Nạp vào bảng xem trước.",
@@ -117,12 +106,6 @@ const ADMIN_I18N = {
     navViewRosterShort: "ROSTER",
     navViewFundFull: "VIEW FUND",
     navViewFundShort: "FUND",
-    navLockFull: "LOCK",
-    navLockShort: "LOCK",
-    gateTitle: "Administrator Verification",
-    gateDesc: 'Enter <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-xs">ADMIN_SECRET_TOKEN</code> to unlock the CTEC D1 control panel.',
-    tokenPlaceholder: "Enter admin secret token...",
-    unlockBtn: "Unlock CTEC Administrator",
     tabRoster: "Sheet 1: Personnel (Roster)",
     tabFund: "Sheet 2: Club Treasury (Fund)",
     migrateWorkerBtn: "Sync Source Sheets/Docs",
@@ -182,9 +165,6 @@ const ADMIN_I18N = {
     toastResetRosterDone: "Reset all Roster data on D1!",
     toastResetFundDone: "Reset all Fund members & deadlines on D1!",
     toastResetErr: (msg) => `Reset D1 failed: ${msg}`,
-    toastVerified: "Administrator verified successfully!",
-    toastAuthFail: (msg) => `Verification failed: ${msg}`,
-    toastLocked: "Administrator session locked.",
     toastLoadErr: (msg) => `Data load error: ${msg}`,
     toastInvalidUrl: "Please enter a valid Google Sheets URL.",
     toastFetched: "Loaded data from Google Sheet. Review and click Load into Preview Table.",
@@ -213,7 +193,6 @@ const ADMIN_I18N = {
 
 const API_BASE = CTEC.API_BASE_URL;
 
-let adminToken = "";
 let rosterRows = [];
 let fundRows = [];
 let fundDeadlines = [0, 0, 0, 0, 0, 0, 0, 0];
@@ -354,86 +333,6 @@ function showToast(message, type = "success") {
   el._timer = setTimeout(() => el.classList.add("hidden"), 4500);
 }
 
-function toggleTokenVisibility() {
-  const input = document.getElementById("adminTokenInput");
-  const icon = document.getElementById("eyeIcon");
-  if (input.type === "password") {
-    input.type = "text";
-    icon.className = "fa-regular fa-eye-slash";
-  } else {
-    input.type = "password";
-    icon.className = "fa-regular fa-eye";
-  }
-}
-
-async function verifyTokenWithServer(token) {
-  const res = await fetch(`${API_BASE}/api/admin/verify`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json"
-    }
-  });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `HTTP ${res.status}`);
-  }
-  const data = await res.json();
-  if (data && data.ok === false) {
-    throw new Error(data.error || "Unauthorized");
-  }
-  return data;
-}
-
-async function handleVerify(e) {
-  e.preventDefault();
-  const input = document.getElementById("adminTokenInput");
-  const btn = document.getElementById("verifySubmitBtn");
-  const spinner = document.getElementById("verifySpinner");
-  const errBox = document.getElementById("authErrorBox");
-  const errText = document.getElementById("authErrorText");
-
-  const candidate = input.value.trim();
-  if (!candidate) return;
-
-  btn.disabled = true;
-  spinner.className = "fa-solid fa-spinner fa-spin";
-  errBox.classList.add("hidden");
-
-  try {
-    await verifyTokenWithServer(candidate);
-    adminToken = candidate;
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, adminToken);
-    unlockWorkspace();
-    await loadAllAdminData();
-    showToast(tAdmin().toastVerified, "success");
-  } catch (err) {
-    const msg = tAdmin().toastAuthFail(err.message);
-    errText.textContent = msg;
-    errBox.classList.remove("hidden");
-    showToast(msg, "error");
-  } finally {
-    btn.disabled = false;
-    spinner.className = "fa-solid fa-unlock-keyhole";
-  }
-}
-
-function unlockWorkspace() {
-  document.getElementById("authGate").classList.add("hidden");
-  document.getElementById("adminWorkspace").classList.remove("hidden");
-  document.getElementById("logoutBtn").classList.remove("hidden");
-}
-
-function logoutAdmin() {
-  adminToken = "";
-  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-  document.getElementById("adminTokenInput").value = "";
-  document.getElementById("adminWorkspace").classList.add("hidden");
-  document.getElementById("logoutBtn").classList.add("hidden");
-  document.getElementById("authGate").classList.remove("hidden");
-  showToast(tAdmin().toastLocked, "info");
-}
-
 function switchAdminTab(tab) {
   const isRoster = tab === "roster";
   document.getElementById("panelRoster").classList.toggle("hidden", !isRoster);
@@ -561,7 +460,6 @@ async function migrateFromWorkerSheets() {
     const res = await fetch(`${API_BASE}/api/admin/migrate-from-sheet`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${adminToken}`,
         "Content-Type": "application/json"
       }
     });
@@ -603,7 +501,6 @@ async function resetCurrentTabD1() {
       const res = await fetch(`${API_BASE}/api/admin/roster/save`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${adminToken}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ rows: [], roster: [], members: [], allowEmpty: true })
@@ -620,7 +517,6 @@ async function resetCurrentTabD1() {
       const res = await fetch(`${API_BASE}/api/admin/fund/save`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${adminToken}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -802,7 +698,6 @@ async function fetchFromGoogleSheetUrl() {
       const proxyRes = await fetch(
         `${API_BASE}/api/admin/fetch-sheet?url=${encodeURIComponent(targetUrl)}`,
         {
-          headers: { "Authorization": `Bearer ${adminToken}` },
           cache: "no-store"
         }
       );
@@ -1082,7 +977,6 @@ async function saveRosterToD1() {
     const res = await fetch(`${API_BASE}/api/admin/roster/save`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${adminToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ rows: cleanedRows, roster: cleanedRows, members: cleanedRows })
@@ -1323,7 +1217,6 @@ async function saveFundToD1() {
     const res = await fetch(`${API_BASE}/api/admin/fund/save`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${adminToken}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -1357,15 +1250,5 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyAdminI18n(e.detail.lang);
   });
 
-  const savedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-  if (savedToken) {
-    try {
-      await verifyTokenWithServer(savedToken);
-      adminToken = savedToken;
-      unlockWorkspace();
-      await loadAllAdminData();
-    } catch (_) {
-      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    }
-  }
+  await loadAllAdminData();
 });
