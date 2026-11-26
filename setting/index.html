@@ -1,1 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTEC — Cài đặt hệ thống</title>
 
+  <!-- Core CSS & JS dùng chung toàn web -->
+  <link rel="stylesheet" href="../assets/ctec-core.css" />
+  <script src="../assets/ctec-core.js"></script>
+
+  <!-- CSS riêng của trang Setting -->
+  <link rel="stylesheet" href="./setting-app.css" />
+</head>
+<body>
+  <header class="ctec-topbar">
+    <nav class="ctec-nav">
+      <a href="../index.html" class="ctec-brand">
+        <img src="../assets/logoctec.png" alt="CTEC Logo" class="ctec-brand-logo" />
+        <span>CTEC</span>
+      </a>
+      <div class="ctec-nav-links">
+        <a href="../index.html" data-i18n="nav.home">Trang chủ</a>
+        <a href="../admin/index.html" data-i18n="nav.admin">Quản trị</a>
+        <a href="../fund/index.html" data-i18n="nav.fund">Quỹ</a>
+        <a href="../roster/index.html" data-i18n="nav.roster">Nhân sự</a>
+        <a href="./index.html" data-i18n="nav.setting" aria-current="page" class="is-active">Cài đặt</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="ctec-setting-container">
+    <section class="ctec-setting-header">
+      <div>
+        <h1 class="ctec-setting-title" data-i18n="setting.title">Cài đặt hệ thống</h1>
+        <p class="ctec-setting-subtitle" data-i18n="setting.subtitle">
+          Tùy chỉnh ngôn ngữ và giao diện áp dụng cho toàn bộ cổng thông tin CTEC.
+        </p>
+      </div>
+      <span class="ctec-scope-pill" data-i18n="setting.scope.badge">
+        Phạm vi: Toàn bộ hệ thống (Global)
+      </span>
+    </section>
+
+    <section class="ctec-setting-grid">
+      <!-- Wheel Picker 1: Ngôn ngữ vi / en -->
+      <article class="ctec-setting-card">
+        <div>
+          <h2 data-i18n="setting.lang.label">Ngôn ngữ hiển thị</h2>
+          <p data-i18n="setting.lang.desc">Cuộn hoặc chạm để chuyển đổi Tiếng Việt / English trên tất cả phân hệ.</p>
+        </div>
+
+        <div class="ctec-wheel" id="wheel-lang" role="listbox" tabindex="0" aria-label="Language Wheel Picker">
+          <div class="ctec-wheel-highlight"></div>
+          <div class="ctec-wheel-track">
+            <div class="ctec-wheel-item" role="option" data-value="vi">🇻🇳 Tiếng Việt (VI)</div>
+            <div class="ctec-wheel-item" role="option" data-value="en">🇬🇧 English (EN)</div>
+          </div>
+          <div class="ctec-wheel-overlay"></div>
+        </div>
+      </article>
+
+      <!-- Wheel Picker 2: Giao diện Light / Dark -->
+      <article class="ctec-setting-card">
+        <div>
+          <h2 data-i18n="setting.theme.label">Chế độ giao diện</h2>
+          <p data-i18n="setting.theme.desc">Đồng bộ giao diện Sáng / Tối cho toàn bộ trang và các tab đang mở.</p>
+        </div>
+
+        <div class="ctec-wheel" id="wheel-theme" role="listbox" tabindex="0" aria-label="Theme Wheel Picker">
+          <div class="ctec-wheel-highlight"></div>
+          <div class="ctec-wheel-track">
+            <div class="ctec-wheel-item" role="option" data-value="light">☀️ Light Mode (Sáng)</div>
+            <div class="ctec-wheel-item" role="option" data-value="dark">🌙 Dark Mode (Tối)</div>
+          </div>
+          <div class="ctec-wheel-overlay"></div>
+        </div>
+      </article>
+    </section>
+
+    <div class="ctec-setting-toast" id="setting-toast" data-i18n="setting.status.saved">
+      Đã lưu & áp dụng toàn web
+    </div>
+  </main>
+
+  <!-- JS riêng của trang Setting -->
+  <script src="./setting-app.js"></script>
+</body>
+</html>
