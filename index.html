@@ -45,26 +45,28 @@
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
-  <header class="ctec-header shadow-lg">
-    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center gap-2 sm:gap-4">
-      <div class="ctec-brand flex items-center gap-2.5 sm:gap-3 min-w-0">
-        <a id="homeLink" href="./" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Trang chủ CTEC">
+<body class="min-h-screen flex flex-col">
+  <header class="ctec-header shadow-md">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <a id="homeLink" href="./" class="ctec-brand-tab" title="Trang chủ CTEC" aria-label="CTEC Workspace">
+        <span class="ctec-brand-logo">
           <img src="./assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
-        </a>
-        <h1 id="brandTitle" class="ctec-brand-title text-sm sm:text-xl font-bold tracking-tight truncate">CTEC Workspace</h1>
-      </div>
+        </span>
+        <span class="ctec-brand-text-wrap">
+          <span id="brandTitle" class="ctec-brand-title text-sm sm:text-base font-bold tracking-tight text-white">CTEC Workspace</span>
+        </span>
+      </a>
 
-      <nav aria-label="Liên kết nhanh chính" class="ctec-nav-group flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+      <nav aria-label="Liên kết nhanh chính" class="ctec-nav-group flex items-center gap-1.5 sm:gap-2 shrink-0">
         <a id="navRoster" href="./roster/"
-           class="ctec-nav-btn px-2.5 sm:px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition flex items-center gap-1.5 sm:gap-2">
-          <i class="fa-solid fa-users text-xs"></i>
+           class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-users text-[11px]"></i>
           <span class="ctec-btn-label-full" data-i18n="navRosterFull">DANH SÁCH</span>
           <span class="ctec-btn-label-short" data-i18n="navRosterShort">DS</span>
         </a>
         <a id="navFund" href="./fund/"
-           class="ctec-nav-btn px-2.5 sm:px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition flex items-center gap-1.5 sm:gap-2">
-          <i class="fa-solid fa-wallet text-xs"></i>
+           class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-wallet text-[11px]"></i>
           <span class="ctec-btn-label-full" data-i18n="navFundFull">TRA CỨU QUỸ</span>
           <span class="ctec-btn-label-short" data-i18n="navFundShort">QUỸ</span>
         </a>
@@ -72,8 +74,8 @@
                 data-theme-toggle
                 onclick="CTEC.toggleTheme()"
                 aria-pressed="false"
-                class="ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-          <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
+                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-slate-800/90 hover:bg-slate-700 text-slate-100 border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-[11px]"></i>
           <span data-theme-label class="ctec-btn-label-full">TỐI</span>
           <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
         </button>
@@ -81,8 +83,8 @@
                 data-lang-toggle
                 onclick="CTEC.toggleLang()"
                 aria-pressed="false"
-                class="ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold tracking-wide bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-language text-amber-300 text-xs"></i>
+                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-language text-amber-300 text-[11px]"></i>
           <span data-lang-label class="ctec-btn-label-full">EN</span>
           <span data-lang-label-short class="ctec-btn-label-short">EN</span>
         </button>
@@ -91,8 +93,8 @@
   </header>
 
   <div class="ctec-page-shell flex-grow flex flex-col">
-    <!-- Ảnh bìa & Hero Section (DEF-13 & Mobile Responsive) -->
-    <section class="relative w-full min-h-[340px] h-auto sm:h-[460px] lg:h-[520px] overflow-hidden bg-slate-900 flex items-center">
+    <!-- Ảnh bìa & Hero Section -->
+    <section class="ctec-hero-section relative w-full min-h-[340px] h-auto sm:h-[460px] lg:h-[520px] overflow-hidden flex items-center">
       <img
         src="./assets/DSC00205.jpg"
         alt="Ảnh bìa Câu lạc bộ Tiếng Anh THPT Châu Thành"
@@ -100,8 +102,9 @@
         decoding="async"
         class="absolute inset-0 w-full h-full object-cover object-center scale-[1.01]"
       >
-      <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/65 to-slate-900/30"></div>
-      <div class="hero-fade-bottom absolute inset-0 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-transparent to-slate-950/25"></div>
+      <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/60 to-slate-900/25"></div>
+      <div class="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/45 to-transparent pointer-events-none"></div>
+      <div class="hero-fade-bottom"></div>
 
       <div class="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div class="max-w-2xl text-white">
