@@ -17,6 +17,7 @@ const ROSTER_I18N = {
     wheelHint: "Kéo hoặc cuộn",
     wheelDone: "Xong",
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
+    headcountNote: "* Quân số thực tế đã khử trùng thành viên kiêm nhiệm (giữ tính trùng Trưởng/Phó ban thuộc Ban Chủ nhiệm); thẻ ban hiển thị lượt nhân sự theo từng ban.",
     chartHint: "Chọn một ban để lọc",
     headcountLabel: "Quân số",
     deptExecShort: "Ban Chủ nhiệm",
@@ -25,6 +26,7 @@ const ROSTER_I18N = {
     deptContentShort: "Nội dung",
     deptHrShort: "Nhân sự",
     deptEventShort: "Đối ngoại",
+    mobileSwipeHint: "Vuốt ngang để xem đầy đủ cột (cột Tên được ghim)",
     colNo: "STT",
     colName: "Họ và tên",
     colDept: "Ban",
@@ -78,6 +80,7 @@ const ROSTER_I18N = {
     wheelHint: "Drag or scroll",
     wheelDone: "Done",
     chartTitle: "Personnel Distribution & Dept Stats",
+    headcountNote: "* Headcount deduplicates cross-department members (retaining Dept Leads in Executive Board); department cards show total role assignments per department.",
     chartHint: "Click a department to filter",
     headcountLabel: "Headcount",
     deptExecShort: "Executive Board",
@@ -86,6 +89,7 @@ const ROSTER_I18N = {
     deptContentShort: "Content",
     deptHrShort: "Human Resources",
     deptEventShort: "External Relations",
+    mobileSwipeHint: "Swipe horizontally to view all columns (Name column is pinned)",
     colNo: "No.",
     colName: "Full Name",
     colDept: "Department",
@@ -127,25 +131,20 @@ function getRosterDeptOptions(lang) {
   const t = ROSTER_I18N[lang] || ROSTER_I18N.vi;
   return [
     { value: "ALL", label: t.allDeptsOption },
-    { value: "EXCUTIVE BOARD", label: t.deptLabels["EXCUTIVE BOARD"] },
-    { value: "PUBLIC RELATIONS DEPARTMENT", label: t.deptLabels["PUBLIC RELATIONS DEPARTMENT"] },
-    { value: "DESIGN DEPARTMENT", label: t.deptLabels["DESIGN DEPARTMENT"] },
-    { value: "CONTENT DEPARTMENT", label: t.deptLabels["CONTENT DEPARTMENT"] },
-    { value: "HUMAN RESOURCES DEPARTMENT", label: t.deptLabels["HUMAN RESOURCES DEPARTMENT"] },
-    { value: "EVENT & EXTERNAL RELATIONS DEPARTMENT", label: t.deptLabels["EVENT & EXTERNAL RELATIONS DEPARTMENT"] }
+    ...CTEC.DEPARTMENTS.map(d => ({
+      value: d.value,
+      label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, true)
+    }))
   ];
 }
 
 function getDeptChartMeta(lang) {
   const t = ROSTER_I18N[lang] || ROSTER_I18N.vi;
-  return [
-    { key: "EXCUTIVE BOARD", label: t.deptLabels["EXCUTIVE BOARD"], color: "#4f46e5" },
-    { key: "PUBLIC RELATIONS DEPARTMENT", label: t.deptLabels["PUBLIC RELATIONS DEPARTMENT"], color: "#0284c7" },
-    { key: "DESIGN DEPARTMENT", label: t.deptLabels["DESIGN DEPARTMENT"], color: "#dc2626" },
-    { key: "CONTENT DEPARTMENT", label: t.deptLabels["CONTENT DEPARTMENT"], color: "#d97706" },
-    { key: "HUMAN RESOURCES DEPARTMENT", label: t.deptLabels["HUMAN RESOURCES DEPARTMENT"], color: "#059669" },
-    { key: "EVENT & EXTERNAL RELATIONS DEPARTMENT", label: t.deptLabels["EVENT & EXTERNAL RELATIONS DEPARTMENT"], color: "#db2777" }
-  ];
+  return CTEC.DEPARTMENTS.map(d => ({
+    key: d.value,
+    label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, true),
+    color: d.color
+  }));
 }
 
 function translateRole(rawRole, lang) {
@@ -252,7 +251,6 @@ function updateStats() {
 
   const totalEl = document.getElementById("totalCount");
   if (totalEl) {
-    // BUG-05 + Quy tắc đếm Trưởng/Phó ban kiêm nhiệm Ban Chủ nhiệm
     const count =
       window.CTEC && typeof window.CTEC.countMembersWithLeadOverlap === "function"
         ? window.CTEC.countMembersWithLeadOverlap(rawMembers)
@@ -317,7 +315,7 @@ function renderDeptChart(counts) {
               const val = ctx.parsed || 0;
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-              return lang === "en" ? ` ${val} members (${pct}%)` : ` ${val} thành viên (${pct}%)`;
+              return lang === "en" ? ` ${val} role entries (${pct}%)` : ` ${val} lượt nhân sự (${pct}%)`;
             }
           }
         }
@@ -339,12 +337,13 @@ function setFilter(dept) {
   renderTable();
 }
 
+// DEF-06: Đồng bộ nhận diện Trưởng/Phó ban với CTEC.isDeptLeadTag()
 const getRoleHtml = (m, lang) => {
   const label = CTEC.escapeHtml(translateRole(m.role, lang));
   if (m.roleLower.includes("president") || m.roleLower.includes("chủ tịch")) {
     return `<span class="font-bold text-indigo-700">${label}</span>`;
   }
-  if (m.roleLower.includes("head") || m.roleLower.includes("trưởng ban")) {
+  if (CTEC.isDeptLeadTag(m.role)) {
     return `<span class="font-semibold text-slate-900">${label}</span>`;
   }
   return `<span class="text-slate-600">${label}</span>`;
@@ -373,12 +372,12 @@ function renderTable() {
     idx++;
     const deptDisplay = t.deptLabels[m.deptKey] || m.dept;
     rows.push(
-      `<tr class="hover:bg-slate-50 transition duration-150">` +
-        `<td class="py-3.5 px-4 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${idx}</td>` +
-        `<td class="py-3.5 px-6 font-semibold text-slate-800 border-r border-slate-100 whitespace-nowrap">${CTEC.escapeHtml(m.name)}</td>` +
-        `<td class="py-3.5 px-6 border-r border-slate-100 whitespace-nowrap">${CTEC.renderDeptBadge(m.deptKey, deptDisplay)}</td>` +
-        `<td class="py-3.5 px-6 text-center border-r border-slate-100 whitespace-nowrap">${getRoleHtml(m, lang)}</td>` +
-        `<td class="py-3.5 px-6 text-center whitespace-nowrap">${getStatusHtml(m, lang)}</td>` +
+      `<tr class="group hover:bg-slate-50 transition duration-150">` +
+        `<td class="py-3.5 px-3 sm:px-4 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${idx}</td>` +
+        `<td class="sticky-name-col py-3.5 px-4 sm:px-6 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap transition duration-150">${CTEC.escapeHtml(m.name)}</td>` +
+        `<td class="py-3.5 px-5 sm:px-6 border-r border-slate-100 whitespace-nowrap">${CTEC.renderDeptBadge(m.deptKey, deptDisplay)}</td>` +
+        `<td class="py-3.5 px-5 sm:px-6 text-center border-r border-slate-100 whitespace-nowrap">${getRoleHtml(m, lang)}</td>` +
+        `<td class="py-3.5 px-5 sm:px-6 text-center whitespace-nowrap">${getStatusHtml(m, lang)}</td>` +
       `</tr>`
     );
   }
@@ -390,7 +389,13 @@ function renderTable() {
 const getExportRows = () => {
   const lang = CTEC.getSavedLang();
   const t = ROSTER_I18N[lang] || ROSTER_I18N.vi;
-  return rawMembers.map((m, i) => [
+  const searchVal = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
+  const filtered = rawMembers.filter(m => {
+    if (currentFilter !== "ALL" && m.deptKey !== currentFilter) return false;
+    if (searchVal && !m.nameLower.includes(searchVal)) return false;
+    return true;
+  });
+  return filtered.map((m, i) => [
     i + 1,
     m.name,
     t.deptLabels[m.deptKey] || m.dept,
