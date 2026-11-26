@@ -56,7 +56,7 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif;
 }
 
-/* Header & Thin Navigation Bar with Expandable Trapezoid Brand Tab */
+/* Header & Navigation Bar with Expandable Rounded-Rectangle Brand Tab */
 .ctec-header {
   position: relative;
   z-index: 30;
@@ -82,49 +82,30 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   display: inline-flex;
   align-items: center;
   height: calc(var(--ctec-bar-h) + var(--ctec-tab-drop));
-  padding: 0 11px;
-  margin-left: 10px;
+  padding: 0 12px;
+  margin-left: 0;
   background-color: var(--ctec-tab-bg);
   color: #ffffff;
   text-decoration: none;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  /* drop-shadow đi theo toàn bộ hình (thân tab + 2 mép xiên) nên không bị lệch */
-  filter: drop-shadow(0 7px 8px rgba(2, 6, 23, 0.4));
+  border-radius: 0 0 12px 12px;
   transition:
     padding 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    margin-left 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius 0.34s cubic-bezier(0.22, 1, 0.36, 1),
     background-color 0.25s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Mép xiên hai bên: cùng màu với thân tab, dùng clip-path (cạnh sắc nét, không răng cưa),
-   chồng 1px vào thân tab và 1px lên viền dưới header để không còn khe hở. */
-.ctec-brand-tab::before,
+/* Đổ bóng chỉ áp dụng cho phần tab nhô xuống dưới thanh ngang, không đè lên dải header */
 .ctec-brand-tab::after {
   content: "";
   position: absolute;
+  top: var(--ctec-bar-h);
+  left: 0;
+  right: 0;
   bottom: 0;
-  width: calc(var(--ctec-tab-drop) + 1px);
-  height: calc(var(--ctec-tab-drop) + 1px);
-  background: var(--ctec-tab-bg);
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 6px 8px -3px rgba(2, 6, 23, 0.34);
   pointer-events: none;
-  transition:
-    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.24s ease;
-}
-
-/* Left angled edge in collapsed trapezoid state */
-.ctec-brand-tab::before {
-  right: calc(100% - 1px);
-  clip-path: polygon(0 0, 100% 0, 100% 100%);
-}
-
-/* Right angled edge (remains sloped in both collapsed and expanded states) */
-.ctec-brand-tab::after {
-  left: calc(100% - 1px);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+  z-index: -1;
 }
 
 .ctec-brand-logo {
@@ -163,18 +144,10 @@ h1, h2, h3, .ctec-brand-title, .font-display {
 .ctec-brand-tab:hover,
 .ctec-brand-tab:focus-visible,
 .ctec-brand-tab.is-expanded {
-  padding-left: 13px;
-  padding-right: 12px;
+  padding-left: 12px;
+  padding-right: 14px;
   margin-left: 0;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 0;
-}
-
-.ctec-brand-tab:hover::before,
-.ctec-brand-tab:focus-visible::before,
-.ctec-brand-tab.is-expanded::before {
-  width: 0;
-  opacity: 0;
+  border-radius: 0 0 12px 12px;
 }
 
 .ctec-brand-tab:hover .ctec-brand-logo,
@@ -213,7 +186,7 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   position: sticky;
   left: 0;
   z-index: 10;
-  box-shadow: 2px 0 6px -2px rgba(15, 23, 42, 0.12);
+  box-shadow: 2px 0 6px -2px rgba(15, 23, 42, 0.08);
 }
 
 html.dark .sticky-name-col {
@@ -225,7 +198,7 @@ html.dark tr.group:hover .sticky-name-col {
   background-color: #1e293b !important;
 }
 
-/* Dark Mode Surface Layering (tránh bẹt màu) */
+/* Dark Mode Surface Layering */
 html.dark,
 html.dark body {
   background-color: var(--page-bg) !important;
