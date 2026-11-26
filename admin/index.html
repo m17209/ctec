@@ -86,12 +86,6 @@
           <span class="ctec-btn-label-full" data-i18n="navViewFundFull">XEM FUND</span>
           <span class="ctec-btn-label-short" data-i18n="navViewFundShort">QUỸ</span>
         </a>
-        <button id="logoutBtn" type="button" onclick="logoutAdmin()"
-                class="hidden ctec-nav-btn px-2.5 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-bold bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-800/70 transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-right-from-bracket text-xs"></i>
-          <span class="ctec-btn-label-full" data-i18n="navLockFull">KHÓA</span>
-          <span class="ctec-btn-label-short" data-i18n="navLockShort">KHÓA</span>
-        </button>
         <button type="button" data-theme-toggle onclick="CTEC.toggleTheme()" aria-pressed="false"
                 class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
           <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
@@ -111,49 +105,8 @@
   <div class="ctec-page-shell flex-grow flex flex-col">
     <div id="toastBanner" class="fixed bottom-5 right-5 left-5 sm:left-auto z-50 hidden sm:max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 transition-all"></div>
 
-    <!-- GATE: MÀN HÌNH XÁC THỰC TOKEN -->
-    <section id="authGate" class="flex-grow flex items-center justify-center px-4 py-12">
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
-        <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xl mb-5">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight" data-i18n="gateTitle">Xác thực Quản trị viên</h2>
-        <p class="mt-2 text-sm text-slate-500 leading-relaxed" data-i18n-html="gateDesc">
-          Nhập <code class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-mono text-xs">ADMIN_SECRET_TOKEN</code> để mở khóa bảng điều khiển dữ liệu D1 của CTEC.
-        </p>
-
-        <form id="verifyForm" onsubmit="handleVerify(event)" class="mt-6 space-y-4">
-          <div>
-            <label for="adminTokenInput" class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-              Admin Secret Token
-            </label>
-            <div class="relative">
-              <input id="adminTokenInput" type="password" required autocomplete="current-password"
-                     data-i18n-placeholder="tokenPlaceholder"
-                     placeholder="Nhập mã bảo mật quản trị..."
-                     class="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-              <button type="button" onclick="toggleTokenVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer">
-                <i id="eyeIcon" class="fa-regular fa-eye"></i>
-              </button>
-            </div>
-          </div>
-
-          <div id="authErrorBox" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 flex items-center gap-2">
-            <i class="fa-solid fa-circle-exclamation"></i>
-            <span id="authErrorText">Token không hợp lệ hoặc máy chủ từ chối truy cập.</span>
-          </div>
-
-          <button id="verifySubmitBtn" type="submit"
-                  class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition flex items-center justify-center gap-2 cursor-pointer">
-            <i id="verifySpinner" class="fa-solid fa-unlock-keyhole"></i>
-            <span data-i18n="unlockBtn">Mở khóa CTEC Administrator</span>
-          </button>
-        </form>
-      </div>
-    </section>
-
     <!-- DASHBOARD: 2 SHEET NATIVE -->
-    <main id="adminWorkspace" class="hidden flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <main id="adminWorkspace" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div class="grid grid-cols-2 w-full sm:w-auto sm:inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
           <button id="tabBtnRoster" type="button" onclick="switchAdminTab('roster')"
