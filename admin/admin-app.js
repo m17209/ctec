@@ -1,37 +1,13 @@
-
-
-
-Biểu tượng JS
-admin-app
 const TOKEN_STORAGE_KEY = "ctec_admin_secret_token";
 
 const EXECUTIVE_DEPT = "EXCUTIVE BOARD";
 
-const DEPARTMENTS = [
-  { value: EXECUTIVE_DEPT, vi: "Ban Chủ nhiệm (Executive Board)", en: "Executive Board" },
-  { value: "PUBLIC RELATIONS DEPARTMENT", vi: "Ban Truyền thông (PR)", en: "Public Relations Department" },
-  { value: "DESIGN DEPARTMENT", vi: "Ban Thiết kế (Design)", en: "Design Department" },
-  { value: "CONTENT DEPARTMENT", vi: "Ban Nội dung (Content)", en: "Content Department" },
-  { value: "HUMAN RESOURCES DEPARTMENT", vi: "Ban Nhân sự (HR)", en: "Human Resources Department" },
-  { value: "EVENT & EXTERNAL RELATIONS DEPARTMENT", vi: "Ban Đối ngoại (Event & External)", en: "Event & External Relations" }
-];
+const DEPARTMENTS = CTEC.DEPARTMENTS;
+const ROLES = CTEC.ROLES;
+const MEMBER_STATUSES = CTEC.MEMBER_STATUSES;
 
-const ROLES = [
-  "President",
-  "Vice President",
-  "Head of Department",
-  "Deputy Head of Department",
-  "Member"
-];
-
-const MEMBER_STATUSES = [
-  "Official",
-  "Probationary",
-  "Inactive"
-];
-
-const FUND_MONTH_LABELS_VI = ["T10/26", "T11/26", "T12/26", "T1/27", "T2/27", "T3/27", "T4/27", "T5/27"];
-const FUND_MONTH_LABELS_EN = ["Oct 26", "Nov 26", "Dec 26", "Jan 27", "Feb 27", "Mar 27", "Apr 27", "May 27"];
+const FUND_MONTH_LABELS_VI = CTEC.FUND_MONTHS_VI;
+const FUND_MONTH_LABELS_EN = CTEC.FUND_MONTHS_EN;
 const STATUS_CYCLE = ["UNPAID", "PAID", "DEBT"];
 
 const ADMIN_I18N = {
@@ -113,7 +89,7 @@ const ADMIN_I18N = {
     toastLoadErr: (msg) => `Lỗi tải dữ liệu: ${msg}`,
     toastInvalidUrl: "Vui lòng nhập đường dẫn Google Sheets hợp lệ.",
     toastFetched: "Đã tải dữ liệu từ Google Sheet. Kiểm tra rồi nhấn Nạp vào bảng xem trước.",
-    toastFetchErr: (msg) => `Không tải được link Sheet (hãy kiểm tra quyền chia sẻ công khai): ${msg}`,
+    toastFetchErr: (msg) => `Không tải được tự động do CORS/quyền truy cập (${msg}). Hãy mở Sheet, nhấn Ctrl+A -> Ctrl+C và dán trực tiếp vào ô Cách 2 bên dưới.`,
     toastNoPaste: "Chưa có dữ liệu hợp lệ để nhập.",
     toastNoRosterRows: "Không tìm thấy dòng thành viên hợp lệ trong dữ liệu dán.",
     toastImportedRoster: (people, roles) =>
@@ -212,7 +188,7 @@ const ADMIN_I18N = {
     toastLoadErr: (msg) => `Data load error: ${msg}`,
     toastInvalidUrl: "Please enter a valid Google Sheets URL.",
     toastFetched: "Loaded data from Google Sheet. Review and click Load into Preview Table.",
-    toastFetchErr: (msg) => `Failed to fetch Sheet link (check public view sharing): ${msg}`,
+    toastFetchErr: (msg) => `Auto-fetch blocked by CORS/permissions (${msg}). Open the Sheet, press Ctrl+A -> Ctrl+C, and paste directly into Method 2 below.`,
     toastNoPaste: "No valid data to import.",
     toastNoRosterRows: "No valid member rows found in pasted data.",
     toastImportedRoster: (people, roles) =>
@@ -235,7 +211,7 @@ const ADMIN_I18N = {
   }
 };
 
-const API_BASE = window.CTEC?.API_BASE_URL || "https://nameless-mud-298a.minhlesynhat.workers.dev";
+const API_BASE = CTEC.API_BASE_URL;
 
 let adminToken = "";
 let rosterRows = [];
@@ -259,9 +235,7 @@ function getMonthLabels() {
 }
 
 function getDeptLabel(deptKey) {
-  const lang = CTEC.getSavedLang();
-  const found = DEPARTMENTS.find(d => d.value === deptKey);
-  return found ? (lang === "en" ? found.en : found.vi) : deptKey;
+  return CTEC.getDeptLabel(deptKey, CTEC.getSavedLang(), false);
 }
 
 function normalizeDocKey(str) {
@@ -373,11 +347,11 @@ function showToast(message, type = "success") {
     error: "fa-triangle-exclamation",
     info: "fa-circle-info"
   };
-  el.className = `fixed bottom-5 right-5 z-50 max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 ${styles[type] || styles.info}`;
-  el.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${CTEC.escapeHtml(message)}</span>`;
+  el.className = `fixed bottom-5 right-5 left-5 sm:left-auto z-50 sm:max-w-sm px-4 py-3 rounded-xl shadow-xl border text-sm font-semibold flex items-center gap-2.5 ${styles[type] || styles.info}`;
+  el.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} shrink-0"></i><span>${CTEC.escapeHtml(message)}</span>`;
   el.classList.remove("hidden");
   clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.classList.add("hidden"), 3800);
+  el._timer = setTimeout(() => el.classList.add("hidden"), 4500);
 }
 
 function toggleTokenVisibility() {
@@ -469,11 +443,11 @@ function switchAdminTab(tab) {
   const btnF = document.getElementById("tabBtnFund");
 
   if (isRoster) {
-    btnR.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer";
-    btnF.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 cursor-pointer";
+    btnR.className = "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer";
+    btnF.className = "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 text-slate-600 hover:text-slate-900 cursor-pointer";
   } else {
-    btnF.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-emerald-600 text-white shadow-sm cursor-pointer";
-    btnR.className = "px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center gap-2 text-slate-600 hover:text-slate-900 cursor-pointer";
+    btnF.className = "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 bg-emerald-600 text-white shadow-sm cursor-pointer";
+    btnR.className = "px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 text-slate-600 hover:text-slate-900 cursor-pointer";
   }
 }
 
@@ -485,7 +459,7 @@ function normalizeMonthStatus(val) {
 }
 
 function normalizeDeptSmart(rawDept) {
-  return CTEC.normalizeDeptKey(rawDept || "CONTENT DEPARTMENT");
+  return CTEC.normalizeDeptKey(rawDept || CTEC.DEFAULT_DEPT);
 }
 
 function normalizeRoleSmart(rawRole) {
@@ -511,26 +485,15 @@ function normalizeMemberStatusSmart(rawStatus) {
 }
 
 function normalizeMemberName(name) {
-  return CTEC.normalizeMemberName
-    ? CTEC.normalizeMemberName(name)
-    : String(name ?? "").trim().replace(/\s+/g, " ");
+  return CTEC.normalizeMemberName(name);
 }
 
 function buildMemberNameKey(name) {
-  return CTEC.buildMemberNameKey
-    ? CTEC.buildMemberNameKey(name)
-    : normalizeMemberName(name).toLowerCase();
+  return CTEC.buildMemberNameKey(name);
 }
 
 function countUniquePeople(rows) {
-  if (CTEC.countUniquePeople) return CTEC.countUniquePeople(rows);
-  const unique = new Set();
-  if (!Array.isArray(rows)) return 0;
-  for (let i = 0; i < rows.length; i++) {
-    const key = buildMemberNameKey(rows[i]?.name ?? rows[i]?.full_name);
-    if (key) unique.add(key);
-  }
-  return unique.size;
+  return CTEC.countUniquePeople(rows);
 }
 
 function mergeMonthStatusArrays(baseMonths, extraMonths) {
@@ -573,7 +536,7 @@ function findSameDeptDuplicates(rows) {
   rows.forEach((row, idx) => {
     const name = normalizeMemberName(row.name);
     if (!name) return;
-    const dept = CTEC.normalizeDeptKey(row.dept || "CONTENT DEPARTMENT");
+    const dept = CTEC.normalizeDeptKey(row.dept || CTEC.DEFAULT_DEPT);
     const key = `${dept}::${name.toLowerCase()}`;
     if (seen.has(key)) {
       duplicates.push(`- ${name} (${getDeptLabel(dept)})`);
@@ -702,7 +665,7 @@ async function loadAllAdminData() {
       rosterRows = rosterList.map((m, idx) => ({
         id: m.id ?? idx + 1,
         name: normalizeMemberName(m.name ?? m.full_name),
-        dept: CTEC.normalizeDeptKey(m.dept || m.department || "CONTENT DEPARTMENT"),
+        dept: CTEC.normalizeDeptKey(m.dept || m.department || CTEC.DEFAULT_DEPT),
         role: String(m.role ?? "Member").trim(),
         status: String(m.status ?? "Official").trim()
       })).filter(r => r.name.length > 0);
@@ -715,7 +678,7 @@ async function loadAllAdminData() {
         const name = normalizeMemberName(m.name ?? m.full_name);
         const nameKey = buildMemberNameKey(name);
         if (!nameKey) return;
-        const dept = CTEC.normalizeDeptKey(m.dept || m.department || "CONTENT DEPARTMENT");
+        const dept = CTEC.normalizeDeptKey(m.dept || m.department || CTEC.DEFAULT_DEPT);
         const pairKey = `${nameKey}||${dept}`;
 
         const rawMonths = Array.isArray(m.months)
@@ -744,7 +707,7 @@ async function loadAllAdminData() {
     }
 
     if (Array.isArray(fundPayload.deadlines)) {
-      fundDeadlines = Array.from({ length: 8 }, (_, i) => Math.max(0, Math.min(31, parseInt(fundPayload.deadlines[i], 10) || 0)));
+      fundDeadlines = Array.from({ length: 8 }, (_, i) => CTEC.parseDeadlineDay(fundPayload.deadlines[i]));
     }
 
     const rawBankObj = fundPayload.bankInfo || fundPayload.bank_info;
@@ -817,6 +780,7 @@ function convertGoogleSheetUrlToCsv(inputUrl) {
   return u;
 }
 
+// DEF-11: Thử tải qua Worker proxy trước (nếu có), sau đó fallback direct fetch và hướng dẫn dán TSV nếu bị CORS
 async function fetchFromGoogleSheetUrl() {
   const rawUrl = document.getElementById("sheetUrlInput").value.trim();
   const targetUrl = convertGoogleSheetUrlToCsv(rawUrl);
@@ -831,9 +795,44 @@ async function fetchFromGoogleSheetUrl() {
   icon.className = "fa-solid fa-spinner fa-spin";
 
   try {
-    const res = await fetch(targetUrl, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
+    let text = "";
+    let fetchedViaProxy = false;
+
+    try {
+      const proxyRes = await fetch(
+        `${API_BASE}/api/admin/fetch-sheet?url=${encodeURIComponent(targetUrl)}`,
+        {
+          headers: { "Authorization": `Bearer ${adminToken}` },
+          cache: "no-store"
+        }
+      );
+      if (proxyRes.ok) {
+        const contentType = proxyRes.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const json = await proxyRes.json();
+          if (json && typeof json.csv === "string") {
+            text = json.csv;
+            fetchedViaProxy = true;
+          }
+        } else {
+          text = await proxyRes.text();
+          fetchedViaProxy = true;
+        }
+      }
+    } catch (_) {
+      // Proxy endpoint chưa khả dụng -> thử tải trực tiếp
+    }
+
+    if (!fetchedViaProxy) {
+      const res = await fetch(targetUrl, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      text = await res.text();
+    }
+
+    if (!text || !text.trim()) {
+      throw new Error("Empty sheet response");
+    }
+
     document.getElementById("sheetPasteArea").value = text;
     showToast(tAdmin().toastFetched, "success");
   } catch (err) {
@@ -900,7 +899,8 @@ function applySheetImportToDraft() {
       const c = rows[i];
       const firstThree = c.slice(0, 3).join(" ").toLowerCase();
       if (firstThree.includes("deadline") || firstThree.includes("hạn đóng") || firstThree.includes("kỳ hạn")) {
-        importedDeadlines = Array.from({ length: 8 }, (_, m) => parseInt(String(c[3 + m] ?? "").replace(/\D/g, ""), 10) || 0);
+        // DEF-08: Dùng thống nhất CTEC.parseDeadlineDay()
+        importedDeadlines = Array.from({ length: 8 }, (_, m) => CTEC.parseDeadlineDay(c[3 + m]));
         continue;
       }
 
@@ -942,10 +942,14 @@ function applySheetImportToDraft() {
     combinedFund.forEach((item, idx) => {
       const nameKey = buildMemberNameKey(item.name);
       if (!nameKey) return;
-      const dept = CTEC.normalizeDeptKey(item.dept || "CONTENT DEPARTMENT");
+      const dept = CTEC.normalizeDeptKey(item.dept || CTEC.DEFAULT_DEPT);
       const key = `${nameKey}||${dept}`;
       if (!dedupedFundMap.has(key)) {
-        dedupedFundMap.set(key, { ...item, dept, id: item.id ?? Date.now() + idx });
+        dedupedFundMap.set(key, {
+          ...item,
+          id: item.id ?? Date.now() + idx,
+          dept
+        });
       } else {
         const prev = dedupedFundMap.get(key);
         prev.months = mergeMonthStatusArrays(prev.months, item.months);
@@ -963,122 +967,116 @@ function applySheetImportToDraft() {
   }
 }
 
-/* ================= ROSTER EDITOR ================= */
+/* ================= SHEET 1: ROSTER EDITOR ================= */
 function renderRosterEditor() {
   const t = tAdmin();
   const lang = CTEC.getSavedLang();
-  const q = document.getElementById("rosterSearchInput").value.toLowerCase().trim();
+  const filter = (document.getElementById("rosterSearchInput").value || "").toLowerCase().trim();
   updateRosterCountBadges();
 
   const tbody = document.getElementById("rosterEditorBody");
-  const html = [];
-
-  for (let realIdx = 0; realIdx < rosterRows.length; realIdx++) {
-    const row = rosterRows[realIdx];
-    if (q) {
-      const hay = `${row.name} ${row.dept} ${row.role}`.toLowerCase();
-      if (!hay.includes(q)) continue;
-    }
-
-    const deptOptions = DEPARTMENTS.map(d =>
-      `<option value="${d.value}" ${row.dept === d.value ? "selected" : ""}>${CTEC.escapeHtml(lang === "en" ? d.en : d.vi)}</option>`
-    ).join("");
-
-    const roleLower = row.role.toLowerCase();
-    const roleOptions = ROLES.map(r =>
-      `<option value="${r}" ${roleLower === r.toLowerCase() ? "selected" : ""}>${CTEC.escapeHtml(r)}</option>`
-    ).join("");
-    const hasCustomRole = !ROLES.some(r => r.toLowerCase() === roleLower);
-
-    const statusLower = row.status.toLowerCase();
-    const statusOptions = MEMBER_STATUSES.map(s =>
-      `<option value="${s}" ${statusLower === s.toLowerCase() ? "selected" : ""}>${CTEC.escapeHtml(s)}</option>`
-    ).join("");
-
-    html.push(
-      `<tr class="hover:bg-slate-50/80">` +
-        `<td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>` +
-        `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<input type="text" data-row-idx="${realIdx}" data-field="roster-name" value="${CTEC.escapeHtml(row.name)}" ` +
-                 `oninput="handleRosterNameInput(${realIdx}, this.value)" ` +
-                 `placeholder="${CTEC.escapeHtml(t.namePlaceholder)}" ` +
-                 `class="sheet-cell-input font-semibold text-slate-800">` +
-        `</td>` +
-        `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<select onchange="rosterRows[${realIdx}].dept = this.value" class="sheet-cell-input font-medium text-slate-700 cursor-pointer">${deptOptions}</select>` +
-        `</td>` +
-        `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<select onchange="rosterRows[${realIdx}].role = this.value" class="sheet-cell-input font-medium text-slate-700 cursor-pointer">` +
-            `${hasCustomRole && row.role ? `<option value="${CTEC.escapeHtml(row.role)}" selected>${CTEC.escapeHtml(row.role)}</option>` : ""}` +
-            `${roleOptions}` +
-          `</select>` +
-        `</td>` +
-        `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<select onchange="rosterRows[${realIdx}].status = this.value" class="sheet-cell-input font-semibold text-slate-700 cursor-pointer">${statusOptions}</select>` +
-        `</td>` +
-        `<td class="py-1.5 px-2 text-center">` +
-          `<button type="button" onclick="deleteRosterRow(${realIdx})" title="${CTEC.escapeHtml(t.deleteTitle)}" ` +
-                  `class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition inline-flex items-center justify-center cursor-pointer">` +
-            `<i class="fa-solid fa-trash-can text-xs"></i>` +
-          `</button>` +
-        `</td>` +
-      `</tr>`
-    );
+  if (!rosterRows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyRoster)}</td></tr>`;
+    return;
   }
 
-  tbody.innerHTML = html.length
-    ? html.join("")
-    : `<tr><td colspan="6" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyRoster)}</td></tr>`;
+  const html = [];
+  rosterRows.forEach((row, realIdx) => {
+    if (filter && !row.name.toLowerCase().includes(filter)) return;
+
+    const deptOptions = DEPARTMENTS.map(d => {
+      const label = lang === "en" ? d.en : d.vi;
+      return `<option value="${d.value}" ${row.dept === d.value ? "selected" : ""}>${CTEC.escapeHtml(label)}</option>`;
+    }).join("");
+
+    const roleOptions = ROLES.map(r =>
+      `<option value="${r}" ${row.role === r ? "selected" : ""}>${CTEC.escapeHtml(r)}</option>`
+    ).join("");
+
+    const statusOptions = MEMBER_STATUSES.map(st =>
+      `<option value="${st}" ${row.status === st ? "selected" : ""}>${CTEC.escapeHtml(st)}</option>`
+    ).join("");
+
+    html.push(`
+      <tr class="group hover:bg-slate-50/80 transition">
+        <td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>
+        <td class="sticky-name-col bg-white group-hover:bg-slate-50/80 py-1.5 px-2 border-r border-slate-200 transition">
+          <input type="text" data-row-idx="${realIdx}" data-field="name" value="${CTEC.escapeHtml(row.name)}"
+                 oninput="handleRosterNameInput(${realIdx}, this.value)"
+                 placeholder="${CTEC.escapeHtml(t.namePlaceholder)}"
+                 class="sheet-cell-input font-semibold text-slate-800">
+        </td>
+        <td class="py-1.5 px-2 border-r border-slate-100">
+          <select onchange="rosterRows[${realIdx}].dept = this.value" class="sheet-cell-input font-medium text-slate-700 cursor-pointer">
+            ${deptOptions}
+          </select>
+        </td>
+        <td class="py-1.5 px-2 border-r border-slate-100">
+          <select onchange="rosterRows[${realIdx}].role = this.value" class="sheet-cell-input font-medium text-slate-700 cursor-pointer">
+            ${roleOptions}
+          </select>
+        </td>
+        <td class="py-1.5 px-2 border-r border-slate-100">
+          <select onchange="rosterRows[${realIdx}].status = this.value" class="sheet-cell-input font-semibold text-slate-700 cursor-pointer">
+            ${statusOptions}
+          </select>
+        </td>
+        <td class="py-1.5 px-2 text-center">
+          <button type="button" onclick="deleteRosterRow(${realIdx})" title="${CTEC.escapeHtml(t.deleteTitle)}"
+                  class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition inline-flex items-center justify-center cursor-pointer">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.join("");
 }
 
 function addRosterRow() {
   rosterRows.push({
     id: Date.now(),
     name: "",
-    dept: "CONTENT DEPARTMENT",
+    dept: CTEC.DEFAULT_DEPT,
     role: "Member",
     status: "Official"
   });
   document.getElementById("rosterSearchInput").value = "";
   renderRosterEditor();
   const tbody = document.getElementById("rosterEditorBody");
-  const lastInput = tbody.querySelector("tr:last-child input");
+  const lastInput = tbody.querySelector("tr:last-child input[type='text']");
   if (lastInput) lastInput.focus();
 }
 
-function deleteRosterRow(idx) {
-  const target = rosterRows[idx];
+function deleteRosterRow(realIdx) {
+  const target = rosterRows[realIdx];
   if (!target) return;
   if (!confirm(tAdmin().confirmDelete(target.name))) return;
-  rosterRows.splice(idx, 1);
+  rosterRows.splice(realIdx, 1);
   renderRosterEditor();
 }
 
 async function saveRosterToD1() {
-  const cleaned = [];
-  for (let idx = 0; idx < rosterRows.length; idx++) {
-    const r = rosterRows[idx];
-    const name = normalizeMemberName(r.name);
-    if (!name) continue;
-    const dept = CTEC.normalizeDeptKey(r.dept);
-    cleaned.push({
-      sort_order: cleaned.length + 1,
-      name,
-      full_name: name,
-      dept,
-      department: dept,
-      role: String(r.role ?? "Member").trim() || "Member",
-      status: String(r.status ?? "Official").trim() || "Official"
-    });
-  }
-
-  const sameDeptDupes = findSameDeptDuplicates(cleaned);
-  if (sameDeptDupes.length > 0 && !confirm(tAdmin().confirmDuplicateSameDept(sameDeptDupes))) {
-    return;
-  }
-
+  const t = tAdmin();
   const btn = document.getElementById("saveRosterBtn");
   btn.disabled = true;
+
+  const cleanedRows = rosterRows
+    .map((r, idx) => ({
+      id: r.id ?? idx + 1,
+      name: normalizeMemberName(r.name),
+      dept: CTEC.normalizeDeptKey(r.dept || CTEC.DEFAULT_DEPT),
+      role: String(r.role ?? "Member").trim() || "Member",
+      status: String(r.status ?? "Official").trim() || "Official"
+    }))
+    .filter(r => r.name.length > 0);
+
+  const sameDeptDups = findSameDeptDuplicates(cleanedRows);
+  if (sameDeptDups.length > 0 && !confirm(t.confirmDuplicateSameDept(sameDeptDups))) {
+    btn.disabled = false;
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/api/admin/roster/save`, {
@@ -1087,36 +1085,35 @@ async function saveRosterToD1() {
         "Authorization": `Bearer ${adminToken}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ rows: cleaned, roster: cleaned, members: cleaned, allowEmpty: cleaned.length === 0 })
+      body: JSON.stringify({ rows: cleanedRows, roster: cleanedRows, members: cleanedRows })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) {
       throw new Error(data.error || `HTTP ${res.status}`);
     }
-    rosterRows = cleaned;
+    rosterRows = cleanedRows;
     renderRosterEditor();
     showToast(
-      tAdmin().toastSavedRoster(countUniquePeople(cleaned), cleaned.length),
+      t.toastSavedRoster(countUniquePeople(cleanedRows), cleanedRows.length),
       "success"
     );
   } catch (err) {
-    showToast(tAdmin().toastSaveRosterErr(err.message), "error");
+    showToast(t.toastSaveRosterErr(err.message), "error");
   } finally {
     btn.disabled = false;
   }
 }
 
-/* ================= FUND EDITOR ================= */
+/* ================= SHEET 2: FUND EDITOR ================= */
 function renderDeadlinesEditor() {
-  const grid = document.getElementById("deadlinesGrid");
-  if (!grid) return;
   const labels = getMonthLabels();
+  const grid = document.getElementById("deadlinesGrid");
   grid.innerHTML = labels.map((label, idx) => `
     <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
-      <span class="text-xs font-bold text-slate-700">${label}</span>
-      <input type="number" min="0" max="31" value="${fundDeadlines[idx] || 0}"
+      <span class="text-xs font-bold text-slate-700">${CTEC.escapeHtml(label)}</span>
+      <input type="number" min="0" max="31" value="${fundDeadlines[idx] ?? 0}"
              onchange="fundDeadlines[${idx}] = Math.max(0, Math.min(31, parseInt(this.value, 10) || 0)); this.value = fundDeadlines[${idx}];"
-             class="w-14 px-2 py-1 text-center text-xs font-extrabold rounded border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+             class="w-16 px-2 py-1 text-center text-xs font-bold bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
     </div>
   `).join("");
 }
@@ -1129,198 +1126,164 @@ function renderBankInfoEditor() {
 }
 
 function renderFundEditorHeader() {
-  const head = document.getElementById("fundEditorHead");
-  if (!head) return;
   const t = tAdmin();
   const labels = getMonthLabels();
-  const mCols = labels.map(m =>
-    `<th class="py-3 px-2.5 text-center border-r border-slate-800 min-w-[92px]">${CTEC.escapeHtml(m)}</th>`
+  const monthCols = labels.map(m =>
+    `<th class="py-3 px-2.5 text-center border-r border-slate-800 min-w-[82px]">${CTEC.escapeHtml(m)}</th>`
   ).join("");
-  head.innerHTML =
-    `<tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">` +
-      `<th class="py-3 px-3 text-center w-12 border-r border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
-      `<th class="sticky-name-col bg-slate-900 py-3 px-4 border-r border-slate-700 min-w-[180px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
-      `<th class="py-3 px-4 border-r border-slate-800 min-w-[200px]">${CTEC.escapeHtml(t.colDept)}</th>` +
-      `${mCols}` +
-      `<th class="py-3 px-4 border-r border-slate-800 min-w-[200px]">${CTEC.escapeHtml(t.colNoteFull)}</th>` +
-      `<th class="py-3 px-3 text-center w-16">${CTEC.escapeHtml(t.colDelete)}</th>` +
-    `</tr>`;
+
+  document.getElementById("fundEditorHead").innerHTML = `
+    <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+      <th class="py-3 px-3 text-center w-12 border-r border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>
+      <th class="sticky-name-col bg-slate-900 py-3 px-4 border-r border-slate-700 min-w-[165px] sm:min-w-[190px]">${CTEC.escapeHtml(t.colFullName)}</th>
+      <th class="py-3 px-4 border-r border-slate-800 min-w-[190px]">${CTEC.escapeHtml(t.colDept)}</th>
+      ${monthCols}
+      <th class="py-3 px-3 border-r border-slate-800 min-w-[180px]">${CTEC.escapeHtml(t.colNoteFull)}</th>
+      <th class="py-3 px-3 text-center w-14">${CTEC.escapeHtml(t.colDelete)}</th>
+    </tr>
+  `;
 }
 
-function getStatusPillStyle(status) {
-  if (status === "PAID") {
-    return {
-      cls: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100",
-      label: "PAID"
-    };
-  }
-  if (status === "DEBT") {
-    return {
-      cls: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
-      label: "DEBT"
-    };
-  }
-  return {
-    cls: "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100",
-    label: "UNPAID"
-  };
-}
-
-function cycleFundMonthStatus(rowIdx, monthIdx) {
-  const current = fundRows[rowIdx].months[monthIdx] || "UNPAID";
-  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(current) + 1) % STATUS_CYCLE.length];
-  fundRows[rowIdx].months[monthIdx] = next;
-
-  const btn = document.getElementById(`fund-cell-${rowIdx}-${monthIdx}`);
-  if (btn) {
-    const st = getStatusPillStyle(next);
-    btn.className = `status-pill-btn inline-flex items-center justify-center w-20 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${st.cls}`;
-    btn.textContent = st.label;
-  }
-}
-
-function deleteFundRow(idx) {
-  const target = fundRows[idx];
-  if (!target) return;
-  if (!confirm(tAdmin().confirmDeleteFund(target.name))) return;
-  fundRows.splice(idx, 1);
-  renderFundEditor();
+function getStatusPillClass(st) {
+  if (st === "PAID") return "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100";
+  if (st === "DEBT") return "bg-red-50 text-red-700 border-red-200 hover:bg-red-100";
+  return "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100";
 }
 
 function renderFundEditor() {
   const t = tAdmin();
-  const q = document.getElementById("fundSearchInput").value.toLowerCase().trim();
-  document.getElementById("badgeFundCount").textContent = countUniquePeople(fundRows);
-
-  const tbody = document.getElementById("fundEditorBody");
-  const html = [];
-
-  for (let realIdx = 0; realIdx < fundRows.length; realIdx++) {
-    const row = fundRows[realIdx];
-    const rowDept = CTEC.normalizeDeptKey(row.dept || "CONTENT DEPARTMENT");
-    const personDepts = [rowDept];
-
-    if (q) {
-      const hay = `${row.name} ${personDepts.join(" ")} ${row.note || ""}`.toLowerCase();
-      if (!hay.includes(q)) continue;
-    }
-
-    const deptBadgesHtml = personDepts
-      .map(d => CTEC.renderDeptBadge(d, getDeptLabel(d)))
-      .join(" ");
-
-    const monthCells = row.months.map((stCode, mIdx) => {
-      const st = getStatusPillStyle(stCode);
-      return `<td class="py-2 px-2 text-center border-r border-slate-100">` +
-        `<button id="fund-cell-${realIdx}-${mIdx}" type="button" ` +
-                `onclick="cycleFundMonthStatus(${realIdx}, ${mIdx})" ` +
-                `class="status-pill-btn inline-flex items-center justify-center w-20 py-1 rounded-full text-[11px] font-bold border cursor-pointer ${st.cls}">${st.label}</button>` +
-      `</td>`;
-    }).join("");
-
-    html.push(
-      `<tr class="group hover:bg-slate-50 border-b border-slate-100">` +
-        `<td class="py-2.5 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>` +
-        `<td class="sticky-name-col bg-white group-hover:bg-slate-50 py-2.5 px-4 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap">${CTEC.escapeHtml(row.name)}</td>` +
-        `<td class="py-2.5 px-4 border-r border-slate-100 whitespace-nowrap"><div class="flex flex-wrap items-center gap-1">${deptBadgesHtml}</div></td>` +
-        `${monthCells}` +
-        `<td class="py-1.5 px-2 border-r border-slate-100">` +
-          `<input type="text" data-row-idx="${realIdx}" data-field="fund-note" value="${CTEC.escapeHtml(row.note || "")}" ` +
-                 `oninput="fundRows[${realIdx}].note = this.value" ` +
-                 `placeholder="${CTEC.escapeHtml(t.notePlaceholder)}" ` +
-                 `class="sheet-cell-input text-xs text-slate-600">` +
-        `</td>` +
-        `<td class="py-1.5 px-2 text-center">` +
-          `<button type="button" onclick="deleteFundRow(${realIdx})" title="${CTEC.escapeHtml(t.deleteTitle)}" ` +
-                  `class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition inline-flex items-center justify-center cursor-pointer">` +
-            `<i class="fa-solid fa-trash-can text-xs"></i>` +
-          `</button>` +
-        `</td>` +
-      `</tr>`
-    );
+  const filter = (document.getElementById("fundSearchInput").value || "").toLowerCase().trim();
+  const uniqueFundPeople = countUniquePeople(fundRows.filter(r => buildMemberNameKey(r.name).length > 0));
+  const badgeFundEl = document.getElementById("badgeFundCount");
+  if (badgeFundEl) {
+    badgeFundEl.textContent = uniqueFundPeople;
+    badgeFundEl.title = t.rosterSummary(uniqueFundPeople, fundRows.length);
   }
 
-  tbody.innerHTML = html.length
-    ? html.join("")
-    : `<tr><td colspan="13" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyFund)}</td></tr>`;
+  const tbody = document.getElementById("fundEditorBody");
+  if (!fundRows.length) {
+    tbody.innerHTML = `<tr><td colspan="13" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyFund)}</td></tr>`;
+    return;
+  }
+
+  const html = [];
+  fundRows.forEach((row, realIdx) => {
+    if (filter && !row.name.toLowerCase().includes(filter)) return;
+
+    const monthButtons = row.months.map((st, mIdx) => `
+      <td class="py-2 px-2 text-center border-r border-slate-100">
+        <button type="button" onclick="cycleFundCellStatus(${realIdx}, ${mIdx})"
+                class="status-pill-btn w-full py-1 px-2 rounded-full text-[11px] font-bold border cursor-pointer ${getStatusPillClass(st)}">
+          ${CTEC.escapeHtml(st)}
+        </button>
+      </td>
+    `).join("");
+
+    html.push(`
+      <tr class="group hover:bg-slate-50/80 transition">
+        <td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>
+        <td class="sticky-name-col bg-white group-hover:bg-slate-50/80 py-2 px-4 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap transition">${CTEC.escapeHtml(row.name)}</td>
+        <td class="py-2 px-4 border-r border-slate-100 whitespace-nowrap">${CTEC.renderDeptBadge(row.dept, getDeptLabel(row.dept))}</td>
+        ${monthButtons}
+        <td class="py-1.5 px-2 border-r border-slate-100">
+          <input type="text" data-row-idx="${realIdx}" data-field="note" value="${CTEC.escapeHtml(row.note || "")}"
+                 oninput="fundRows[${realIdx}].note = this.value"
+                 placeholder="${CTEC.escapeHtml(t.notePlaceholder)}"
+                 class="sheet-cell-input text-xs text-slate-600">
+        </td>
+        <td class="py-1.5 px-2 text-center">
+          <button type="button" onclick="deleteFundRow(${realIdx})" title="${CTEC.escapeHtml(t.deleteTitle)}"
+                  class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition inline-flex items-center justify-center cursor-pointer">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = html.join("");
+}
+
+function deleteFundRow(realIdx) {
+  const target = fundRows[realIdx];
+  if (!target) return;
+  if (!confirm(tAdmin().confirmDeleteFund(target.name))) return;
+  fundRows.splice(realIdx, 1);
+  renderFundEditor();
+}
+
+function cycleFundCellStatus(rowIdx, monthIdx) {
+  const row = fundRows[rowIdx];
+  if (!row) return;
+  const curr = normalizeMonthStatus(row.months[monthIdx]);
+  const nextIdx = (STATUS_CYCLE.indexOf(curr) + 1) % STATUS_CYCLE.length;
+  row.months[monthIdx] = STATUS_CYCLE[nextIdx];
+  renderFundEditor();
 }
 
 function syncMembersFromRosterToFund() {
   const pruneMissing = Boolean(document.getElementById("pruneMissingOnSyncCheckbox")?.checked);
-  const existingByPersonDept = new Map();
-  const statusByPerson = new Map();
+  const existingByPair = new Map();
+  const existingByName = new Map();
 
-  for (let i = 0; i < fundRows.length; i++) {
-    const name = normalizeMemberName(fundRows[i].name);
-    const nameKey = buildMemberNameKey(name);
-    if (!nameKey) continue;
-    const dept = CTEC.normalizeDeptKey(fundRows[i].dept || "CONTENT DEPARTMENT");
+  fundRows.forEach(item => {
+    const nameKey = buildMemberNameKey(item.name);
+    if (!nameKey) return;
+    const dept = CTEC.normalizeDeptKey(item.dept || CTEC.DEFAULT_DEPT);
+    existingByPair.set(`${nameKey}||${dept}`, item);
+    if (!existingByName.has(nameKey)) {
+      existingByName.set(nameKey, item);
+    }
+  });
+
+  const rosterAssignments = new Map();
+  rosterRows.forEach(m => {
+    const cleanName = normalizeMemberName(m.name);
+    const nameKey = buildMemberNameKey(cleanName);
+    if (!nameKey) return;
+    const dept = CTEC.normalizeDeptKey(m.dept || CTEC.DEFAULT_DEPT);
     const pairKey = `${nameKey}||${dept}`;
-    const months = Array.from({ length: 8 }, (_, m) => normalizeMonthStatus(fundRows[i].months?.[m]));
-    const note = String(fundRows[i].note ?? "").trim();
-
-    if (!existingByPersonDept.has(pairKey)) {
-      existingByPersonDept.set(pairKey, {
-        ...fundRows[i],
-        name,
-        dept,
-        months,
-        note
-      });
-    } else {
-      const prev = existingByPersonDept.get(pairKey);
-      prev.months = mergeMonthStatusArrays(prev.months, months);
-      if (note && !prev.note.includes(note)) {
-        prev.note = prev.note ? `${prev.note}; ${note}` : note;
-      }
+    if (!rosterAssignments.has(pairKey)) {
+      rosterAssignments.set(pairKey, { name: cleanName, nameKey, dept, pairKey });
     }
-
-    if (!statusByPerson.has(nameKey)) {
-      statusByPerson.set(nameKey, { months: [...months], note });
-    } else {
-      const prevPerson = statusByPerson.get(nameKey);
-      prevPerson.months = mergeMonthStatusArrays(prevPerson.months, months);
-      if (note && !prevPerson.note.includes(note)) {
-        prevPerson.note = prevPerson.note ? `${prevPerson.note}; ${note}` : note;
-      }
-    }
-  }
+  });
 
   const merged = [];
-  const seenKeys = new Set();
+  let idxCounter = 0;
 
-  for (let idx = 0; idx < rosterRows.length; idx++) {
-    const r = rosterRows[idx];
-    const name = normalizeMemberName(r.name);
-    const nameKey = buildMemberNameKey(name);
-    if (!nameKey) continue;
-    const dept = CTEC.normalizeDeptKey(r.dept || "CONTENT DEPARTMENT");
-    const pairKey = `${nameKey}||${dept}`;
-    if (seenKeys.has(pairKey)) continue;
-
-    seenKeys.add(pairKey);
-    const oldRow = existingByPersonDept.get(pairKey);
-    const personFallback = statusByPerson.get(nameKey);
-
-    if (oldRow) {
-      oldRow.name = name;
-      oldRow.dept = dept;
-      merged.push(oldRow);
-      existingByPersonDept.delete(pairKey);
-    } else {
+  rosterAssignments.forEach(({ name, nameKey, dept, pairKey }) => {
+    idxCounter++;
+    const matched = existingByPair.get(pairKey) || existingByName.get(nameKey);
+    if (matched) {
       merged.push({
-        id: Date.now() + idx,
+        id: matched.id ?? idxCounter,
         name,
         dept,
-        months: personFallback ? [...personFallback.months] : ["UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID"],
-        note: personFallback?.note || ""
+        months: Array.from({ length: 8 }, (_, i) => normalizeMonthStatus(matched.months?.[i])),
+        note: String(matched.note ?? "").trim()
+      });
+    } else {
+      merged.push({
+        id: Date.now() + idxCounter,
+        name,
+        dept,
+        months: ["UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID", "UNPAID"],
+        note: ""
       });
     }
-  }
+  });
 
-  const removedCount = pruneMissing ? existingByPersonDept.size : 0;
+  let removedCount = 0;
   if (!pruneMissing) {
-    existingByPersonDept.forEach(leftover => merged.push(leftover));
+    existingByPair.forEach((item, pairKey) => {
+      if (!rosterAssignments.has(pairKey)) {
+        merged.push(item);
+      }
+    });
+  } else {
+    existingByPair.forEach((_, pairKey) => {
+      if (!rosterAssignments.has(pairKey)) removedCount++;
+    });
   }
 
   fundRows = merged;
@@ -1329,77 +1292,32 @@ function syncMembersFromRosterToFund() {
 }
 
 async function saveFundToD1() {
+  const t = tAdmin();
+  const btn = document.getElementById("saveFundBtn");
+  btn.disabled = true;
+
   const accountNumber = document.getElementById("bankStkInput").value.trim();
   const bankName = document.getElementById("bankNameInput").value.trim();
   const accountName = document.getElementById("bankAccountNameInput").value.trim();
   const qrHtml10k = document.getElementById("bankQrInput").value.trim();
-  const preservedRawHtml = String(bankInfo?.rawHtml || "");
 
   const hasStructuredBank = Boolean(accountNumber || bankName || accountName || qrHtml10k);
-  const currentBankInfo = hasStructuredBank
-    ? {
-        accountNumber,
-        bankName,
-        accountName,
-        qrHtml10k,
-        ...(preservedRawHtml ? { rawHtml: preservedRawHtml } : {})
-      }
-    : preservedRawHtml
-      ? { rawHtml: preservedRawHtml }
-      : {
-          accountNumber: "",
-          bankName: "",
-          accountName: "",
-          qrHtml10k: ""
-        };
-  bankInfo = {
+  // DEF-07: Khi đã nhập thông tin ngân hàng có cấu trúc, xóa rawHtml cũ (rawHtml: "") để không ghi đè dữ liệu mới
+  const updatedBankInfo = {
     accountNumber,
     bankName,
     accountName,
     qrHtml10k,
-    rawHtml: preservedRawHtml
+    rawHtml: hasStructuredBank ? "" : String(bankInfo.rawHtml || "").trim()
   };
 
-  const cleanedMembers = [];
-  for (let idx = 0; idx < fundRows.length; idx++) {
-    const f = fundRows[idx];
-    const name = normalizeMemberName(f.name);
-    if (!name) continue;
-    const dept = CTEC.normalizeDeptKey(f.dept);
-    const months = Array.from({ length: 8 }, (_, m) => normalizeMonthStatus(f.months[m]));
-    cleanedMembers.push({
-      sort_order: cleanedMembers.length + 1,
-      name,
-      full_name: name,
-      dept,
-      department: dept,
-      months,
-      m0: months[0],
-      m1: months[1],
-      m2: months[2],
-      m3: months[3],
-      m4: months[4],
-      m5: months[5],
-      m6: months[6],
-      m7: months[7],
-      note: String(f.note ?? "").trim()
-    });
-  }
-
-  const normalizedDeadlines = fundDeadlines.map(d => Math.max(0, Math.min(31, parseInt(d, 10) || 0)));
-
-  const payload = {
-    rows: cleanedMembers,
-    members: cleanedMembers,
-    fund: cleanedMembers,
-    deadlines: normalizedDeadlines,
-    bankInfo: currentBankInfo,
-    bank_info: currentBankInfo,
-    allowEmpty: cleanedMembers.length === 0
-  };
-
-  const btn = document.getElementById("saveFundBtn");
-  btn.disabled = true;
+  const payloadMembers = fundRows.map((r, idx) => ({
+    id: r.id ?? idx + 1,
+    name: normalizeMemberName(r.name),
+    dept: CTEC.normalizeDeptKey(r.dept || CTEC.DEFAULT_DEPT),
+    months: Array.from({ length: 8 }, (_, i) => normalizeMonthStatus(r.months[i])),
+    note: String(r.note ?? "").trim()
+  })).filter(r => r.name.length > 0);
 
   try {
     const res = await fetch(`${API_BASE}/api/admin/fund/save`, {
@@ -1408,23 +1326,36 @@ async function saveFundToD1() {
         "Authorization": `Bearer ${adminToken}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        rows: payloadMembers,
+        members: payloadMembers,
+        fund: payloadMembers,
+        deadlines: fundDeadlines,
+        bankInfo: updatedBankInfo
+      })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) {
       throw new Error(data.error || `HTTP ${res.status}`);
     }
-    showToast(tAdmin().toastSavedFund, "success");
+    bankInfo = updatedBankInfo;
+    fundRows = payloadMembers;
+    renderFundEditor();
+    showToast(t.toastSavedFund, "success");
   } catch (err) {
-    showToast(tAdmin().toastSaveFundErr(err.message), "error");
+    showToast(t.toastSaveFundErr(err.message), "error");
   } finally {
     btn.disabled = false;
   }
 }
 
+/* ================= KHỞI TẠO ================= */
 document.addEventListener("DOMContentLoaded", async () => {
   applyAdminI18n(CTEC.getSavedLang());
-  window.addEventListener("ctec:langchange", e => applyAdminI18n(e.detail.lang));
+
+  window.addEventListener("ctec:langchange", e => {
+    applyAdminI18n(e.detail.lang);
+  });
 
   const savedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
   if (savedToken) {
@@ -1438,4 +1369,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 });
-Processed and analyzed in code
