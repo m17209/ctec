@@ -5,12 +5,11 @@ window.CTEC = (() => {
 
   const DEPT_STYLES = {
     "EXCUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200",
-    "EXECUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200",
-    "CONTENT DEPARTMENT": "bg-amber-50 text-amber-700 border-amber-200",
+    "PUBLIC RELATIONS DEPARTMENT": "bg-sky-50 text-sky-700 border-sky-200",
     "DESIGN DEPARTMENT": "bg-red-50 text-red-700 border-red-200",
-    "EVENT DEPARTMENT": "bg-pink-50 text-pink-700 border-pink-200",
-    "MEDIA DEPARTMENT": "bg-sky-50 text-sky-700 border-sky-200",
-    "EXTERNAL RELATIONS DEPARTMENT": "bg-emerald-50 text-emerald-700 border-emerald-200"
+    "CONTENT DEPARTMENT": "bg-amber-50 text-amber-700 border-amber-200",
+    "HUMAN RESOURCES DEPARTMENT": "bg-emerald-50 text-emerald-700 border-emerald-200",
+    "EVENT & EXTERNAL RELATIONS DEPARTMENT": "bg-pink-50 text-pink-700 border-pink-200"
   };
   const DEFAULT_DEPT_STYLE = "bg-slate-100 text-slate-700 border-slate-200";
 
@@ -127,13 +126,14 @@ window.CTEC = (() => {
     syncThemeButtons(getSavedTheme());
   });
 
+  // 6 ban chuẩn của CTEC (giữ nguyên key "EXCUTIVE BOARD" đã lưu trong D1)
   const DEPT_KEYS = [
     "EXCUTIVE BOARD",
-    "CONTENT DEPARTMENT",
+    "PUBLIC RELATIONS DEPARTMENT",
     "DESIGN DEPARTMENT",
-    "EVENT DEPARTMENT",
-    "MEDIA DEPARTMENT",
-    "EXTERNAL RELATIONS DEPARTMENT"
+    "CONTENT DEPARTMENT",
+    "HUMAN RESOURCES DEPARTMENT",
+    "EVENT & EXTERNAL RELATIONS DEPARTMENT"
   ];
 
   const DEFAULT_DEPT = "CONTENT DEPARTMENT";
@@ -151,7 +151,7 @@ window.CTEC = (() => {
       .replace(/\s+/g, " ")
       .trim();
 
-  // BUG-07: Chuẩn hóa tên ban về đúng 6 key chuẩn cũ (giữ nguyên "EXCUTIVE BOARD")
+  // Chuẩn hóa tên ban về 6 key chuẩn (nhận cả tên cũ: Event / Media / External Relations)
   const canonDept = (rawDept, fallback = DEFAULT_DEPT) => {
     const raw = String(rawDept ?? '').trim();
     if (!raw) return fallback;
@@ -167,24 +167,27 @@ window.CTEC = (() => {
     ) {
       return "EXCUTIVE BOARD";
     }
-    if (norm.includes("content") || norm.includes("noi dung")) {
-      return "CONTENT DEPARTMENT";
+    // Public Relations phải xét trước External Relations (cùng chứa "relation")
+    if (norm.includes("public relation") || norm.includes("media") || norm.includes("truyen thong")) {
+      return "PUBLIC RELATIONS DEPARTMENT";
+    }
+    if (norm.includes("human resource") || norm.includes("nhan su") || norm === "hr") {
+      return "HUMAN RESOURCES DEPARTMENT";
     }
     if (norm.includes("design") || norm.includes("thiet ke")) {
       return "DESIGN DEPARTMENT";
     }
-    if (norm.includes("event") || norm.includes("su kien")) {
-      return "EVENT DEPARTMENT";
-    }
-    if (norm.includes("media") || norm.includes("truyen thong")) {
-      return "MEDIA DEPARTMENT";
+    if (norm.includes("content") || norm.includes("noi dung")) {
+      return "CONTENT DEPARTMENT";
     }
     if (
+      norm.includes("event") ||
       norm.includes("external") ||
       norm.includes("relation") ||
+      norm.includes("su kien") ||
       norm.includes("doi ngoai")
     ) {
-      return "EXTERNAL RELATIONS DEPARTMENT";
+      return "EVENT & EXTERNAL RELATIONS DEPARTMENT";
     }
     return fallback;
   };
@@ -216,50 +219,50 @@ window.CTEC = (() => {
   };
 
   /**
-   * Quy tắc đếm quân số mới:
-   * - Các thành viên có tag Trưởng/Phó ban trực thuộc Ban Chủ nhiệm (EXCUTIVE BOARD)
-   *   và Ban chuyên môn được phép tính trùng giữa Ban chuyên môn và Ban Chủ nhiệm.
-   * - Các trường hợp kiêm nhiệm khác không mang tag Trưởng/Phó ban vẫn khử trùng theo người.
+   * Quy tắc đếm quân số (CTEC):
+   * - Ban Chủ nhiệm = Chủ tịch + Phó Chủ tịch (lãnh đạo toàn CLB) + Trưởng ban của tất cả
+   *   các ban còn lại. Vì vậy cùng một người có thể xuất hiện ở NHIỀU ban (Ban Chủ nhiệm
+   *   và ban mình phụ trách) - đó là bình thường, không phải lỗi trùng dữ liệu.
+   * - QUÂN SỐ (people)  = số NGƯỜI duy nhất (theo tên đã chuẩn hóa) - mỗi người chỉ tính 1 lần.
+   * - SỐ LƯỢNG TỪNG BAN (perDept) = số người khác nhau của từng ban; người thuộc nhiều ban
+   *   được tính ở mỗi ban của họ (nên tổng các ban có thể lớn hơn quân số).
+   * - Chức vụ KHÔNG ảnh hưởng đến cách đếm.
+   * - Cùng tên xuất hiện 2 lần trong CÙNG một ban chỉ tính 1 lần cho ban đó.
    */
-  const countMembersWithLeadOverlap = (members) => {
-    if (!Array.isArray(members) || members.length === 0) return 0;
+  const getHeadcountStats = (members) => {
+    const peopleMap = new Map(); // nameKey -> { name, depts:Set }
+    const pairSeen = new Set();  // `${nameKey}||${dept}`
+    const perDept = Object.fromEntries(DEPT_KEYS.map((k) => [k, 0]));
+    let rows = 0;
 
-    const personMap = new Map();
-    for (const m of members) {
-      const nameKey = buildMemberNameKey(m?.name ?? m?.full_name ?? m?.fullName ?? "");
+    for (const m of Array.isArray(members) ? members : []) {
+      const name = normalizeMemberName(m?.name ?? m?.full_name ?? m?.fullName ?? "");
+      const nameKey = buildMemberNameKey(name);
       if (!nameKey) continue;
-      const dept = canonDept(m?.dept ?? m?.department ?? "");
-      const roleText = `${m?.role || ""} ${m?.position || ""} ${m?.tag || ""}`;
-      const isLead = isDeptLeadTag(roleText);
+      const dept = normalizeDeptKey(m?.deptKey || m?.dept || m?.department || DEFAULT_DEPT);
 
-      if (!personMap.has(nameKey)) {
-        personMap.set(nameKey, {
-          depts: new Set(),
-          hasLeadTag: false
-        });
-      }
-      const entry = personMap.get(nameKey);
-      entry.depts.add(dept);
-      if (isLead) entry.hasLeadTag = true;
-    }
+      rows++;
+      if (!peopleMap.has(nameKey)) peopleMap.set(nameKey, { name, depts: new Set() });
+      peopleMap.get(nameKey).depts.add(dept);
 
-    let total = 0;
-    for (const entry of personMap.values()) {
-      const hasExec = entry.depts.has("EXCUTIVE BOARD");
-      const specializedCount = [...entry.depts].filter(
-        (d) => d !== "EXCUTIVE BOARD"
-      ).length;
-
-      if (entry.hasLeadTag && hasExec && specializedCount > 0) {
-        total += 1 + specializedCount;
-      } else {
-        total += 1;
+      const pairKey = `${nameKey}||${dept}`;
+      if (!pairSeen.has(pairKey)) {
+        pairSeen.add(pairKey);
+        perDept[dept] = (perDept[dept] || 0) + 1;
       }
     }
-    return total;
+
+    const multiDept = [];
+    for (const { name, depts } of peopleMap.values()) {
+      if (depts.size > 1) multiDept.push({ name, depts: [...depts] });
+    }
+
+    return { people: peopleMap.size, rows, perDept, multiDept };
   };
 
-  const countUniquePeople = (rows) => countMembersWithLeadOverlap(rows);
+  const countUniquePeople = (rows) => getHeadcountStats(rows).people;
+  // Tên cũ, giữ lại để trang đã cache không bị lỗi; nay cũng đếm theo người duy nhất.
+  const countMembersWithLeadOverlap = countUniquePeople;
 
   // BUG-06: Parse ngày hạn đóng (1..31), hỗ trợ "05/10/2026", "5", "15/10"
   const parseDeadlineDay = (rawVal) => {
@@ -737,12 +740,12 @@ window.CTEC = (() => {
 
   /* ================= DỮ LIỆU DÙNG CHUNG CHO TRANG ADMIN ================= */
   const DEPARTMENTS = [
-    { value: "EXCUTIVE BOARD", vi: "Ban Chủ nhiệm", en: "Executive Board" },
-    { value: "CONTENT DEPARTMENT", vi: "Ban Nội dung", en: "Content Department" },
-    { value: "DESIGN DEPARTMENT", vi: "Ban Thiết kế", en: "Design Department" },
-    { value: "EVENT DEPARTMENT", vi: "Ban Sự kiện", en: "Event Department" },
-    { value: "MEDIA DEPARTMENT", vi: "Ban Truyền thông", en: "Media Department" },
-    { value: "EXTERNAL RELATIONS DEPARTMENT", vi: "Ban Đối ngoại", en: "External Relations Department" }
+    { value: "EXCUTIVE BOARD", vi: "Ban Chủ nhiệm", en: "Executive Board", viShort: "Ban Chủ nhiệm", enShort: "Executive Board", color: "#6366f1" },
+    { value: "PUBLIC RELATIONS DEPARTMENT", vi: "Ban Truyền thông", en: "Public Relations Department", viShort: "Truyền thông", enShort: "Public Relations", color: "#0ea5e9" },
+    { value: "DESIGN DEPARTMENT", vi: "Ban Thiết kế", en: "Design Department", viShort: "Thiết kế", enShort: "Design", color: "#ef4444" },
+    { value: "CONTENT DEPARTMENT", vi: "Ban Nội dung", en: "Content Department", viShort: "Nội dung", enShort: "Content", color: "#f59e0b" },
+    { value: "HUMAN RESOURCES DEPARTMENT", vi: "Ban Nhân sự", en: "Human Resources Department", viShort: "Nhân sự", enShort: "Human Resources", color: "#10b981" },
+    { value: "EVENT & EXTERNAL RELATIONS DEPARTMENT", vi: "Ban Đối ngoại", en: "Event & External Relations Department", viShort: "Đối ngoại", enShort: "External Relations", color: "#ec4899" }
   ];
 
   const ROLES = [
@@ -763,9 +766,8 @@ window.CTEC = (() => {
     const key = normalizeDeptKey(deptKey);
     const found = DEPARTMENTS.find((d) => d.value === key);
     if (!found) return String(deptKey ?? "");
-    const label = lang === "en" ? found.en : found.vi;
-    if (!short) return label;
-    return label.replace(/^Ban\s+/i, "").replace(/\s+Department$/i, "");
+    if (lang === "en") return short ? found.enShort : found.en;
+    return short ? found.viShort : found.vi;
   };
 
   return {
@@ -791,6 +793,7 @@ window.CTEC = (() => {
     normalizeMemberName,
     buildMemberNameKey,
     isDeptLeadTag,
+    getHeadcountStats,
     countMembersWithLeadOverlap,
     countUniquePeople,
     parseDeadlineDay,
