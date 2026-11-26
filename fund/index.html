@@ -63,7 +63,7 @@
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen">
 <header class="ctec-header shadow-lg">
-  <div class="ctec-header-inner max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-4">
+  <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
     <div class="ctec-brand flex items-center gap-3">
       <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
         <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
@@ -73,19 +73,19 @@
         <span class="text-[11px] sm:text-xs font-medium text-slate-300 tracking-wide">Fund Management</span>
       </div>
     </div>
-    <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-2.5">
-      <button id="reloadBtn" type="button" onclick="refreshAllData()" class="ctec-nav-btn px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-2 cursor-pointer" data-i18n-title="syncTitle">
+    <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
+      <button id="reloadBtn" type="button" onclick="refreshAllData()" class="ctec-nav-btn px-3 sm:px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer" data-i18n-title="syncTitle">
         <i id="reloadIcon" class="fa-solid fa-rotate-right"></i>
         <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
         <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
       </button>
-      <button type="button" onclick="copySheet()" class="ctec-nav-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer">
+      <button type="button" onclick="copySheet()" class="ctec-nav-btn px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer">
         <i class="fa-solid fa-copy"></i>
         <span class="ctec-btn-label-full hidden sm:inline" data-i18n="copyFull">Sao chép cho Google Sheets</span>
         <span class="ctec-btn-label-full sm:hidden" data-i18n="copyMobile">Sao chép</span>
         <span class="ctec-btn-label-short" data-i18n="copyShort">CHÉP</span>
       </button>
-      <button type="button" onclick="downloadCsv()" class="ctec-nav-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer">
+      <button type="button" onclick="downloadCsv()" class="ctec-nav-btn px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer">
         <i class="fa-solid fa-file-excel"></i>
         <span class="ctec-btn-label-full hidden sm:inline" data-i18n="csvFull">Xuất CSV</span>
         <span class="ctec-btn-label-full sm:hidden" data-i18n="csvMobile">CSV</span>
@@ -95,7 +95,7 @@
               data-theme-toggle
               onclick="CTEC.toggleTheme()"
               aria-pressed="false"
-              class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+              class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
         <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
         <span data-theme-label class="ctec-btn-label-full">TỐI</span>
         <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
@@ -104,7 +104,7 @@
               data-lang-toggle
               onclick="CTEC.toggleLang()"
               aria-pressed="false"
-              class="ctec-nav-btn px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
+              class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
         <i class="fa-solid fa-language text-amber-300 text-xs"></i>
         <span data-lang-label class="ctec-btn-label-full">EN</span>
         <span data-lang-label-short class="ctec-btn-label-short">EN</span>
@@ -114,17 +114,18 @@
 </header>
 
 <div class="ctec-page-shell">
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-stretch">
+      <!-- Thẻ Thông tin chuyển khoản tối ưu Mobile (< 400px xếp dọc, >= 400px xếp ngang) -->
       <div class="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
         <div class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
           <i class="fa-solid fa-building-columns text-indigo-600 dark:text-indigo-400"></i>
           <span data-i18n="transferSubtitle">Thông tin chuyển khoản</span>
         </div>
 
-        <div class="flex flex-row items-stretch justify-between gap-4 flex-1">
-          <div class="flex flex-col items-center justify-between flex-1 min-w-0 gap-2.5">
-            <p class="text-[11px] font-semibold text-amber-700 dark:text-amber-300 text-center leading-snug max-w-[175px]" data-i18n="transferDeptNote">
+        <div class="flex flex-col min-[400px]:flex-row items-center min-[400px]:items-stretch justify-between gap-3.5 sm:gap-4 flex-1">
+          <div class="flex flex-col items-center justify-between w-full min-[400px]:flex-1 min-w-0 gap-2.5">
+            <p class="text-[11px] font-semibold text-amber-700 dark:text-amber-300 text-center leading-snug max-w-[210px]" data-i18n="transferDeptNote">
               Lưu ý: thêm tên ban vào nội dung chuyển khoản!
             </p>
 
@@ -136,9 +137,17 @@
             </div>
           </div>
 
-          <div class="w-40 sm:w-44 shrink-0 flex flex-col justify-between gap-2 text-sm">
+          <div class="w-full min-[400px]:w-40 sm:w-44 shrink-0 flex flex-col justify-between gap-2 text-sm">
             <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
-              <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNumberLabel">Số tài khoản</div>
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNumberLabel">Số tài khoản</span>
+                <button type="button" onclick="copyBankAccountNumber()" id="copyStkBtn"
+                        class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        data-i18n-title="copyStkTitle">
+                  <i id="copyStkIcon" class="fa-regular fa-copy"></i>
+                  <span id="copyStkText" data-i18n="copyStkLabel">Sao chép</span>
+                </button>
+              </div>
               <div id="bankAccountNumber" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
             </div>
             <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
@@ -193,15 +202,15 @@
         <input type="text" id="searchInput" oninput="renderTable()" data-i18n-placeholder="searchPlaceholder" placeholder="Tìm theo tên thành viên..." class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+      <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full lg:w-auto lg:justify-end">
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Ban:</span></span>
           <div class="wheel-picker-wrap" id="deptWheelPicker">
-            <button type="button" class="wheel-trigger min-w-[165px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
+            <button type="button" class="wheel-trigger min-w-[148px] sm:min-w-[165px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
               <span id="deptWheelLabel">Tất cả các ban</span>
               <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
             </button>
-            <div class="wheel-popover !w-[235px]" onclick="event.stopPropagation()">
+            <div class="wheel-popover" onclick="event.stopPropagation()">
               <div class="wheel-drum-viewport">
                 <div class="wheel-center-highlight"></div>
                 <div class="wheel-drum-list" id="deptDrumList"></div>
@@ -217,7 +226,7 @@
         <div class="flex items-center gap-2">
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-regular fa-calendar-check"></i> <span data-i18n="filterPeriodLabel">Kỳ thu:</span></span>
           <div class="wheel-picker-wrap" id="monthWheelPicker">
-            <button type="button" class="wheel-trigger min-w-[110px]" onclick="CTEC.toggleWheel('monthWheelPicker', event)">
+            <button type="button" class="wheel-trigger min-w-[105px] sm:min-w-[110px]" onclick="CTEC.toggleWheel('monthWheelPicker', event)">
               <span id="monthWheelLabel">CẢ KỲ</span>
               <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
             </button>
