@@ -175,7 +175,7 @@ async function loadMembers() {
     }
 
     rawMembers = list.map(m => {
-      const name = String(m.name ?? m.full_name ?? "").trim();
+      const name = CTEC.normalizeMemberName(m.name ?? m.full_name ?? "");
       const dept = String(m.dept || m.department || "").trim();
       const role = String(m.role ?? "").trim();
       const status = String(m.status ?? "Official").trim();
@@ -205,54 +205,20 @@ async function loadMembers() {
 }
 
 function updateStats() {
-  const uniquePeople = new Set();
-  const execSet = new Set();
-  const designSet = new Set();
-  const prSet = new Set();
-  const contentSet = new Set();
-  const eventSet = new Set();
-  const hrSet = new Set();
+  const stats = CTEC.getHeadcountStats(rawMembers);
+  const perDept = stats.perDept;
 
-  for (const m of rawMembers) {
-    const nameKey = CTEC.buildMemberNameKey(m.name);
-    if (!nameKey) continue;
-
-    // 1 tên có thể ở 2 ban nhưng tổng quân số vẫn chỉ tính là 1 người
-    uniquePeople.add(nameKey);
-
-    if (m.deptKey === "EXCUTIVE BOARD") execSet.add(nameKey);
-    else if (m.deptKey === "DESIGN") designSet.add(nameKey);
-    else if (m.deptKey === "PUBLIC RELATIONS") prSet.add(nameKey);
-    else if (m.deptKey === "CONTENT") contentSet.add(nameKey);
-    else if (m.deptKey === "EVENT & EXTERNAL RELATIONS") eventSet.add(nameKey);
-    else if (m.deptKey === "HUMAN RESOURCES") hrSet.add(nameKey);
-  }
-
-  const exec = execSet.size;
-  const design = designSet.size;
-  const pr = prSet.size;
-  const content = contentSet.size;
-  const event = eventSet.size;
-  const hr = hrSet.size;
-
-  document.getElementById("cntExec").textContent = exec;
-  document.getElementById("cntDesign").textContent = design;
-  document.getElementById("cntPr").textContent = pr;
-  document.getElementById("cntContent").textContent = content;
-  document.getElementById("cntEvent").textContent = event;
-  document.getElementById("cntHr").textContent = hr;
+  document.getElementById("cntExec").textContent = perDept["EXCUTIVE BOARD"];
+  document.getElementById("cntDesign").textContent = perDept["DESIGN"];
+  document.getElementById("cntContent").textContent = perDept["CONTENT"];
+  document.getElementById("cntPr").textContent = perDept["PUBLIC RELATIONS"];
+  document.getElementById("cntEvent").textContent = perDept["EVENT & EXTERNAL RELATIONS"];
+  document.getElementById("cntHr").textContent = perDept["HUMAN RESOURCES"];
 
   const totalEl = document.getElementById("totalCount");
-  if (totalEl) totalEl.textContent = String(uniquePeople.size);
+  if (totalEl) totalEl.textContent = String(stats.people);
 
-  renderDeptChart({
-    "EXCUTIVE BOARD": exec,
-    "DESIGN": design,
-    "PUBLIC RELATIONS": pr,
-    "CONTENT": content,
-    "EVENT & EXTERNAL RELATIONS": event,
-    "HUMAN RESOURCES": hr
-  });
+  renderDeptChart(perDept);
 }
 
 function renderDeptChart(counts) {
