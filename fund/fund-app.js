@@ -270,12 +270,12 @@ function getStatusOptions(lang) {
 function getBadgeHtml(key, lang) {
   const t = FUND_I18N[lang] || FUND_I18N.vi;
   if (key === "PAID") {
-    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusPaid)}</span>`;
+    return `<span class="fund-badge-paid inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusPaid)}</span>`;
   }
   if (key === "DEBT") {
-    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusDebt)}</span>`;
+    return `<span class="fund-badge-debt inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusDebt)}</span>`;
   }
-  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusUnpaid)}</span>`;
+  return `<span class="fund-badge-unpaid inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusUnpaid)}</span>`;
 }
 
 let rawFunds = [];
@@ -319,7 +319,7 @@ function renderArrearsBadge(dayVal, lang) {
   const label = (day > 0 && day <= 31)
     ? `${t.overdueFromPrefix} ${day}`
     : t.statusDebt;
-  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(label)}</span>`;
+  return `<span class="fund-badge-debt inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(label)}</span>`;
 }
 
 function applyFundStaticI18n(lang) {
