@@ -13,11 +13,11 @@ const ROSTER_I18N = {
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
     headcountLabel: "Số thành viên",
     deptExecShort: "Ban Chủ nhiệm",
-    deptPrShort: "Truyền thông",
-    deptDesignShort: "Thiết kế",
-    deptContentShort: "Nội dung",
-    deptHrShort: "Nhân sự",
-    deptEventShort: "Đối ngoại",
+    deptDesignShort: "Ban Thiết kế",
+    deptContentShort: "Ban Nội dung",
+    deptPrShort: "Ban Truyền thông",
+    deptEventShort: "Ban Đối ngoại",
+    deptHrShort: "Ban Nhân sự",
     mobileSwipeHint: "Vuốt ngang để xem đầy đủ cột (cột Tên được ghim)",
     colNo: "STT",
     colName: "Họ và tên",
@@ -30,14 +30,7 @@ const ROSTER_I18N = {
     noResultsText: "Không có thành viên nào khớp với từ khóa hoặc bộ lọc đã chọn.",
     footerText: "Báo cáo nhân sự chính thức CTEC | Thực hiện bởi Nhat Minh",
     allDeptsOption: "Tất cả các ban",
-    deptLabels: {
-      "EXCUTIVE BOARD": "Ban Chủ nhiệm",
-      "PUBLIC RELATIONS": "Ban Truyền thông",
-      "DESIGN": "Ban Thiết kế",
-      "CONTENT": "Ban Nội dung",
-      "HUMAN RESOURCES": "Ban Nhân sự",
-      "EVENT & EXTERNAL RELATIONS": "Ban Đối ngoại"
-    },
+    deptLabels: CTEC.getDeptLabelsMap("vi"),
     roleLabels: {
       "president": "Chủ tịch",
       "vice president": "Phó Chủ tịch",
@@ -64,12 +57,12 @@ const ROSTER_I18N = {
     wheelDone: "Done",
     chartTitle: "Personnel Distribution & Dept Stats",
     headcountLabel: "Headcount",
-    deptExecShort: "Executive Board",
-    deptPrShort: "Public Relations",
+    deptExecShort: "Excutive Board",
     deptDesignShort: "Design",
     deptContentShort: "Content",
+    deptPrShort: "Public Relations",
+    deptEventShort: "Event & External Relations",
     deptHrShort: "Human Resources",
-    deptEventShort: "External Relations",
     mobileSwipeHint: "Swipe horizontally to view all columns (Name column is pinned)",
     colNo: "No.",
     colName: "Full Name",
@@ -82,14 +75,7 @@ const ROSTER_I18N = {
     noResultsText: "No members match your search query or selected filter.",
     footerText: "Official CTEC Personnel Report | Crafted by Nhat Minh",
     allDeptsOption: "All Departments",
-    deptLabels: {
-      "EXCUTIVE BOARD": "Executive Board",
-      "PUBLIC RELATIONS": "Public Relations",
-      "DESIGN": "Design",
-      "CONTENT": "Content",
-      "HUMAN RESOURCES": "Human Resources",
-      "EVENT & EXTERNAL RELATIONS": "External Relations"
-    },
+    deptLabels: CTEC.getDeptLabelsMap("en"),
     roleLabels: {
       "president": "President",
       "vice president": "Vice President",
@@ -111,7 +97,7 @@ function getRosterDeptOptions(lang) {
     { value: "ALL", label: t.allDeptsOption },
     ...CTEC.DEPARTMENTS.map(d => ({
       value: d.value,
-      label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, true)
+      label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, false)
     }))
   ];
 }
@@ -120,7 +106,7 @@ function getDeptChartMeta(lang) {
   const t = ROSTER_I18N[lang] || ROSTER_I18N.vi;
   return CTEC.DEPARTMENTS.map(d => ({
     key: d.value,
-    label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, true),
+    label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, false),
     color: d.color
   }));
 }
