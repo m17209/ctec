@@ -43,6 +43,11 @@
       border-color: #1e293b !important;
     }
 
+    /* Dòng chữ "THÔNG TIN CHUYỂN KHOẢN" màu xanh đậm ở Light mode */
+    html:not(.dark) #transferSubtitleText {
+      color: #1e3a8a !important;
+    }
+
     /* Sub-surface (ô thông tin STK, input tìm kiếm, dropdown trigger) */
     .ctec-sub-surface {
       background-color: #f8fafc !important;
@@ -123,6 +128,23 @@
       background-color: rgba(56, 189, 248, 0.16) !important;
       color: #38bdf8 !important;
       border-color: rgba(56, 189, 248, 0.35) !important;
+    }
+
+    /* Tag trạng thái (Đã đóng / Chưa đóng / Nợ quỹ) ở Light mode giống ảnh 2 */
+    html:not(.dark) .fund-badge-paid {
+      background-color: #ecfdf5 !important;
+      color: #047857 !important;
+      border-color: #a7f3d0 !important;
+    }
+    html:not(.dark) .fund-badge-unpaid {
+      background-color: #fffbeb !important;
+      color: #92400e !important;
+      border-color: #fde68a !important;
+    }
+    html:not(.dark) .fund-badge-debt {
+      background-color: #fff1f2 !important;
+      color: #be123c !important;
+      border-color: #fecdd3 !important;
     }
 
     /* Bảng dữ liệu - Light mode: Header xanh đen đậm chữ trắng, thân bảng nền trắng */
@@ -253,11 +275,11 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-stretch">
         <!-- Thẻ Thông tin chuyển khoản -->
         <div class="ctec-surface-card p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
-          <div class="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <div class="text-xs font-bold uppercase tracking-wider text-blue-900 dark:text-slate-100 flex items-center gap-2">
             <span class="w-6 h-6 rounded-md bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-500/30 inline-flex items-center justify-center text-[11px] shrink-0">
               <i class="fa-solid fa-building-columns"></i>
             </span>
-            <span data-i18n="transferSubtitle">Thông tin chuyển khoản</span>
+            <span id="transferSubtitleText" data-i18n="transferSubtitle">Thông tin chuyển khoản</span>
           </div>
 
           <div class="flex flex-col min-[400px]:flex-row items-center min-[400px]:items-stretch justify-between gap-3.5 sm:gap-4 flex-1">
