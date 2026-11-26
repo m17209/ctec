@@ -33,7 +33,7 @@
       color: #f1f5f9;
     }
 
-    /* Card surface đồng bộ Light & Dark mode theo hình mẫu */
+    /* Card surface đồng bộ Light & Dark mode */
     .ctec-surface-card {
       background-color: #ffffff !important;
       border-color: #e2e8f0 !important;
@@ -58,7 +58,7 @@
       color: #f1f5f9 !important;
     }
 
-    /* Thẻ thống kê - Light mode (pastel dịu như thẻ các ban ở ảnh 1) */
+    /* Thẻ thống kê - Light mode */
     #statCardTotal {
       background-color: #eef2ff !important;
       border-color: #c7d2fe !important;
@@ -76,7 +76,21 @@
       border-color: #fde68a !important;
     }
 
-    /* Thẻ thống kê - Dark mode (nền tối tint sâu + viền màu tương ứng như ảnh 2) */
+    /* Màu số liệu đậm ở 4 thẻ thống kê trong Light mode */
+    html:not(.dark) #totalCount {
+      color: #3730a3 !important;
+    }
+    html:not(.dark) #cntPaid {
+      color: #047857 !important;
+    }
+    html:not(.dark) #completionRate {
+      color: #0369a1 !important;
+    }
+    html:not(.dark) #cntUnpaid {
+      color: #b45309 !important;
+    }
+
+    /* Thẻ thống kê - Dark mode (giữ nguyên) */
     html.dark #statCardTotal {
       background-color: #1d2247 !important;
       border-color: #373e75 !important;
@@ -94,7 +108,7 @@
       border-color: #6b4c28 !important;
     }
 
-    /* Nhãn CẢ KỲ trên thẻ thống kê */
+    /* Nhãn CẢ KỲ trên thẻ thống kê - Dark mode (giữ nguyên) */
     html.dark #selectedPeriodLabel1 {
       background-color: rgba(16, 185, 129, 0.16) !important;
       color: #34d399 !important;
@@ -111,13 +125,48 @@
       border-color: rgba(56, 189, 248, 0.35) !important;
     }
 
-    /* Bảng dữ liệu: Header tối màu đồng nhất ở cả Light & Dark Mode giống ảnh 1 & 2 */
-    #fundTable thead tr {
+    /* Bảng dữ liệu - Light mode: Header xanh đen đậm chữ trắng, thân bảng nền trắng */
+    html:not(.dark) #fundTable,
+    html:not(.dark) #fundTable tbody {
+      background-color: #ffffff !important;
+    }
+    html:not(.dark) #fundTable thead tr,
+    html:not(.dark) #fundTable thead th {
+      background-color: #111827 !important;
+      color: #ffffff !important;
+      border-color: #1e293b !important;
+    }
+    html:not(.dark) #fundTable tbody tr {
+      background-color: #ffffff !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+    }
+    html:not(.dark) #fundTable tbody tr:hover {
+      background-color: #f8fafc !important;
+    }
+    html:not(.dark) #fundTable tbody td {
+      background-color: transparent !important;
+      border-color: #f1f5f9 !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) #fundTable tbody td:first-child {
+      color: #94a3b8 !important;
+    }
+    html:not(.dark) #fundTable tbody td.sticky-name-col {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-right: 1px solid #e2e8f0 !important;
+    }
+    html:not(.dark) #fundTable tbody tr:hover td.sticky-name-col {
+      background-color: #f8fafc !important;
+    }
+
+    /* Bảng dữ liệu - Dark mode (giữ nguyên) */
+    html.dark #fundTable thead tr {
       background-color: #111827 !important;
       color: #ffffff !important;
       border-bottom-color: #1e293b !important;
     }
-    #fundTable thead th {
+    html.dark #fundTable thead th {
       background-color: #111827 !important;
       color: #ffffff !important;
       border-color: #1e293b !important;
@@ -258,7 +307,7 @@
                 <i class="fa-solid fa-users"></i>
               </span>
             </div>
-            <div class="font-display text-2xl font-extrabold text-slate-900 dark:text-white mt-3 leading-none" id="totalCount">0</div>
+            <div class="font-display text-2xl font-extrabold text-indigo-800 dark:text-white mt-3 leading-none" id="totalCount">0</div>
           </div>
 
           <div id="statCardPaid" class="flex-1 bg-emerald-50 border border-emerald-200 p-5 rounded-xl flex flex-col justify-between">
@@ -266,7 +315,7 @@
               <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase" data-i18n="statPaidLabel">ĐÃ ĐÓNG</span>
               <span id="selectedPeriodLabel1" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 shrink-0 leading-tight">CẢ KỲ</span>
             </div>
-            <div class="font-display text-2xl font-extrabold text-slate-900 dark:text-white mt-3 leading-none" id="cntPaid">0</div>
+            <div class="font-display text-2xl font-extrabold text-emerald-700 dark:text-white mt-3 leading-none" id="cntPaid">0</div>
           </div>
         </div>
 
@@ -276,7 +325,7 @@
               <span class="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase" data-i18n="statRateLabel">Tỷ lệ hoàn thành</span>
               <span id="selectedPeriodLabel3" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-100/80 text-sky-700 border border-sky-200/80 shrink-0 leading-tight">CẢ KỲ</span>
             </div>
-            <div class="font-display text-2xl font-extrabold text-slate-900 dark:text-white mt-3 leading-none" id="completionRate">0%</div>
+            <div class="font-display text-2xl font-extrabold text-sky-700 dark:text-white mt-3 leading-none" id="completionRate">0%</div>
           </div>
 
           <div id="statCardUnpaid" class="flex-1 bg-amber-50 border border-amber-200 p-5 rounded-xl flex flex-col justify-between">
@@ -284,7 +333,7 @@
               <span class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase" data-i18n="statUnpaidLabel">Chưa đóng / Quá hạn</span>
               <span id="selectedPeriodLabel2" class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100/80 text-amber-700 border border-amber-200/80 shrink-0 leading-tight">CẢ KỲ</span>
             </div>
-            <div class="font-display text-2xl font-extrabold text-slate-900 dark:text-white mt-3 leading-none" id="cntUnpaid">0</div>
+            <div class="font-display text-2xl font-extrabold text-amber-700 dark:text-white mt-3 leading-none" id="cntUnpaid">0</div>
           </div>
         </div>
       </div>
