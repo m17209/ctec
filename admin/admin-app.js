@@ -636,6 +636,77 @@ async function loadAllAdminData() {
 }
 
 /* ================= NHẬP DỮ LIỆU TỪ GOOGLE SHEET ================= */
+function parseSheetGridUniversal(rawText) {
+  const cleanText = String(rawText ?? "").replace(/^\uFEFF/, "");
+  if (!cleanText.trim()) return [];
+
+  const firstLine = cleanText.split(/\r?\n/)[0] || "";
+  const delimiter = firstLine.includes("\t") ? "\t" : ",";
+
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < cleanText.length; i++) {
+    const ch = cleanText[i];
+    const next = cleanText[i + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delimiter) {
+      row.push(cell.trim());
+      cell = "";
+    } else if (ch === "\n" || (ch === "\r" && next === "\n")) {
+      if (ch === "\r") i++;
+      row.push(cell.trim());
+      if (row.some(c => c !== "")) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += ch;
+    }
+  }
+  row.push(cell.trim());
+  if (row.some(c => c !== "")) rows.push(row);
+  return rows;
+}
+
+function detectSheetHasNoCol(rows) {
+  if (!rows || !rows.length) return false;
+  const firstCell = String(rows[0][0] ?? "").trim().toLowerCase();
+  if (["stt", "no", "no.", "#"].includes(firstCell)) return true;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const c0 = String(rows[i][0] ?? "").trim();
+    const c1 = String(rows[i][1] ?? "").trim();
+    if (/^\d+$/.test(c0) && c1.length > 0) return true;
+  }
+  return false;
+}
+
+function isHeaderNameCell(name) {
+  const up = String(name ?? "").trim().toUpperCase();
+  return [
+    "NAME",
+    "FULL NAME",
+    "HỌ VÀ TÊN",
+    "HỌ TÊN",
+    "THÀNH VIÊN",
+    "STT",
+    "NO",
+    "NO.",
+    "#"
+  ].includes(up);
+}
+
 function openSheetImportModal(type) {
   importTargetType = type;
   const isRoster = type === "roster";
@@ -647,11 +718,11 @@ function openSheetImportModal(type) {
 
   document.getElementById("sheetImportHint").innerHTML = isRoster
     ? (isEn
-      ? "Supports pasting directly from Google Sheets or CSV (columns: <code>No., Full Name, Department, Role, Status</code> or <code>Full Name, Department, Role, Status</code>). The same person in multiple departments is counted as 1 member."
-      : "Hỗ trợ dán trực tiếp từ Google Sheets hoặc CSV (cột: <code>STT, Họ và tên, Ban, Chức vụ, Trạng thái</code> hoặc <code>Họ và tên, Ban, Chức vụ, Trạng thái</code>). Một người ở nhiều ban được tính là 1 thành viên.")
+      ? "Supports loading from a view-shared Google Sheet link or pasting directly (columns: <code>No., Full Name, Department, Role, Status</code> or <code>Full Name, Department, Role, Status</code>)."
+      : "Hỗ trợ tải từ link Google Sheets (đã bật chia sẻ xem) hoặc dán trực tiếp (cột: <code>STT, Họ và tên, Ban, Chức vụ, Trạng thái</code> hoặc <code>Họ và tên, Ban, Chức vụ, Trạng thái</code>).")
     : (isEn
-      ? "Supports pasting directly from Google Sheets or CSV (columns: <code>No., Full Name, Department, Oct 26..May 27, Note</code>; auto-reads deadline row if present)."
-      : "Hỗ trợ dán trực tiếp từ Google Sheets hoặc CSV (cột: <code>STT, Họ và tên, Ban, T10/26..T5/27, Ghi chú</code>; tự đọc dòng hạn đóng nếu có).");
+      ? "Supports loading from a view-shared Google Sheet link or pasting directly (columns: <code>No., Full Name, Department, Oct 26..May 27, Note</code>; auto-reads deadline row if present)."
+      : "Hỗ trợ tải từ link Google Sheets (đã bật chia sẻ xem) hoặc dán trực tiếp (cột: <code>STT, Họ và tên, Ban, T10/26..T5/27, Ghi chú</code>; tự đọc dòng hạn đóng nếu có).");
 
   document.getElementById("sheetPasteArea").placeholder = isRoster
     ? "1\tNguyễn Văn A\tExecutive Board\tVice President\tOfficial\n2\tNguyễn Văn A\tBan Nội dung\tHead of Department\tOfficial"
@@ -676,7 +747,6 @@ function convertGoogleSheetUrlToCsv(inputUrl) {
   return u;
 }
 
-// DEF-11: Thử tải qua Worker proxy trước (nếu có), sau đó fallback direct fetch và hướng dẫn dán TSV nếu bị CORS
 async function fetchFromGoogleSheetUrl() {
   const rawUrl = document.getElementById("sheetUrlInput").value.trim();
   const targetUrl = convertGoogleSheetUrlToCsv(rawUrl);
@@ -692,33 +762,30 @@ async function fetchFromGoogleSheetUrl() {
 
   try {
     let text = "";
-    let fetchedViaProxy = false;
+    let proxyError = "";
 
     try {
       const proxyRes = await fetch(
         `${API_BASE}/api/admin/fetch-sheet?url=${encodeURIComponent(targetUrl)}`,
-        {
-          cache: "no-store"
-        }
+        { cache: "no-store" }
       );
-      if (proxyRes.ok) {
-        const contentType = proxyRes.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          const json = await proxyRes.json();
-          if (json && typeof json.csv === "string") {
-            text = json.csv;
-            fetchedViaProxy = true;
-          }
-        } else {
-          text = await proxyRes.text();
-          fetchedViaProxy = true;
+      const contentType = proxyRes.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const json = await proxyRes.json();
+        if (proxyRes.ok && json && typeof json.csv === "string") {
+          text = json.csv;
+        } else if (json && json.error) {
+          proxyError = json.error;
         }
+      } else if (proxyRes.ok) {
+        text = await proxyRes.text();
       }
     } catch (_) {
-      // Proxy endpoint chưa khả dụng -> thử tải trực tiếp
+      // Fallback sang direct fetch bên dưới
     }
 
-    if (!fetchedViaProxy) {
+    if (!text) {
+      if (proxyError) throw new Error(proxyError);
       const res = await fetch(targetUrl, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       text = await res.text();
@@ -740,36 +807,29 @@ async function fetchFromGoogleSheetUrl() {
 
 function applySheetImportToDraft() {
   const rawText = document.getElementById("sheetPasteArea").value;
-  const rows = CTEC.parseSheetPasteText(rawText);
+  const rows = parseSheetGridUniversal(rawText);
   if (!rows.length) {
     showToast(tAdmin().toastNoPaste, "error");
     return;
   }
 
   const replaceExisting = document.getElementById("sheetReplaceMode").checked;
+  const hasNoCol = detectSheetHasNoCol(rows);
+  const offset = hasNoCol ? 1 : 0;
 
   if (importTargetType === "roster") {
     const parsedRoster = [];
     for (let i = 0; i < rows.length; i++) {
       const c = rows[i];
-      const c0 = String(c[0] ?? "").trim();
-      const c1 = String(c[1] ?? "").trim();
-      const hasNoCol = /^\d+$/.test(c0) && c1.length > 0;
-      const name = normalizeMemberName(hasNoCol ? c1 : c0);
-      const deptRaw = hasNoCol ? c[2] : c[1];
-      const roleRaw = hasNoCol ? c[3] : c[2];
-      const statusRaw = hasNoCol ? c[4] : c[3];
-
-      if (!name) continue;
-      const upperName = name.toUpperCase();
-      if (upperName === "NAME" || upperName === "HỌ VÀ TÊN" || upperName === "FULL NAME") continue;
+      const name = normalizeMemberName(c[offset]);
+      if (!name || isHeaderNameCell(name)) continue;
 
       parsedRoster.push({
         id: Date.now() + i,
         name,
-        dept: normalizeDeptSmart(deptRaw),
-        role: normalizeRoleSmart(roleRaw),
-        status: normalizeMemberStatusSmart(statusRaw)
+        dept: normalizeDeptSmart(c[offset + 1]),
+        role: normalizeRoleSmart(c[offset + 2]),
+        status: normalizeMemberStatusSmart(c[offset + 3])
       });
     }
 
@@ -789,26 +849,18 @@ function applySheetImportToDraft() {
   } else {
     const parsedFund = [];
     let importedDeadlines = null;
+    const monthStart = offset + 2;
 
     for (let i = 0; i < rows.length; i++) {
       const c = rows[i];
       const firstThree = c.slice(0, 3).join(" ").toLowerCase();
       if (firstThree.includes("deadline") || firstThree.includes("hạn đóng") || firstThree.includes("kỳ hạn")) {
-        // DEF-08: Dùng thống nhất CTEC.parseDeadlineDay()
-        importedDeadlines = Array.from({ length: 8 }, (_, m) => CTEC.parseDeadlineDay(c[3 + m]));
+        importedDeadlines = Array.from({ length: 8 }, (_, m) => CTEC.parseDeadlineDay(c[monthStart + m]));
         continue;
       }
 
-      const c0 = String(c[0] ?? "").trim();
-      const c1 = String(c[1] ?? "").trim();
-      const hasNoCol = /^\d+$/.test(c0) && c1.length > 0;
-      const name = normalizeMemberName(hasNoCol ? c1 : c0);
-      const deptRaw = hasNoCol ? c[2] : c[1];
-      const monthStart = hasNoCol ? 3 : 2;
-
-      if (!name) continue;
-      const upperName = name.toUpperCase();
-      if (upperName === "NAME" || upperName === "HỌ VÀ TÊN" || upperName === "FULL NAME") continue;
+      const name = normalizeMemberName(c[offset]);
+      if (!name || isHeaderNameCell(name)) continue;
 
       const months = Array.from({ length: 8 }, (_, m) => normalizeMonthStatus(c[monthStart + m]));
       const note = String(c[monthStart + 8] ?? "").trim();
@@ -816,7 +868,7 @@ function applySheetImportToDraft() {
       parsedFund.push({
         id: Date.now() + i,
         name,
-        dept: normalizeDeptSmart(deptRaw),
+        dept: normalizeDeptSmart(c[offset + 1]),
         months,
         note
       });
