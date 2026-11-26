@@ -29,6 +29,22 @@ const ADMIN_I18N = {
     importSheetBtn: "Nhập từ Google Sheet",
     addMemberBtn: "Thêm thành viên",
     saveRosterBtn: "Lưu Roster lên D1",
+    selectAllTitle: "Chọn tất cả dòng đang hiển thị",
+    selectedCountLabel: (n) => `Đã chọn ${n} dòng`,
+    clearSelectionBtn: "Bỏ chọn",
+    shiftSelectHint: "(Mẹo: Giữ Shift + Click để chọn nhanh một khoảng)",
+    bulkApplyDeptBtn: "Đổi ban",
+    bulkApplyRoleBtn: "Đổi chức vụ",
+    bulkApplyStatusBtn: "Đổi trạng thái",
+    bulkApplyAllMonthsBtn: "Đặt 8 tháng cho dòng chọn",
+    bulkDeleteBtn: "Xóa đã chọn",
+    confirmBulkDeleteRoster: (n) => `Xóa ${n} dòng đã chọn khỏi bảng Roster nháp?`,
+    confirmBulkDeleteFund: (n) => `Xóa ${n} dòng đã chọn khỏi bảng Quỹ (Fund) nháp?`,
+    toastBulkDeptDone: (n, deptLabel) => `Đã chuyển ${n} dòng sang ${deptLabel}!`,
+    toastBulkRoleDone: (n, role) => `Đã cập nhật chức vụ "${role}" cho ${n} dòng!`,
+    toastBulkStatusDone: (n, st) => `Đã cập nhật trạng thái "${st}" cho ${n} dòng!`,
+    toastBulkDeleteDone: (n) => `Đã xóa ${n} dòng đã chọn!`,
+    toastBulkFundMonthsDone: (n, st) => `Đã đặt trạng thái ${st} cho cả 8 tháng của ${n} dòng!`,
     colNo: "STT",
     colFullName: "Họ và tên",
     colDept: "Ban",
@@ -119,6 +135,22 @@ const ADMIN_I18N = {
     importSheetBtn: "Import from Google Sheet",
     addMemberBtn: "Add Member",
     saveRosterBtn: "Save Roster to D1",
+    selectAllTitle: "Select all visible rows",
+    selectedCountLabel: (n) => `${n} row(s) selected`,
+    clearSelectionBtn: "Clear",
+    shiftSelectHint: "(Tip: Hold Shift + Click to select a range)",
+    bulkApplyDeptBtn: "Set Dept",
+    bulkApplyRoleBtn: "Set Role",
+    bulkApplyStatusBtn: "Set Status",
+    bulkApplyAllMonthsBtn: "Set all 8 months",
+    bulkDeleteBtn: "Delete Selected",
+    confirmBulkDeleteRoster: (n) => `Remove ${n} selected row(s) from Roster draft?`,
+    confirmBulkDeleteFund: (n) => `Remove ${n} selected row(s) from Fund draft?`,
+    toastBulkDeptDone: (n, deptLabel) => `Updated ${n} row(s) to ${deptLabel}!`,
+    toastBulkRoleDone: (n, role) => `Updated role to "${role}" for ${n} row(s)!`,
+    toastBulkStatusDone: (n, st) => `Updated status to "${st}" for ${n} row(s)!`,
+    toastBulkDeleteDone: (n) => `Removed ${n} selected row(s)!`,
+    toastBulkFundMonthsDone: (n, st) => `Set all 8 months to ${st} for ${n} row(s)!`,
     colNo: "No.",
     colFullName: "Full Name",
     colDept: "Department",
@@ -205,6 +237,12 @@ let bankInfo = {
 };
 let importTargetType = "roster";
 
+// Trạng thái tick chọn nhiều dòng cho Roster & Fund
+const selectedRosterIndices = new Set();
+const selectedFundIndices = new Set();
+let lastCheckedRosterIdx = null;
+let lastCheckedFundIdx = null;
+
 function tAdmin() {
   return ADMIN_I18N[CTEC.getSavedLang()] || ADMIN_I18N.vi;
 }
@@ -257,6 +295,38 @@ function parseTransferHtmlToObj(htmlText) {
   return parsed;
 }
 
+function populateBulkRosterControls() {
+  const lang = CTEC.getSavedLang();
+  const deptSel = document.getElementById("bulkRosterDeptSelect");
+  const roleSel = document.getElementById("bulkRosterRoleSelect");
+  const statusSel = document.getElementById("bulkRosterStatusSelect");
+
+  if (deptSel) {
+    const prevVal = deptSel.value;
+    deptSel.innerHTML = DEPARTMENTS.map(d => {
+      const label = lang === "en" ? d.en : d.vi;
+      return `<option value="${d.value}">${CTEC.escapeHtml(label)}</option>`;
+    }).join("");
+    if (prevVal) deptSel.value = prevVal;
+  }
+
+  if (roleSel) {
+    const prevVal = roleSel.value;
+    roleSel.innerHTML = ROLES.map(r =>
+      `<option value="${r}">${CTEC.escapeHtml(r)}</option>`
+    ).join("");
+    if (prevVal) roleSel.value = prevVal;
+  }
+
+  if (statusSel) {
+    const prevVal = statusSel.value;
+    statusSel.innerHTML = MEMBER_STATUSES.map(st =>
+      `<option value="${st}">${CTEC.escapeHtml(st)}</option>`
+    ).join("");
+    if (prevVal) statusSel.value = prevVal;
+  }
+}
+
 function applyAdminI18n(lang) {
   const activeEl = document.activeElement;
   const focusState =
@@ -277,7 +347,7 @@ function applyAdminI18n(lang) {
 
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const key = el.getAttribute("data-i18n");
-    if (t[key] !== undefined) el.textContent = t[key];
+    if (t[key] !== undefined && typeof t[key] === "string") el.textContent = t[key];
   });
   document.querySelectorAll("[data-i18n-html]").forEach(el => {
     const key = el.getAttribute("data-i18n-html");
@@ -292,8 +362,11 @@ function applyAdminI18n(lang) {
     if (t[key] !== undefined) el.title = t[key];
   });
 
+  populateBulkRosterControls();
   updateRosterCountBadges();
+  updateRosterBulkUI();
   renderFundEditorHeader();
+  updateFundBulkUI();
   renderDeadlinesEditor();
 
   if (!focusState) {
@@ -510,6 +583,7 @@ async function resetCurrentTabD1() {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
       rosterRows = [];
+      clearRosterSelection();
       renderRosterEditor();
       showToast(t.toastResetRosterDone, "success");
     } else {
@@ -534,6 +608,7 @@ async function resetCurrentTabD1() {
       }
       fundRows = [];
       fundDeadlines = resetDeadlines;
+      clearFundSelection();
       renderDeadlinesEditor();
       renderFundEditor();
       showToast(t.toastResetFundDone, "success");
@@ -622,6 +697,8 @@ async function loadAllAdminData() {
       };
     }
 
+    clearRosterSelection();
+    clearFundSelection();
     renderRosterEditor();
     renderDeadlinesEditor();
     renderBankInfoEditor();
@@ -839,6 +916,7 @@ function applySheetImportToDraft() {
     }
 
     rosterRows = replaceExisting ? parsedRoster : rosterRows.concat(parsedRoster);
+    clearRosterSelection();
     document.getElementById("rosterSearchInput").value = "";
     renderRosterEditor();
     closeSheetImportModal();
@@ -907,11 +985,143 @@ function applySheetImportToDraft() {
     });
 
     fundRows = Array.from(dedupedFundMap.values());
+    clearFundSelection();
     document.getElementById("fundSearchInput").value = "";
     renderFundEditor();
     closeSheetImportModal();
     showToast(tAdmin().toastImportedFund(countUniquePeople(fundRows)), "success");
   }
+}
+
+/* ================= TICK CHỌN NHIỀU DÒNG - ROSTER ================= */
+function getVisibleRosterIndices() {
+  const filter = (document.getElementById("rosterSearchInput")?.value || "").toLowerCase().trim();
+  const visible = [];
+  rosterRows.forEach((row, realIdx) => {
+    if (!filter || row.name.toLowerCase().includes(filter)) {
+      visible.push(realIdx);
+    }
+  });
+  return visible;
+}
+
+function updateRosterBulkUI() {
+  const t = tAdmin();
+  const bar = document.getElementById("rosterBulkBar");
+  const countLabel = document.getElementById("rosterSelectedCountLabel");
+  const selectAllCb = document.getElementById("rosterSelectAllCheckbox");
+
+  // Loại bỏ các chỉ số vượt ngoài độ dài hiện tại
+  for (const idx of Array.from(selectedRosterIndices)) {
+    if (idx < 0 || idx >= rosterRows.length) selectedRosterIndices.delete(idx);
+  }
+
+  const count = selectedRosterIndices.size;
+  if (bar) bar.classList.toggle("hidden", count === 0);
+  if (countLabel) countLabel.textContent = t.selectedCountLabel(count);
+
+  if (selectAllCb) {
+    const visible = getVisibleRosterIndices();
+    if (visible.length === 0) {
+      selectAllCb.checked = false;
+      selectAllCb.indeterminate = false;
+    } else {
+      const selectedVisibleCount = visible.filter(idx => selectedRosterIndices.has(idx)).length;
+      selectAllCb.checked = selectedVisibleCount === visible.length;
+      selectAllCb.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visible.length;
+    }
+  }
+}
+
+function toggleRosterRowSelect(realIdx, checked, event) {
+  const visible = getVisibleRosterIndices();
+  if (event && event.shiftKey && lastCheckedRosterIdx !== null) {
+    const startPos = visible.indexOf(lastCheckedRosterIdx);
+    const endPos = visible.indexOf(realIdx);
+    if (startPos !== -1 && endPos !== -1) {
+      const [from, to] = startPos < endPos ? [startPos, endPos] : [endPos, startPos];
+      for (let i = from; i <= to; i++) {
+        if (checked) selectedRosterIndices.add(visible[i]);
+        else selectedRosterIndices.delete(visible[i]);
+      }
+      lastCheckedRosterIdx = realIdx;
+      renderRosterEditor();
+      return;
+    }
+  }
+
+  if (checked) selectedRosterIndices.add(realIdx);
+  else selectedRosterIndices.delete(realIdx);
+  lastCheckedRosterIdx = realIdx;
+  renderRosterEditor();
+}
+
+function toggleSelectAllRoster(checked) {
+  const visible = getVisibleRosterIndices();
+  visible.forEach(idx => {
+    if (checked) selectedRosterIndices.add(idx);
+    else selectedRosterIndices.delete(idx);
+  });
+  renderRosterEditor();
+}
+
+function clearRosterSelection() {
+  selectedRosterIndices.clear();
+  lastCheckedRosterIdx = null;
+  updateRosterBulkUI();
+}
+
+function applyBulkRosterDept() {
+  if (selectedRosterIndices.size === 0) return;
+  const targetDept = document.getElementById("bulkRosterDeptSelect")?.value || CTEC.DEFAULT_DEPT;
+  let updated = 0;
+  selectedRosterIndices.forEach(idx => {
+    if (rosterRows[idx]) {
+      rosterRows[idx].dept = targetDept;
+      updated++;
+    }
+  });
+  renderRosterEditor();
+  showToast(tAdmin().toastBulkDeptDone(updated, getDeptLabel(targetDept)), "info");
+}
+
+function applyBulkRosterRole() {
+  if (selectedRosterIndices.size === 0) return;
+  const targetRole = document.getElementById("bulkRosterRoleSelect")?.value || "Member";
+  let updated = 0;
+  selectedRosterIndices.forEach(idx => {
+    if (rosterRows[idx]) {
+      rosterRows[idx].role = targetRole;
+      updated++;
+    }
+  });
+  renderRosterEditor();
+  showToast(tAdmin().toastBulkRoleDone(updated, targetRole), "info");
+}
+
+function applyBulkRosterStatus() {
+  if (selectedRosterIndices.size === 0) return;
+  const targetStatus = document.getElementById("bulkRosterStatusSelect")?.value || "Official";
+  let updated = 0;
+  selectedRosterIndices.forEach(idx => {
+    if (rosterRows[idx]) {
+      rosterRows[idx].status = targetStatus;
+      updated++;
+    }
+  });
+  renderRosterEditor();
+  showToast(tAdmin().toastBulkStatusDone(updated, targetStatus), "info");
+}
+
+function deleteSelectedRosterRows() {
+  const count = selectedRosterIndices.size;
+  if (count === 0) return;
+  if (!confirm(tAdmin().confirmBulkDeleteRoster(count))) return;
+
+  rosterRows = rosterRows.filter((_, idx) => !selectedRosterIndices.has(idx));
+  clearRosterSelection();
+  renderRosterEditor();
+  showToast(tAdmin().toastBulkDeleteDone(count), "info");
 }
 
 /* ================= SHEET 1: ROSTER EDITOR ================= */
@@ -920,16 +1130,18 @@ function renderRosterEditor() {
   const lang = CTEC.getSavedLang();
   const filter = (document.getElementById("rosterSearchInput").value || "").toLowerCase().trim();
   updateRosterCountBadges();
+  updateRosterBulkUI();
 
   const tbody = document.getElementById("rosterEditorBody");
   if (!rosterRows.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyRoster)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyRoster)}</td></tr>`;
     return;
   }
 
   const html = [];
   rosterRows.forEach((row, realIdx) => {
     if (filter && !row.name.toLowerCase().includes(filter)) return;
+    const isChecked = selectedRosterIndices.has(realIdx);
 
     const deptOptions = DEPARTMENTS.map(d => {
       const label = lang === "en" ? d.en : d.vi;
@@ -945,7 +1157,12 @@ function renderRosterEditor() {
     ).join("");
 
     html.push(`
-      <tr class="group hover:bg-slate-50/80 transition">
+      <tr class="group hover:bg-slate-50/80 transition ${isChecked ? "row-selected" : ""}">
+        <td class="py-2 px-2.5 text-center border-r border-slate-100">
+          <input type="checkbox" ${isChecked ? "checked" : ""}
+                 onclick="toggleRosterRowSelect(${realIdx}, this.checked, event)"
+                 class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+        </td>
         <td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>
         <td class="sticky-name-col bg-white group-hover:bg-slate-50/80 py-1.5 px-2 border-r border-slate-200 transition">
           <input type="text" data-row-idx="${realIdx}" data-field="name" value="${CTEC.escapeHtml(row.name)}"
@@ -1001,6 +1218,7 @@ function deleteRosterRow(realIdx) {
   if (!target) return;
   if (!confirm(tAdmin().confirmDelete(target.name))) return;
   rosterRows.splice(realIdx, 1);
+  clearRosterSelection();
   renderRosterEditor();
 }
 
@@ -1038,6 +1256,7 @@ async function saveRosterToD1() {
       throw new Error(data.error || `HTTP ${res.status}`);
     }
     rosterRows = cleanedRows;
+    clearRosterSelection();
     renderRosterEditor();
     showToast(
       t.toastSavedRoster(countUniquePeople(cleanedRows), cleanedRows.length),
@@ -1048,6 +1267,108 @@ async function saveRosterToD1() {
   } finally {
     btn.disabled = false;
   }
+}
+
+/* ================= TICK CHỌN NHIỀU DÒNG - FUND ================= */
+function getVisibleFundIndices() {
+  const filter = (document.getElementById("fundSearchInput")?.value || "").toLowerCase().trim();
+  const visible = [];
+  fundRows.forEach((row, realIdx) => {
+    if (!filter || row.name.toLowerCase().includes(filter)) {
+      visible.push(realIdx);
+    }
+  });
+  return visible;
+}
+
+function updateFundBulkUI() {
+  const t = tAdmin();
+  const bar = document.getElementById("fundBulkBar");
+  const countLabel = document.getElementById("fundSelectedCountLabel");
+  const selectAllCb = document.getElementById("fundSelectAllCheckbox");
+
+  for (const idx of Array.from(selectedFundIndices)) {
+    if (idx < 0 || idx >= fundRows.length) selectedFundIndices.delete(idx);
+  }
+
+  const count = selectedFundIndices.size;
+  if (bar) bar.classList.toggle("hidden", count === 0);
+  if (countLabel) countLabel.textContent = t.selectedCountLabel(count);
+
+  if (selectAllCb) {
+    const visible = getVisibleFundIndices();
+    if (visible.length === 0) {
+      selectAllCb.checked = false;
+      selectAllCb.indeterminate = false;
+    } else {
+      const selectedVisibleCount = visible.filter(idx => selectedFundIndices.has(idx)).length;
+      selectAllCb.checked = selectedVisibleCount === visible.length;
+      selectAllCb.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < visible.length;
+    }
+  }
+}
+
+function toggleFundRowSelect(realIdx, checked, event) {
+  const visible = getVisibleFundIndices();
+  if (event && event.shiftKey && lastCheckedFundIdx !== null) {
+    const startPos = visible.indexOf(lastCheckedFundIdx);
+    const endPos = visible.indexOf(realIdx);
+    if (startPos !== -1 && endPos !== -1) {
+      const [from, to] = startPos < endPos ? [startPos, endPos] : [endPos, startPos];
+      for (let i = from; i <= to; i++) {
+        if (checked) selectedFundIndices.add(visible[i]);
+        else selectedFundIndices.delete(visible[i]);
+      }
+      lastCheckedFundIdx = realIdx;
+      renderFundEditor();
+      return;
+    }
+  }
+
+  if (checked) selectedFundIndices.add(realIdx);
+  else selectedFundIndices.delete(realIdx);
+  lastCheckedFundIdx = realIdx;
+  renderFundEditor();
+}
+
+function toggleSelectAllFund(checked) {
+  const visible = getVisibleFundIndices();
+  visible.forEach(idx => {
+    if (checked) selectedFundIndices.add(idx);
+    else selectedFundIndices.delete(idx);
+  });
+  renderFundEditor();
+}
+
+function clearFundSelection() {
+  selectedFundIndices.clear();
+  lastCheckedFundIdx = null;
+  updateFundBulkUI();
+}
+
+function applyBulkFundAllMonths() {
+  if (selectedFundIndices.size === 0) return;
+  const targetSt = normalizeMonthStatus(document.getElementById("bulkFundStatusSelect")?.value || "PAID");
+  let updated = 0;
+  selectedFundIndices.forEach(idx => {
+    if (fundRows[idx]) {
+      fundRows[idx].months = Array(8).fill(targetSt);
+      updated++;
+    }
+  });
+  renderFundEditor();
+  showToast(tAdmin().toastBulkFundMonthsDone(updated, targetSt), "info");
+}
+
+function deleteSelectedFundRows() {
+  const count = selectedFundIndices.size;
+  if (count === 0) return;
+  if (!confirm(tAdmin().confirmBulkDeleteFund(count))) return;
+
+  fundRows = fundRows.filter((_, idx) => !selectedFundIndices.has(idx));
+  clearFundSelection();
+  renderFundEditor();
+  showToast(tAdmin().toastBulkDeleteDone(count), "info");
 }
 
 /* ================= SHEET 2: FUND EDITOR ================= */
@@ -1080,6 +1401,11 @@ function renderFundEditorHeader() {
 
   document.getElementById("fundEditorHead").innerHTML = `
     <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+      <th class="py-3 px-2.5 text-center w-10 border-r border-slate-800">
+        <input type="checkbox" id="fundSelectAllCheckbox" onchange="toggleSelectAllFund(this.checked)"
+               class="w-4 h-4 rounded border-slate-500 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+               title="${CTEC.escapeHtml(t.selectAllTitle)}">
+      </th>
       <th class="py-3 px-3 text-center w-12 border-r border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>
       <th class="sticky-name-col bg-slate-900 py-3 px-4 border-r border-slate-700 min-w-[165px] sm:min-w-[190px]">${CTEC.escapeHtml(t.colFullName)}</th>
       <th class="py-3 px-4 border-r border-slate-800 min-w-[190px]">${CTEC.escapeHtml(t.colDept)}</th>
@@ -1088,6 +1414,7 @@ function renderFundEditorHeader() {
       <th class="py-3 px-3 text-center w-14">${CTEC.escapeHtml(t.colDelete)}</th>
     </tr>
   `;
+  updateFundBulkUI();
 }
 
 function getStatusPillClass(st) {
@@ -1105,16 +1432,18 @@ function renderFundEditor() {
     badgeFundEl.textContent = uniqueFundPeople;
     badgeFundEl.title = t.rosterSummary(uniqueFundPeople, fundRows.length);
   }
+  updateFundBulkUI();
 
   const tbody = document.getElementById("fundEditorBody");
   if (!fundRows.length) {
-    tbody.innerHTML = `<tr><td colspan="13" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyFund)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="py-10 text-center text-sm text-slate-400">${CTEC.escapeHtml(t.emptyFund)}</td></tr>`;
     return;
   }
 
   const html = [];
   fundRows.forEach((row, realIdx) => {
     if (filter && !row.name.toLowerCase().includes(filter)) return;
+    const isChecked = selectedFundIndices.has(realIdx);
 
     const monthButtons = row.months.map((st, mIdx) => `
       <td class="py-2 px-2 text-center border-r border-slate-100">
@@ -1126,7 +1455,12 @@ function renderFundEditor() {
     `).join("");
 
     html.push(`
-      <tr class="group hover:bg-slate-50/80 transition">
+      <tr class="group hover:bg-slate-50/80 transition ${isChecked ? "row-selected" : ""}">
+        <td class="py-2 px-2.5 text-center border-r border-slate-100">
+          <input type="checkbox" ${isChecked ? "checked" : ""}
+                 onclick="toggleFundRowSelect(${realIdx}, this.checked, event)"
+                 class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
+        </td>
         <td class="py-2 px-3 text-center text-xs font-bold text-slate-400 border-r border-slate-100">${realIdx + 1}</td>
         <td class="sticky-name-col bg-white group-hover:bg-slate-50/80 py-2 px-4 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap transition">${CTEC.escapeHtml(row.name)}</td>
         <td class="py-2 px-4 border-r border-slate-100 whitespace-nowrap">${CTEC.renderDeptBadge(row.dept, getDeptLabel(row.dept))}</td>
@@ -1155,6 +1489,7 @@ function deleteFundRow(realIdx) {
   if (!target) return;
   if (!confirm(tAdmin().confirmDeleteFund(target.name))) return;
   fundRows.splice(realIdx, 1);
+  clearFundSelection();
   renderFundEditor();
 }
 
@@ -1233,6 +1568,7 @@ function syncMembersFromRosterToFund() {
   }
 
   fundRows = merged;
+  clearFundSelection();
   renderFundEditor();
   showToast(tAdmin().toastSyncedFund(countUniquePeople(fundRows), removedCount), "info");
 }
@@ -1248,7 +1584,6 @@ async function saveFundToD1() {
   const qrHtml10k = document.getElementById("bankQrInput").value.trim();
 
   const hasStructuredBank = Boolean(accountNumber || bankName || accountName || qrHtml10k);
-  // DEF-07: Khi đã nhập thông tin ngân hàng có cấu trúc, xóa rawHtml cũ (rawHtml: "") để không ghi đè dữ liệu mới
   const updatedBankInfo = {
     accountNumber,
     bankName,
@@ -1285,6 +1620,7 @@ async function saveFundToD1() {
     }
     bankInfo = updatedBankInfo;
     fundRows = payloadMembers;
+    clearFundSelection();
     renderFundEditor();
     showToast(t.toastSavedFund, "success");
   } catch (err) {
@@ -1296,6 +1632,7 @@ async function saveFundToD1() {
 
 /* ================= KHỞI TẠO ================= */
 document.addEventListener("DOMContentLoaded", async () => {
+  populateBulkRosterControls();
   applyAdminI18n(CTEC.getSavedLang());
 
   window.addEventListener("ctec:langchange", e => {
