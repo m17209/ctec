@@ -121,9 +121,74 @@ window.CTEC = (() => {
   applyLang(getSavedLang(), false);
   applyTheme(getSavedTheme(), false);
   window.addEventListener('ctec:langchange', () => syncThemeButtons(getSavedTheme()));
+
+  /* ================= INTERACTIVE BRAND TAB (TOUCH & MOUSE) ================= */
+  function initBrandTabInteraction() {
+    const tabs = document.querySelectorAll('.ctec-brand-tab');
+    if (!tabs.length) return;
+
+    tabs.forEach(tab => {
+      let collapseTimer = null;
+
+      const expand = () => {
+        clearTimeout(collapseTimer);
+        tab.classList.add('is-expanded');
+      };
+
+      const scheduleCollapse = (delay = 2200) => {
+        clearTimeout(collapseTimer);
+        collapseTimer = setTimeout(() => {
+          tab.classList.remove('is-expanded');
+        }, delay);
+      };
+
+      tab.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'mouse') {
+          expand();
+        }
+      });
+
+      tab.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'mouse') {
+          scheduleCollapse(180);
+        }
+      });
+
+      tab.addEventListener('touchstart', () => {
+        expand();
+        scheduleCollapse(2600);
+      }, { passive: true });
+
+      tab.addEventListener('touchmove', () => {
+        expand();
+        scheduleCollapse(2600);
+      }, { passive: true });
+
+      const header = tab.closest('.ctec-header');
+      if (header) {
+        header.addEventListener('touchmove', (e) => {
+          const touch = e.touches && e.touches[0];
+          if (!touch) return;
+          const rect = tab.getBoundingClientRect();
+          if (touch.clientX <= rect.right + 48 && touch.clientY <= rect.bottom + 24) {
+            expand();
+            scheduleCollapse(2600);
+          }
+        }, { passive: true });
+      }
+
+      document.addEventListener('touchstart', (e) => {
+        if (!tab.contains(e.target)) {
+          tab.classList.remove('is-expanded');
+        }
+      }, { passive: true });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     syncLangButtons(getSavedLang());
     syncThemeButtons(getSavedTheme());
+    initBrandTabInteraction();
   });
 
   // 6 ban chuẩn của CTEC (giữ nguyên key "EXCUTIVE BOARD" đã lưu trong D1)
