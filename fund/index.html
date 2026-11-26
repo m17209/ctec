@@ -107,8 +107,8 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8 items-stretch">
         <!-- Thẻ Thông tin chuyển khoản -->
         <div class="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-3">
-          <div class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
-            <span class="w-6 h-6 rounded-md bg-slate-900 dark:bg-indigo-500/20 text-white dark:text-indigo-300 inline-flex items-center justify-center text-[11px] shrink-0">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <span class="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-500/30 inline-flex items-center justify-center text-[11px] shrink-0">
               <i class="fa-solid fa-building-columns"></i>
             </span>
             <span data-i18n="transferSubtitle">Thông tin chuyển khoản</span>
@@ -122,16 +122,16 @@
 
               <div class="flex flex-col items-center justify-center w-full min-w-0 my-auto">
                 <div id="qrContainer2" class="qr-render-box rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 p-1"></div>
-                <div class="mt-2 px-3 py-0.5 rounded-full bg-slate-900 dark:bg-indigo-950/60 border border-slate-800 dark:border-indigo-700/50 text-[11px] font-bold text-white dark:text-indigo-300 tracking-wide text-center whitespace-nowrap" data-i18n="qr2AmountNote">
+                <div class="mt-2 px-3 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-700/50 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 tracking-wide text-center whitespace-nowrap" data-i18n="qr2AmountNote">
                   10 000 VND
                 </div>
               </div>
             </div>
 
             <div class="w-full min-[400px]:w-40 sm:w-44 shrink-0 flex flex-col justify-between gap-2 text-sm">
-              <div class="p-2.5 rounded-lg bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+              <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
                 <div class="flex items-center justify-between gap-1">
-                  <span class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNumberLabel">Số tài khoản</span>
+                  <span class="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400" data-i18n="accountNumberLabel">Số tài khoản</span>
                   <button type="button" onclick="copyBankAccountNumber()" id="copyStkBtn"
                           class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
                           data-i18n-title="copyStkTitle">
@@ -141,12 +141,12 @@
                 </div>
                 <div id="bankAccountNumber" class="font-bold text-slate-900 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
               </div>
-              <div class="p-2.5 rounded-lg bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
-                <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="accountNameLabel">Tên tài khoản</div>
+              <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                <div class="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400" data-i18n="accountNameLabel">Tên tài khoản</div>
                 <div id="bankAccountName" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
               </div>
-              <div class="p-2.5 rounded-lg bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
-                <div class="text-[10px] font-semibold uppercase text-slate-400" data-i18n="bankNameLabel">Ngân hàng</div>
+              <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+                <div class="text-[10px] font-semibold uppercase text-slate-500 dark:text-slate-400" data-i18n="bankNameLabel">Ngân hàng</div>
                 <div id="bankName" class="font-bold text-slate-800 dark:text-slate-100 mt-0.5 min-h-[18px] text-xs sm:text-sm break-words select-all"></div>
               </div>
             </div>
@@ -157,7 +157,7 @@
           <div class="flex-1 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-bold uppercase tracking-wider text-slate-500" data-i18n="statTotalLabel">Tổng người đóng góp</span>
-              <span class="w-7 h-7 rounded-lg bg-slate-900 dark:bg-slate-800 text-white inline-flex items-center justify-center text-xs shrink-0">
+              <span class="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 inline-flex items-center justify-center text-xs shrink-0">
                 <i class="fa-solid fa-users"></i>
               </span>
             </div>
@@ -200,7 +200,7 @@
 
         <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full lg:w-auto lg:justify-end">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Ban:</span></span>
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Ban:</span></span>
             <div class="wheel-picker-wrap" id="deptWheelPicker">
               <button type="button" class="wheel-trigger min-w-[148px] sm:min-w-[165px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
                 <span id="deptWheelLabel">Tất cả các ban</span>
@@ -220,7 +220,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-regular fa-calendar-check"></i> <span data-i18n="filterPeriodLabel">Kỳ thu:</span></span>
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase"><i class="fa-regular fa-calendar-check"></i> <span data-i18n="filterPeriodLabel">Kỳ thu:</span></span>
             <div class="wheel-picker-wrap" id="monthWheelPicker">
               <button type="button" class="wheel-trigger min-w-[105px] sm:min-w-[110px]" onclick="CTEC.toggleWheel('monthWheelPicker', event)">
                 <span id="monthWheelLabel">CẢ KỲ</span>
@@ -247,7 +247,7 @@
           </div>
 
           <div class="flex items-center gap-2">
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase"><i class="fa-solid fa-circle-check"></i> <span data-i18n="filterStatusLabel">Trạng thái:</span></span>
+            <span class="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase"><i class="fa-solid fa-circle-check"></i> <span data-i18n="filterStatusLabel">Trạng thái:</span></span>
             <div class="wheel-picker-wrap" id="statusWheelPicker">
               <button type="button" class="wheel-trigger min-w-[125px]" onclick="CTEC.toggleWheel('statusWheelPicker', event)">
                 <span id="statusWheelLabel">Tất cả trạng thái</span>
