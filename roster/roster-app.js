@@ -12,6 +12,7 @@ const ROSTER_I18N = {
     wheelDone: "Xong",
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
     headcountLabel: "Số thành viên",
+    memberUnit: "thành viên",
     deptExecShort: "Ban Chủ nhiệm",
     deptDesignShort: "Ban Thiết kế",
     deptContentShort: "Ban Nội dung",
@@ -57,6 +58,7 @@ const ROSTER_I18N = {
     wheelDone: "Done",
     chartTitle: "Personnel Distribution & Dept Stats",
     headcountLabel: "Headcount",
+    memberUnit: "members",
     deptExecShort: "Excutive Board",
     deptDesignShort: "Design",
     deptContentShort: "Content",
@@ -181,7 +183,7 @@ async function loadMembers() {
         name,
         nameLower: name.toLowerCase(),
         dept,
-        deptKey: CTEC.normalizeDeptKey(dept),
+        deptKey: CTEC.canonDept(dept, CTEC.DEFAULT_DEPT),
         role,
         roleLower: role.toLowerCase(),
         status,
@@ -203,20 +205,54 @@ async function loadMembers() {
 }
 
 function updateStats() {
-  const stats = CTEC.getHeadcountStats(rawMembers);
-  const c = stats.perDept;
+  const uniquePeople = new Set();
+  const execSet = new Set();
+  const designSet = new Set();
+  const prSet = new Set();
+  const contentSet = new Set();
+  const eventSet = new Set();
+  const hrSet = new Set();
+
+  for (const m of rawMembers) {
+    const nameKey = CTEC.buildMemberNameKey(m.name);
+    if (!nameKey) continue;
+
+    // 1 tên có thể ở 2 ban nhưng tổng quân số vẫn chỉ tính là 1 người
+    uniquePeople.add(nameKey);
+
+    if (m.deptKey === "EXCUTIVE BOARD") execSet.add(nameKey);
+    else if (m.deptKey === "DESIGN") designSet.add(nameKey);
+    else if (m.deptKey === "PUBLIC RELATIONS") prSet.add(nameKey);
+    else if (m.deptKey === "CONTENT") contentSet.add(nameKey);
+    else if (m.deptKey === "EVENT & EXTERNAL RELATIONS") eventSet.add(nameKey);
+    else if (m.deptKey === "HUMAN RESOURCES") hrSet.add(nameKey);
+  }
+
+  const exec = execSet.size;
+  const design = designSet.size;
+  const pr = prSet.size;
+  const content = contentSet.size;
+  const event = eventSet.size;
+  const hr = hrSet.size;
+
+  document.getElementById("cntExec").textContent = exec;
+  document.getElementById("cntDesign").textContent = design;
+  document.getElementById("cntPr").textContent = pr;
+  document.getElementById("cntContent").textContent = content;
+  document.getElementById("cntEvent").textContent = event;
+  document.getElementById("cntHr").textContent = hr;
 
   const totalEl = document.getElementById("totalCount");
-  if (totalEl) totalEl.textContent = String(stats.people);
+  if (totalEl) totalEl.textContent = String(uniquePeople.size);
 
-  document.getElementById("cntExec").textContent = c["EXCUTIVE BOARD"] || 0;
-  document.getElementById("cntPr").textContent = c["PUBLIC RELATIONS"] || 0;
-  document.getElementById("cntDesign").textContent = c["DESIGN"] || 0;
-  document.getElementById("cntContent").textContent = c["CONTENT"] || 0;
-  document.getElementById("cntHr").textContent = c["HUMAN RESOURCES"] || 0;
-  document.getElementById("cntEvent").textContent = c["EVENT & EXTERNAL RELATIONS"] || 0;
-
-  renderDeptChart(c);
+  renderDeptChart({
+    "EXCUTIVE BOARD": exec,
+    "DESIGN": design,
+    "PUBLIC RELATIONS": pr,
+    "CONTENT": content,
+    "EVENT & EXTERNAL RELATIONS": event,
+    "HUMAN RESOURCES": hr
+  });
 }
 
 function renderDeptChart(counts) {
@@ -263,10 +299,12 @@ function renderDeptChart(counts) {
           cornerRadius: 8,
           callbacks: {
             label(ctx) {
+              const curLang = CTEC.getSavedLang();
+              const curT = ROSTER_I18N[curLang] || ROSTER_I18N.vi;
               const val = ctx.parsed || 0;
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-              return lang === "en" ? ` ${val} role entries (${pct}%)` : ` ${val} lượt nhân sự (${pct}%)`;
+              return ` ${val} ${curT.memberUnit} (${pct}%)`;
             }
           }
         }
