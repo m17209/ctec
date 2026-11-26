@@ -3,20 +3,89 @@ window.CTEC = (() => {
   const LANG_COOKIE_NAME = 'ctec_lang';
   const API_BASE_URL = 'https://nameless-mud-298a.minhlesynhat.workers.dev';
 
-  const DEPT_STYLES = {
-    "EXCUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200",
-    "EXECUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200",
-    "PUBLIC RELATIONS DEPARTMENT": "bg-sky-50 text-sky-700 border-sky-200",
-    "DESIGN DEPARTMENT": "bg-red-50 text-red-700 border-red-200",
-    "CONTENT DEPARTMENT": "bg-amber-50 text-amber-700 border-amber-200",
-    "HUMAN RESOURCES DEPARTMENT": "bg-emerald-50 text-emerald-700 border-emerald-200",
-    "EVENT & EXTERNAL RELATIONS DEPARTMENT": "bg-pink-50 text-pink-700 border-pink-200"
-  };
+  // Lược đồ chuẩn 6 Ban cũ (Single Source of Truth)
+  const DEPARTMENTS = [
+    {
+      value: "EXCUTIVE BOARD",
+      vi: "Ban Chủ nhiệm (Executive Board)",
+      viShort: "Ban Chủ nhiệm",
+      en: "Executive Board",
+      color: "#4f46e5",
+      badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200"
+    },
+    {
+      value: "PUBLIC RELATIONS DEPARTMENT",
+      vi: "Ban Truyền thông (PR)",
+      viShort: "Ban Truyền thông",
+      en: "Public Relations",
+      color: "#0284c7",
+      badgeClass: "bg-sky-50 text-sky-700 border-sky-200"
+    },
+    {
+      value: "DESIGN DEPARTMENT",
+      vi: "Ban Thiết kế (Design)",
+      viShort: "Ban Thiết kế",
+      en: "Design",
+      color: "#dc2626",
+      badgeClass: "bg-red-50 text-red-700 border-red-200"
+    },
+    {
+      value: "CONTENT DEPARTMENT",
+      vi: "Ban Nội dung (Content)",
+      viShort: "Ban Nội dung",
+      en: "Content",
+      color: "#d97706",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200"
+    },
+    {
+      value: "HUMAN RESOURCES DEPARTMENT",
+      vi: "Ban Nhân sự (HR)",
+      viShort: "Ban Nhân sự",
+      en: "Human Resources",
+      color: "#059669",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200"
+    },
+    {
+      value: "EVENT & EXTERNAL RELATIONS DEPARTMENT",
+      vi: "Ban Đối ngoại (Event & External)",
+      viShort: "Ban Đối ngoại",
+      en: "External Relations",
+      color: "#db2777",
+      badgeClass: "bg-pink-50 text-pink-700 border-pink-200"
+    }
+  ];
+
+  const DEPT_KEYS = DEPARTMENTS.map(d => d.value);
+  const DEFAULT_DEPT = "CONTENT DEPARTMENT";
+
+  const DEPT_STYLES = DEPARTMENTS.reduce((acc, d) => {
+    acc[d.value] = d.badgeClass;
+    return acc;
+  }, {
+    "EXECUTIVE BOARD": "bg-indigo-50 text-indigo-700 border-indigo-200"
+  });
   const DEFAULT_DEPT_STYLE = "bg-slate-100 text-slate-700 border-slate-200";
+
+  const ROLES = [
+    "President",
+    "Vice President",
+    "Head of Department",
+    "Deputy Head of Department",
+    "Member"
+  ];
+
+  const MEMBER_STATUSES = [
+    "Official",
+    "Probationary",
+    "Inactive"
+  ];
+
+  const FUND_MONTHS_EN = ["Oct 26", "Nov 26", "Dec 26", "Jan 27", "Feb 27", "Mar 27", "Apr 27", "May 27"];
+  const FUND_MONTHS_VI = ["T10/26", "T11/26", "T12/26", "T1/27", "T2/27", "T3/27", "T4/27", "T5/27"];
 
   const ITEM_HEIGHT = 32;
   const wheelInstances = {};
-  const listeners = [];
+  let serverClockOffsetMs = 0;
 
   function getCookie(name) {
     const target = `${encodeURIComponent(name)}=`;
@@ -127,17 +196,6 @@ window.CTEC = (() => {
     syncThemeButtons(getSavedTheme());
   });
 
-  const DEPT_KEYS = [
-    "EXCUTIVE BOARD",
-    "CONTENT DEPARTMENT",
-    "DESIGN DEPARTMENT",
-    "EVENT DEPARTMENT",
-    "MEDIA DEPARTMENT",
-    "EXTERNAL RELATIONS DEPARTMENT"
-  ];
-
-  const DEFAULT_DEPT = "CONTENT DEPARTMENT";
-
   const escapeHtml = (str) =>
     String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -151,7 +209,7 @@ window.CTEC = (() => {
       .replace(/\s+/g, " ")
       .trim();
 
-  // BUG-07: Chuẩn hóa tên ban về đúng 6 key chuẩn cũ (giữ nguyên "EXCUTIVE BOARD")
+  // DEF-03: Chuẩn hóa tên ban về đúng 6 mã ban cũ (giữ nguyên "EXCUTIVE BOARD")
   const canonDept = (rawDept, fallback = DEFAULT_DEPT) => {
     const raw = String(rawDept ?? '').trim();
     if (!raw) return fallback;
@@ -167,29 +225,50 @@ window.CTEC = (() => {
     ) {
       return "EXCUTIVE BOARD";
     }
-    if (norm.includes("content") || norm.includes("noi dung")) {
-      return "CONTENT DEPARTMENT";
+    if (
+      norm.includes("public relation") ||
+      norm === "pr" ||
+      norm.includes("ban pr") ||
+      norm.includes("media") ||
+      norm.includes("truyen thong")
+    ) {
+      return "PUBLIC RELATIONS DEPARTMENT";
     }
     if (norm.includes("design") || norm.includes("thiet ke")) {
       return "DESIGN DEPARTMENT";
     }
-    if (norm.includes("event") || norm.includes("su kien")) {
-      return "EVENT DEPARTMENT";
-    }
-    if (norm.includes("media") || norm.includes("truyen thong")) {
-      return "MEDIA DEPARTMENT";
+    if (norm.includes("content") || norm.includes("noi dung")) {
+      return "CONTENT DEPARTMENT";
     }
     if (
+      norm.includes("human resource") ||
+      norm === "hr" ||
+      norm.includes("ban hr") ||
+      norm.includes("nhan su")
+    ) {
+      return "HUMAN RESOURCES DEPARTMENT";
+    }
+    if (
+      norm.includes("event") ||
       norm.includes("external") ||
       norm.includes("relation") ||
-      norm.includes("doi ngoai")
+      norm.includes("doi ngoai") ||
+      norm.includes("su kien")
     ) {
-      return "EXTERNAL RELATIONS DEPARTMENT";
+      return "EVENT & EXTERNAL RELATIONS DEPARTMENT";
     }
     return fallback;
   };
 
-  const normalizeDeptKey = (dept) => canonDept(dept, String(dept ?? '').trim().toUpperCase());
+  const normalizeDeptKey = (dept) => canonDept(dept, DEFAULT_DEPT);
+
+  const getDeptLabel = (deptKey, lang = getSavedLang(), shortMode = false) => {
+    const canon = canonDept(deptKey, "");
+    const found = DEPARTMENTS.find(d => d.value === canon);
+    if (!found) return String(deptKey ?? "");
+    if (lang === "en") return found.en;
+    return shortMode ? found.viShort : found.vi;
+  };
 
   const normalizeMemberName = (name) =>
     String(name ?? '').trim().replace(/\s+/g, ' ');
@@ -215,12 +294,6 @@ window.CTEC = (() => {
     );
   };
 
-  /**
-   * Quy tắc đếm quân số mới:
-   * - Các thành viên có tag Trưởng/Phó ban trực thuộc Ban Chủ nhiệm (EXCUTIVE BOARD)
-   *   và Ban chuyên môn được phép tính trùng giữa Ban chuyên môn và Ban Chủ nhiệm.
-   * - Các trường hợp kiêm nhiệm khác không mang tag Trưởng/Phó ban vẫn khử trùng theo người.
-   */
   const countMembersWithLeadOverlap = (members) => {
     if (!Array.isArray(members) || members.length === 0) return 0;
 
@@ -261,20 +334,44 @@ window.CTEC = (() => {
 
   const countUniquePeople = (rows) => countMembersWithLeadOverlap(rows);
 
-  // BUG-06: Parse ngày hạn đóng (1..31), hỗ trợ "05/10/2026", "5", "15/10"
+  // DEF-08: Tách định dạng DD/MM(/YYYY) trước khi dò số đơn lẻ
   const parseDeadlineDay = (rawVal) => {
     if (typeof rawVal === "number" && Number.isInteger(rawVal)) {
       return rawVal >= 1 && rawVal <= 31 ? rawVal : 0;
     }
     const str = String(rawVal ?? "").trim();
     if (!str) return 0;
-    const match = str.match(/(?:^|\D)(0?[1-9]|[12]\d|3[01])(?:\D|$)/);
-    if (!match) return 0;
-    const day = parseInt(match[1], 10);
+
+    // Ưu tiên chuỗi ngày dạng DD/MM hoặc DD-MM (hoặc DD/MM/YYYY)
+    const dmyMatch = str.match(/\b(0?[1-9]|[12]\d|3[01])[\/\-](0?[1-9]|1[0-2])(?:[\/\-]\d{2,4})?\b/);
+    if (dmyMatch) {
+      const d1 = parseInt(dmyMatch[1], 10);
+      const d2 = parseInt(dmyMatch[2], 10);
+      // Nếu phần đầu <= 12 và phần sau > 12 (MM/DD/YYYY), lấy phần sau làm ngày
+      if (d1 <= 12 && d2 > 12 && d2 <= 31) return d2;
+      return d1 >= 1 && d1 <= 31 ? d1 : 0;
+    }
+
+    // Dạng "ngày 15" / "day 15"
+    const keywordMatch = str.match(/(?:ngay|ngày|day|han|hạn)\s*:?\s*(0?[1-9]|[12]\d|3[01])\b/i);
+    if (keywordMatch) {
+      const day = parseInt(keywordMatch[1], 10);
+      return day >= 1 && day <= 31 ? day : 0;
+    }
+
+    // Chuỗi số thuần túy
+    if (/^\d{1,2}$/.test(str)) {
+      const day = parseInt(str, 10);
+      return day >= 1 && day <= 31 ? day : 0;
+    }
+
+    const fallbackMatch = str.match(/(?:^|\D)(0?[1-9]|[12]\d|3[01])(?:\D|$)/);
+    if (!fallbackMatch) return 0;
+    const day = parseInt(fallbackMatch[1], 10);
     return day >= 1 && day <= 31 ? day : 0;
   };
 
-  // BUG-03: Sanitize HTML/SVG QR Code chống Stored XSS
+  // DEF-05: Chặn toàn bộ thẻ/thuộc tính có thể khai thác Stored XSS trong SVG/IMG
   const sanitizeQrHtml = (rawHtml) => {
     const input = String(rawHtml ?? "").trim();
     if (!input) return null;
@@ -287,6 +384,12 @@ window.CTEC = (() => {
     if (svgEl) {
       const blockedTags = new Set([
         "script",
+        "style",
+        "animate",
+        "animatetransform",
+        "animatemotion",
+        "set",
+        "use",
         "foreignobject",
         "iframe",
         "object",
@@ -295,7 +398,8 @@ window.CTEC = (() => {
         "meta",
         "base",
         "audio",
-        "video"
+        "video",
+        "image"
       ]);
       const cleanSvg = document.importNode(svgEl, true);
       const walker = document.createTreeWalker(
@@ -312,12 +416,18 @@ window.CTEC = (() => {
         } else {
           for (const attr of Array.from(curr.attributes)) {
             const attrName = attr.name.toLowerCase();
-            const attrVal = attr.value.trim();
-            if (attrName.startsWith("on")) {
+            const attrVal = attr.value.replace(/\s+/g, "").toLowerCase();
+            if (
+              attrName.startsWith("on") ||
+              attrName === "style" ||
+              attrVal.includes("javascript:") ||
+              attrVal.includes("vbscript:") ||
+              attrVal.includes("data:text/html")
+            ) {
               curr.removeAttribute(attr.name);
             } else if (
               (attrName === "href" || attrName === "xlink:href") &&
-              !attrVal.startsWith("#")
+              !attr.value.trim().startsWith("#")
             ) {
               curr.removeAttribute(attr.name);
             }
@@ -349,14 +459,27 @@ window.CTEC = (() => {
   const renderDeptBadge = (dept, displayText = null) => {
     const key = normalizeDeptKey(dept);
     const cls = DEPT_STYLES[key] || DEFAULT_DEPT_STYLE;
-    const text = displayText ?? dept;
+    const text = displayText ?? getDeptLabel(key, getSavedLang(), true);
     return `<span class="ctec-dept-badge inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${cls}">${escapeHtml(text)}</span>`;
   };
+
+  // DEF-10: Đồng bộ thời gian máy chủ & chuẩn hóa mốc UTC+7
+  function getServerNowMs() {
+    return Date.now() + serverClockOffsetMs;
+  }
 
   /* ================= FETCH JSON QUA CLOUDFLARE WORKER ================= */
   async function fetchWorkerJson(endpoint) {
     const sep = endpoint.includes("?") ? "&" : "?";
-    const res = await fetch(`${API_BASE_URL}${endpoint}${sep}_t=${Date.now()}`, { cache: "no-store" });
+    const reqStart = Date.now();
+    const res = await fetch(`${API_BASE_URL}${endpoint}${sep}_t=${reqStart}`, { cache: "no-store" });
+    const dateHeader = res.headers.get("Date");
+    if (dateHeader) {
+      const parsedServerMs = Date.parse(dateHeader);
+      if (!Number.isNaN(parsedServerMs)) {
+        serverClockOffsetMs = parsedServerMs - Date.now();
+      }
+    }
     if (!res.ok) {
       const errJson = await res.json().catch(() => null);
       throw new Error(errJson?.error || `HTTP ${res.status}`);
@@ -364,6 +487,9 @@ window.CTEC = (() => {
     const payload = await res.json();
     if (payload && payload.ok === false) {
       throw new Error(payload.error || "Worker returned ok: false");
+    }
+    if (payload && typeof payload.serverTime === "number") {
+      serverClockOffsetMs = payload.serverTime - Date.now();
     }
     return payload;
   }
@@ -607,6 +733,28 @@ window.CTEC = (() => {
     };
   }
 
+  // DEF-12: Tự động định vị popover chống tràn mép trái trên màn hình hẹp
+  function positionWheelPopover(wrap, pop) {
+    pop.classList.remove('wheel-align-left');
+    pop.style.left = '';
+    pop.style.right = '';
+
+    const trigger = wrap.querySelector('.wheel-trigger') || wrap;
+    const triggerRect = trigger.getBoundingClientRect();
+    const popWidth = pop.offsetWidth || 232;
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+
+    if (triggerRect.right - popWidth < 12) {
+      if (triggerRect.left + popWidth <= viewportWidth - 12) {
+        pop.classList.add('wheel-align-left');
+      } else {
+        const shiftLeft = Math.max(12 - triggerRect.left, viewportWidth - 12 - popWidth - triggerRect.left);
+        pop.style.left = `${Math.round(shiftLeft)}px`;
+        pop.style.right = 'auto';
+      }
+    }
+  }
+
   function toggleWheel(id, e) {
     e?.stopPropagation();
     const wrap = document.getElementById(id);
@@ -617,12 +765,17 @@ window.CTEC = (() => {
     closeAllWheels();
     if (open) {
       pop.classList.add('open');
+      positionWheelPopover(wrap, pop);
       requestAnimationFrame(() => wheelInstances[id]?.render());
     }
   }
 
   function closeAllWheels() {
-    document.querySelectorAll('.wheel-popover.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.wheel-popover.open').forEach(p => {
+      p.classList.remove('open', 'wheel-align-left');
+      p.style.left = '';
+      p.style.right = '';
+    });
   }
 
   function setWheelValue(id, val) {
@@ -634,6 +787,7 @@ window.CTEC = (() => {
   }
 
   document.addEventListener('click', closeAllWheels);
+  window.addEventListener('resize', closeAllWheels);
 
   /* ================= PARSE CSV & TSV (GOOGLE SHEETS) ================= */
   function parseDelimitedRows(text, delimiter = ',') {
@@ -696,8 +850,6 @@ window.CTEC = (() => {
     return parseDelimitedRows(str, delimiter);
   }
 
-  // BUG-11: Đã loại bỏ dead code parseCsvToCells() và fetchWorkerSheet()
-
   function copyTSV(headers, rows, message) {
     const lines = [headers.join("\t"), ...rows.map(r => r.join("\t"))];
     const tsv = lines.join("\n");
@@ -737,8 +889,14 @@ window.CTEC = (() => {
 
   return {
     API_BASE_URL,
+    DEPARTMENTS,
     DEPT_KEYS,
+    DEPT_STYLES,
     DEFAULT_DEPT,
+    ROLES,
+    MEMBER_STATUSES,
+    FUND_MONTHS_EN,
+    FUND_MONTHS_VI,
     getSavedLang,
     applyLang,
     toggleLang,
@@ -749,6 +907,7 @@ window.CTEC = (() => {
     normText,
     canonDept,
     normalizeDeptKey,
+    getDeptLabel,
     normalizeMemberName,
     buildMemberNameKey,
     isDeptLeadTag,
@@ -757,6 +916,7 @@ window.CTEC = (() => {
     parseDeadlineDay,
     sanitizeQrHtml,
     renderDeptBadge,
+    getServerNowMs,
     fetchWorkerJson,
     createWheelPicker,
     toggleWheel,
@@ -766,7 +926,6 @@ window.CTEC = (() => {
     parseCsvRows,
     parseSheetPasteText,
     copyTSV,
-    downloadCSV,
-    listeners
+    downloadCSV
   };
 })();
