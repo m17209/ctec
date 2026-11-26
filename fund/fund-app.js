@@ -52,11 +52,11 @@ const FUND_I18N = {
     footerText: "Báo cáo quỹ & tài chính chính thức CTEC | Thực hiện bởi Nhat Minh",
     deptLabels: {
       "EXCUTIVE BOARD": "Ban Chủ nhiệm",
-      "PUBLIC RELATIONS DEPARTMENT": "Ban Truyền thông",
-      "DESIGN DEPARTMENT": "Ban Thiết kế",
-      "CONTENT DEPARTMENT": "Ban Nội dung",
-      "HUMAN RESOURCES DEPARTMENT": "Ban Nhân sự",
-      "EVENT & EXTERNAL RELATIONS DEPARTMENT": "Ban Đối ngoại"
+      "PUBLIC RELATIONS": "Ban Truyền thông",
+      "DESIGN": "Ban Thiết kế",
+      "CONTENT": "Ban Nội dung",
+      "HUMAN RESOURCES": "Ban Nhân sự",
+      "EVENT & EXTERNAL RELATIONS": "Ban Đối ngoại"
     }
   },
   en: {
@@ -108,11 +108,11 @@ const FUND_I18N = {
     footerText: "Official CTEC Treasury & Financial Report | Crafted by Nhat Minh",
     deptLabels: {
       "EXCUTIVE BOARD": "Executive Board",
-      "PUBLIC RELATIONS DEPARTMENT": "Public Relations",
-      "DESIGN DEPARTMENT": "Design",
-      "CONTENT DEPARTMENT": "Content",
-      "HUMAN RESOURCES DEPARTMENT": "Human Resources",
-      "EVENT & EXTERNAL RELATIONS DEPARTMENT": "External Relations"
+      "PUBLIC RELATIONS": "Public Relations",
+      "DESIGN": "Design",
+      "CONTENT": "Content",
+      "HUMAN RESOURCES": "Human Resources",
+      "EVENT & EXTERNAL RELATIONS": "External Relations"
     }
   }
 };
