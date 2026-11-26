@@ -87,9 +87,10 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   background-color: var(--ctec-tab-bg);
   color: #ffffff;
   text-decoration: none;
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
-  box-shadow: 0 8px 18px -6px rgba(2, 6, 23, 0.55);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  /* drop-shadow đi theo toàn bộ hình (thân tab + 2 mép xiên) nên không bị lệch */
+  filter: drop-shadow(0 7px 8px rgba(2, 6, 23, 0.4));
   transition:
     padding 0.34s cubic-bezier(0.22, 1, 0.36, 1),
     margin-left 0.34s cubic-bezier(0.22, 1, 0.36, 1),
@@ -98,31 +99,32 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Left angled edge in collapsed trapezoid state */
-.ctec-brand-tab::before {
+/* Mép xiên hai bên: cùng màu với thân tab, dùng clip-path (cạnh sắc nét, không răng cưa),
+   chồng 1px vào thân tab và 1px lên viền dưới header để không còn khe hở. */
+.ctec-brand-tab::before,
+.ctec-brand-tab::after {
   content: "";
   position: absolute;
-  right: calc(100% - 0.5px);
   bottom: 0;
-  width: var(--ctec-tab-drop);
-  height: var(--ctec-tab-drop);
-  background: linear-gradient(to top right, transparent 48.5%, var(--ctec-tab-bg) 51%);
+  width: calc(var(--ctec-tab-drop) + 1px);
+  height: calc(var(--ctec-tab-drop) + 1px);
+  background: var(--ctec-tab-bg);
   pointer-events: none;
   transition:
     width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.24s ease;
 }
 
+/* Left angled edge in collapsed trapezoid state */
+.ctec-brand-tab::before {
+  right: calc(100% - 1px);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
 /* Right angled edge (remains sloped in both collapsed and expanded states) */
 .ctec-brand-tab::after {
-  content: "";
-  position: absolute;
-  left: calc(100% - 0.5px);
-  bottom: 0;
-  width: calc(var(--ctec-tab-drop) + 2px);
-  height: var(--ctec-tab-drop);
-  background: linear-gradient(to top left, transparent 48.5%, var(--ctec-tab-bg) 51%);
-  pointer-events: none;
+  left: calc(100% - 1px);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
 .ctec-brand-logo {
@@ -165,7 +167,7 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   padding-right: 12px;
   margin-left: 0;
   border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 5px;
+  border-bottom-right-radius: 0;
 }
 
 .ctec-brand-tab:hover::before,
