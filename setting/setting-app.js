@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.CTECSettings) {
-    console.error('CTECSettings chưa được nạp từ ../assets/ctec-core.js');
+    console.error('CTECSettings chưa được nạp từ ../workspace/assets/ctec-core.js');
     return;
   }
 
