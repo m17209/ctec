@@ -545,16 +545,16 @@ function renderTableHeader() {
 
   const base =
     `<th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-200 dark:border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
-    `<th class="sticky-name-col bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white py-3.5 px-4 sm:px-5 border-r border-slate-300 dark:border-slate-700 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
+    `<th class="sticky-name-col bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white py-3.5 px-4 sm:px-5 border-r border-slate-200 dark:border-slate-700 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
     `<th class="py-3.5 px-5 border-r border-slate-200 dark:border-slate-800 min-w-[210px]">${CTEC.escapeHtml(t.colDept)}</th>`;
 
   if (selectedMonthIndex === "ALL") {
     const mCols = ms.map((m, idx) => `<th class="py-3.5 px-3 text-center ${idx < ms.length - 1 ? "border-r border-slate-200 dark:border-slate-800" : ""}">${CTEC.escapeHtml(m)}</th>`).join("");
-    document.getElementById("tableHead").innerHTML = `<tr class="bg-slate-100/95 dark:bg-slate-900 text-slate-700 dark:text-white border-b-2 border-slate-800 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
+    document.getElementById("tableHead").innerHTML = `<tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
   } else {
     const mName = ms[selectedMonthIndex];
     document.getElementById("tableHead").innerHTML =
-      `<tr class="bg-slate-100/95 dark:bg-slate-900 text-slate-700 dark:text-white border-b-2 border-slate-800 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}` +
+      `<tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}` +
         `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colPayStatus)} (${CTEC.escapeHtml(mName)})</th>` +
         `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colArrears)} (${CTEC.escapeHtml(mName)})</th>` +
         `<th class="py-3.5 px-5 min-w-[160px]">${CTEC.escapeHtml(t.colNote)}</th>` +
