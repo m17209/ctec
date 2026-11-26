@@ -50,14 +50,7 @@ const FUND_I18N = {
     errorDesc: "Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.",
     noResultsText: "Không có người đóng góp nào khớp với từ khóa hoặc bộ lọc đã chọn.",
     footerText: "Báo cáo quỹ & tài chính chính thức CTEC | Thực hiện bởi Nhat Minh",
-    deptLabels: {
-      "EXCUTIVE BOARD": "Ban Chủ nhiệm",
-      "PUBLIC RELATIONS": "Ban Truyền thông",
-      "DESIGN": "Ban Thiết kế",
-      "CONTENT": "Ban Nội dung",
-      "HUMAN RESOURCES": "Ban Nhân sự",
-      "EVENT & EXTERNAL RELATIONS": "Ban Đối ngoại"
-    }
+    deptLabels: CTEC.getDeptLabelsMap("vi")
   },
   en: {
     pageTitle: "CTEC Workspace - Fund Management",
@@ -106,14 +99,7 @@ const FUND_I18N = {
     errorDesc: "Please try again in a moment or check your network connection.",
     noResultsText: "No contributors match your search query or selected filters.",
     footerText: "Official CTEC Treasury & Financial Report | Crafted by Nhat Minh",
-    deptLabels: {
-      "EXCUTIVE BOARD": "Executive Board",
-      "PUBLIC RELATIONS": "Public Relations",
-      "DESIGN": "Design",
-      "CONTENT": "Content",
-      "HUMAN RESOURCES": "Human Resources",
-      "EVENT & EXTERNAL RELATIONS": "External Relations"
-    }
+    deptLabels: CTEC.getDeptLabelsMap("en")
   }
 };
 
@@ -260,7 +246,7 @@ function getDeptOptions(lang) {
     { value: "ALL", label: t.allDepts },
     ...CTEC.DEPARTMENTS.map(d => ({
       value: d.value,
-      label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, true)
+      label: t.deptLabels[d.value] || CTEC.getDeptLabel(d.value, lang, false)
     }))
   ];
 }
@@ -558,19 +544,19 @@ function renderTableHeader() {
   const ms = getMonths(lang);
 
   const base =
-    `<th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
-    `<th class="sticky-name-col bg-slate-900 py-3.5 px-4 sm:px-5 border-r border-slate-700 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
-    `<th class="py-3.5 px-5 border-r border-slate-800 min-w-[210px]">${CTEC.escapeHtml(t.colDept)}</th>`;
+    `<th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-200 dark:border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
+    `<th class="sticky-name-col bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white py-3.5 px-4 sm:px-5 border-r border-slate-300 dark:border-slate-700 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
+    `<th class="py-3.5 px-5 border-r border-slate-200 dark:border-slate-800 min-w-[210px]">${CTEC.escapeHtml(t.colDept)}</th>`;
 
   if (selectedMonthIndex === "ALL") {
-    const mCols = ms.map((m, idx) => `<th class="py-3.5 px-3 text-center ${idx < ms.length - 1 ? "border-r border-slate-800" : ""}">${CTEC.escapeHtml(m)}</th>`).join("");
-    document.getElementById("tableHead").innerHTML = `<tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
+    const mCols = ms.map((m, idx) => `<th class="py-3.5 px-3 text-center ${idx < ms.length - 1 ? "border-r border-slate-200 dark:border-slate-800" : ""}">${CTEC.escapeHtml(m)}</th>`).join("");
+    document.getElementById("tableHead").innerHTML = `<tr class="bg-slate-100/95 dark:bg-slate-900 text-slate-700 dark:text-white border-b-2 border-slate-800 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
   } else {
     const mName = ms[selectedMonthIndex];
     document.getElementById("tableHead").innerHTML =
-      `<tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">${base}` +
-        `<th class="py-3.5 px-4 text-center border-r border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colPayStatus)} (${CTEC.escapeHtml(mName)})</th>` +
-        `<th class="py-3.5 px-4 text-center border-r border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colArrears)} (${CTEC.escapeHtml(mName)})</th>` +
+      `<tr class="bg-slate-100/95 dark:bg-slate-900 text-slate-700 dark:text-white border-b-2 border-slate-800 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}` +
+        `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colPayStatus)} (${CTEC.escapeHtml(mName)})</th>` +
+        `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colArrears)} (${CTEC.escapeHtml(mName)})</th>` +
         `<th class="py-3.5 px-5 min-w-[160px]">${CTEC.escapeHtml(t.colNote)}</th>` +
       `</tr>`;
   }
