@@ -5,20 +5,12 @@ const ROSTER_I18N = {
     syncTitle: "Đồng bộ dữ liệu mới nhất",
     refreshFull: "Làm mới dữ liệu",
     refreshShort: "ĐỒNG BỘ",
-    copyFull: "Sao chép cho Google Sheets",
-    copyMobile: "Sao chép",
-    copyShort: "CHÉP",
-    csvFull: "Xuất CSV",
-    csvMobile: "CSV",
-    csvShort: "CSV",
     quickSearchLabel: "Tìm kiếm nhanh",
     searchPlaceholder: "Tìm theo tên thành viên...",
     filterDeptLabel: "Lọc theo ban:",
     wheelHint: "Kéo hoặc cuộn",
     wheelDone: "Xong",
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
-    headcountNote: "* Quân số tính theo người (một người giữ nhiều ban chỉ tính một lần). Số ở thẻ ban và biểu đồ là số người của từng ban, nên Trưởng ban thuộc Ban Chủ nhiệm được tính ở cả Ban Chủ nhiệm và ban mình phụ trách.",
-    chartHint: "Chọn một ban để lọc",
     headcountLabel: "Quân số",
     deptExecShort: "Ban Chủ nhiệm",
     deptPrShort: "Truyền thông",
@@ -38,9 +30,6 @@ const ROSTER_I18N = {
     noResultsText: "Không có thành viên nào khớp với từ khóa hoặc bộ lọc đã chọn.",
     footerText: "Báo cáo nhân sự chính thức CTEC | Thực hiện bởi Nhat Minh",
     allDeptsOption: "Tất cả các ban",
-    copiedMsg: "Đã sao chép bảng danh sách! Dán (Ctrl + V) trực tiếp vào Google Sheets.",
-    csvFile: "Danh_sach_thanh_vien_CTEC.csv",
-    exportHeaders: ["STT", "Họ và tên", "Ban", "Chức vụ", "Trạng thái"],
     deptLabels: {
       "EXCUTIVE BOARD": "Ban Chủ nhiệm",
       "PUBLIC RELATIONS DEPARTMENT": "Ban Truyền thông",
@@ -68,20 +57,12 @@ const ROSTER_I18N = {
     syncTitle: "Sync latest directory records",
     refreshFull: "Refresh Data",
     refreshShort: "SYNC",
-    copyFull: "Copy for Google Sheets",
-    copyMobile: "Copy",
-    copyShort: "COPY",
-    csvFull: "Export CSV",
-    csvMobile: "CSV",
-    csvShort: "CSV",
     quickSearchLabel: "Quick Search",
     searchPlaceholder: "Search by member name...",
     filterDeptLabel: "Filter by Department:",
     wheelHint: "Drag or scroll",
     wheelDone: "Done",
     chartTitle: "Personnel Distribution & Dept Stats",
-    headcountNote: "* Headcount counts each person once, even if listed in several departments. Department cards and the chart show each department\u2019s own members, so Executive Board members who head another department appear in both.",
-    chartHint: "Click a department to filter",
     headcountLabel: "Headcount",
     deptExecShort: "Executive Board",
     deptPrShort: "Public Relations",
@@ -101,9 +82,6 @@ const ROSTER_I18N = {
     noResultsText: "No members match your search query or selected filter.",
     footerText: "Official CTEC Personnel Report | Crafted by Nhat Minh",
     allDeptsOption: "All Departments",
-    copiedMsg: "Roster table copied! Paste (Ctrl + V) directly into Google Sheets.",
-    csvFile: "CTEC_Member_Roster.csv",
-    exportHeaders: ["No.", "Name", "Department", "Role", "Status"],
     deptLabels: {
       "EXCUTIVE BOARD": "Executive Board",
       "PUBLIC RELATIONS DEPARTMENT": "Public Relations",
@@ -239,7 +217,6 @@ async function loadMembers() {
 }
 
 function updateStats() {
-  // Quân số = số người duy nhất; số liệu từng ban = số người của ban đó (xem CTEC.getHeadcountStats)
   const stats = CTEC.getHeadcountStats(rawMembers);
   const c = stats.perDept;
 
@@ -325,7 +302,6 @@ function setFilter(dept) {
   renderTable();
 }
 
-// DEF-06: Đồng bộ nhận diện Trưởng/Phó ban với CTEC.isDeptLeadTag()
 const getRoleHtml = (m, lang) => {
   const label = CTEC.escapeHtml(translateRole(m.role, lang));
   if (m.roleLower.includes("president") || m.roleLower.includes("chủ tịch")) {
@@ -362,7 +338,7 @@ function renderTable() {
     rows.push(
       `<tr class="group hover:bg-slate-50 transition duration-150">` +
         `<td class="py-3.5 px-3 sm:px-4 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${idx}</td>` +
-        `<td class="sticky-name-col py-3.5 px-4 sm:px-6 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap transition duration-150">${CTEC.escapeHtml(m.name)}</td>` +
+        `<td class="sticky-name-col bg-white group-hover:bg-slate-50 py-3.5 px-4 sm:px-6 font-semibold text-slate-800 border-r border-slate-200 whitespace-nowrap transition duration-150">${CTEC.escapeHtml(m.name)}</td>` +
         `<td class="py-3.5 px-5 sm:px-6 border-r border-slate-100 whitespace-nowrap">${CTEC.renderDeptBadge(m.deptKey, deptDisplay)}</td>` +
         `<td class="py-3.5 px-5 sm:px-6 text-center border-r border-slate-100 whitespace-nowrap">${getRoleHtml(m, lang)}</td>` +
         `<td class="py-3.5 px-5 sm:px-6 text-center whitespace-nowrap">${getStatusHtml(m, lang)}</td>` +
@@ -373,34 +349,6 @@ function renderTable() {
   document.getElementById("noResults").classList.toggle("hidden", rows.length > 0);
   document.getElementById("tableBody").innerHTML = rows.join("");
 }
-
-const getExportRows = () => {
-  const lang = CTEC.getSavedLang();
-  const t = ROSTER_I18N[lang] || ROSTER_I18N.vi;
-  const searchVal = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
-  const filtered = rawMembers.filter(m => {
-    if (currentFilter !== "ALL" && m.deptKey !== currentFilter) return false;
-    if (searchVal && !m.nameLower.includes(searchVal)) return false;
-    return true;
-  });
-  return filtered.map((m, i) => [
-    i + 1,
-    m.name,
-    t.deptLabels[m.deptKey] || m.dept,
-    translateRole(m.role, lang),
-    translateStatus(m.status, lang)
-  ]);
-};
-
-const copySheet = () => {
-  const t = ROSTER_I18N[CTEC.getSavedLang()] || ROSTER_I18N.vi;
-  CTEC.copyTSV(t.exportHeaders, getExportRows(), t.copiedMsg);
-};
-
-const downloadCsv = () => {
-  const t = ROSTER_I18N[CTEC.getSavedLang()] || ROSTER_I18N.vi;
-  CTEC.downloadCSV(t.exportHeaders, getExportRows(), t.csvFile);
-};
 
 document.addEventListener("DOMContentLoaded", () => {
   const initLang = CTEC.getSavedLang();
