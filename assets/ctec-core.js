@@ -199,7 +199,8 @@ window.CTEC = (() => {
       en: "Excutive Board",
       viShort: "Ban Chủ nhiệm",
       enShort: "Excutive Board",
-      color: "#6366f1"
+      color: "#6366f1",
+      aliases: ["ban chu nhiem", "chu nhiem", "excutive board", "executive board", "excutive board department", "executive board department"]
     },
     {
       value: "DESIGN",
@@ -207,7 +208,8 @@ window.CTEC = (() => {
       en: "Design",
       viShort: "Ban Thiết kế",
       enShort: "Design",
-      color: "#ef4444"
+      color: "#ef4444",
+      aliases: ["ban thiet ke", "thiet ke", "design", "design department"]
     },
     {
       value: "CONTENT",
@@ -215,7 +217,8 @@ window.CTEC = (() => {
       en: "Content",
       viShort: "Ban Nội dung",
       enShort: "Content",
-      color: "#f59e0b"
+      color: "#f59e0b",
+      aliases: ["ban noi dung", "noi dung", "content", "content department"]
     },
     {
       value: "PUBLIC RELATIONS",
@@ -223,7 +226,8 @@ window.CTEC = (() => {
       en: "Public Relations",
       viShort: "Ban Truyền thông",
       enShort: "Public Relations",
-      color: "#0ea5e9"
+      color: "#0ea5e9",
+      aliases: ["ban truyen thong", "truyen thong", "public relations", "public relations department", "pr"]
     },
     {
       value: "EVENT & EXTERNAL RELATIONS",
@@ -231,7 +235,8 @@ window.CTEC = (() => {
       en: "Event & External Relations",
       viShort: "Ban Đối ngoại",
       enShort: "Event & External Relations",
-      color: "#ec4899"
+      color: "#ec4899",
+      aliases: ["ban doi ngoai", "doi ngoai", "event & external relations", "event & external relations department", "external relations", "ban su kien & doi ngoai", "su kien & doi ngoai"]
     },
     {
       value: "HUMAN RESOURCES",
@@ -239,7 +244,8 @@ window.CTEC = (() => {
       en: "Human Resources",
       viShort: "Ban Nhân sự",
       enShort: "Human Resources",
-      color: "#10b981"
+      color: "#10b981",
+      aliases: ["ban nhan su", "nhan su", "human resources", "human resources department", "hr"]
     }
   ];
 
@@ -265,6 +271,9 @@ window.CTEC = (() => {
     DEPT_LOOKUP_MAP.set(normText(d.value), d.value);
     DEPT_LOOKUP_MAP.set(normText(d.vi), d.value);
     DEPT_LOOKUP_MAP.set(normText(d.en), d.value);
+    (d.aliases || []).forEach((alias) => {
+      DEPT_LOOKUP_MAP.set(normText(alias), d.value);
+    });
   });
 
   // Chuẩn hóa tên ban về 6 key chuẩn dựa trên bảng ánh xạ Việt - Anh
@@ -304,28 +313,45 @@ window.CTEC = (() => {
     );
   };
 
+  // Logic đếm ban theo cấu trúc cũ (đếm từng ban độc lập) + gộp trùng tên (1 tên ở 2 ban vẫn tính là 1 người)
   const getHeadcountStats = (members) => {
     const peopleMap = new Map();
-    const pairSeen = new Set();
-    const perDept = Object.fromEntries(DEPT_KEYS.map((k) => [k, 0]));
+    const deptPeople = {
+      "EXCUTIVE BOARD": new Set(),
+      "DESIGN": new Set(),
+      "PUBLIC RELATIONS": new Set(),
+      "CONTENT": new Set(),
+      "EVENT & EXTERNAL RELATIONS": new Set(),
+      "HUMAN RESOURCES": new Set()
+    };
     let rows = 0;
 
     for (const m of Array.isArray(members) ? members : []) {
       const name = normalizeMemberName(m?.name ?? m?.full_name ?? m?.fullName ?? "");
       const nameKey = buildMemberNameKey(name);
       if (!nameKey) continue;
-      const dept = normalizeDeptKey(m?.deptKey || m?.dept || m?.department || DEFAULT_DEPT);
 
+      const dept = canonDept(m?.deptKey || m?.dept || m?.department, DEFAULT_DEPT);
       rows++;
-      if (!peopleMap.has(nameKey)) peopleMap.set(nameKey, { name, depts: new Set() });
+
+      if (!peopleMap.has(nameKey)) {
+        peopleMap.set(nameKey, { name, depts: new Set() });
+      }
       peopleMap.get(nameKey).depts.add(dept);
 
-      const pairKey = `${nameKey}||${dept}`;
-      if (!pairSeen.has(pairKey)) {
-        pairSeen.add(pairKey);
-        perDept[dept] = (perDept[dept] || 0) + 1;
+      if (deptPeople[dept]) {
+        deptPeople[dept].add(nameKey);
       }
     }
+
+    const perDept = {
+      "EXCUTIVE BOARD": deptPeople["EXCUTIVE BOARD"].size,
+      "DESIGN": deptPeople["DESIGN"].size,
+      "PUBLIC RELATIONS": deptPeople["PUBLIC RELATIONS"].size,
+      "CONTENT": deptPeople["CONTENT"].size,
+      "EVENT & EXTERNAL RELATIONS": deptPeople["EVENT & EXTERNAL RELATIONS"].size,
+      "HUMAN RESOURCES": deptPeople["HUMAN RESOURCES"].size
+    };
 
     const multiDept = [];
     for (const { name, depts } of peopleMap.values()) {
