@@ -25,190 +25,173 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/ctec-core.css">
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
-<header class="ctec-header shadow-lg">
-  <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-    <div class="ctec-brand flex items-center gap-3">
-      <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
-        <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+<body class="min-h-screen flex flex-col">
+  <header class="ctec-header shadow-md">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <a id="homeLink" href="../" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Workspace - Roster Report">
+        <span class="ctec-brand-logo">
+          <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+        </span>
+        <span class="ctec-brand-text-wrap">
+          <span class="ctec-brand-title text-sm sm:text-base font-bold tracking-tight text-white leading-tight">CTEC Workspace</span>
+          <span class="text-[10px] font-medium text-indigo-300 tracking-wide leading-tight">Roster Report</span>
+        </span>
       </a>
-      <div class="flex flex-col leading-tight">
-        <h1 class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Workspace</h1>
-        <span class="text-[11px] sm:text-xs font-medium text-slate-300 tracking-wide">Roster Report</span>
+
+      <div class="ctec-nav-group flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button id="reloadBtn" type="button" onclick="loadMembers()" class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs font-semibold rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer" data-i18n-title="syncTitle">
+          <i id="reloadIcon" class="fa-solid fa-rotate-right text-[11px]"></i>
+          <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
+          <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
+        </button>
+        <button type="button"
+                data-theme-toggle
+                onclick="CTEC.toggleTheme()"
+                aria-pressed="false"
+                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-100 text-xs font-bold tracking-wide rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-[11px]"></i>
+          <span data-theme-label class="ctec-btn-label-full">TỐI</span>
+          <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
+        </button>
+        <button type="button"
+                data-lang-toggle
+                onclick="CTEC.toggleLang()"
+                aria-pressed="false"
+                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-amber-300 text-xs font-bold tracking-wide rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-language text-amber-300 text-[11px]"></i>
+          <span data-lang-label class="ctec-btn-label-full">EN</span>
+          <span data-lang-label-short class="ctec-btn-label-short">EN</span>
+        </button>
       </div>
     </div>
-    <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
-      <button id="reloadBtn" onclick="loadMembers()" class="ctec-nav-btn px-3 sm:px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer" data-i18n-title="syncTitle">
-        <i id="reloadIcon" class="fa-solid fa-rotate-right"></i>
-        <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
-        <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
-      </button>
-      <button onclick="copySheet()" class="ctec-nav-btn px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer">
-        <i class="fa-solid fa-copy"></i>
-        <span class="ctec-btn-label-full hidden sm:inline" data-i18n="copyFull">Sao chép cho Google Sheets</span>
-        <span class="ctec-btn-label-full sm:hidden" data-i18n="copyMobile">Sao chép</span>
-        <span class="ctec-btn-label-short" data-i18n="copyShort">CHÉP</span>
-      </button>
-      <button onclick="downloadCsv()" class="ctec-nav-btn px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold rounded-lg shadow transition flex items-center gap-1.5 sm:gap-2 cursor-pointer">
-        <i class="fa-solid fa-file-excel"></i>
-        <span class="ctec-btn-label-full hidden sm:inline" data-i18n="csvFull">Xuất CSV</span>
-        <span class="ctec-btn-label-full sm:hidden" data-i18n="csvMobile">CSV</span>
-        <span class="ctec-btn-label-short" data-i18n="csvShort">CSV</span>
-      </button>
-      <button type="button"
-              data-theme-toggle
-              onclick="CTEC.toggleTheme()"
-              aria-pressed="false"
-              class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
-        <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-xs"></i>
-        <span data-theme-label class="ctec-btn-label-full">TỐI</span>
-        <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
-      </button>
-      <button type="button"
-              data-lang-toggle
-              onclick="CTEC.toggleLang()"
-              aria-pressed="false"
-              class="ctec-nav-btn px-2.5 sm:px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-semibold rounded-lg border border-slate-700 shadow transition flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-language text-amber-300 text-xs"></i>
-        <span data-lang-label class="ctec-btn-label-full">EN</span>
-        <span data-lang-label-short class="ctec-btn-label-short">EN</span>
-      </button>
-    </div>
-  </div>
-</header>
+  </header>
 
-<div class="ctec-page-shell">
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-    <!-- Thống kê biểu đồ & quân số từng ban (6 mã ban cũ chuẩn) -->
-    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
-        <div>
+  <div class="ctec-page-shell flex-grow">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 sm:pt-8 pb-8">
+      <!-- Thống kê biểu đồ & quân số từng ban -->
+      <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+        <div class="flex items-center justify-between gap-2 mb-5">
           <h2 class="text-sm font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
             <i class="fa-solid fa-chart-pie text-indigo-600"></i>
             <span data-i18n="chartTitle">Phân bổ nhân sự &amp; Thống kê theo ban</span>
           </h2>
-          <p class="text-[11px] text-slate-400 mt-1" data-i18n="headcountNote">
-            * Quân số thực tế đã khử trùng thành viên kiêm nhiệm (giữ tính trùng Trưởng/Phó ban thuộc Ban Chủ nhiệm); thẻ ban hiển thị lượt nhân sự theo từng ban.
-          </p>
         </div>
-        <span class="text-xs text-slate-400 shrink-0" data-i18n="chartHint">Chọn một ban để lọc</span>
-      </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-        <div class="lg:col-span-4 flex items-center justify-center">
-          <div class="relative w-44 h-44 sm:w-48 sm:h-48">
-            <canvas id="deptChart"></canvas>
-            <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400" data-i18n="headcountLabel">Quân số</span>
-              <span id="totalCount" class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">0</span>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div class="lg:col-span-4 flex items-center justify-center">
+            <div class="relative w-44 h-44 sm:w-48 sm:h-48">
+              <canvas id="deptChart"></canvas>
+              <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400" data-i18n="headcountLabel">Quân số</span>
+                <span id="totalCount" class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">0</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <button type="button" onclick="setFilter('EXCUTIVE BOARD')" class="text-left p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-indigo-700 truncate" data-i18n="deptExecShort">Ban Chủ nhiệm</div>
-            <div id="cntExec" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
-          <button type="button" onclick="setFilter('PUBLIC RELATIONS DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-sky-50 border border-sky-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-sky-700 truncate" data-i18n="deptPrShort">Truyền thông</div>
-            <div id="cntPr" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
-          <button type="button" onclick="setFilter('DESIGN DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-red-50 border border-red-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-red-700 truncate" data-i18n="deptDesignShort">Thiết kế</div>
-            <div id="cntDesign" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
-          <button type="button" onclick="setFilter('CONTENT DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-amber-50 border border-amber-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-amber-700 truncate" data-i18n="deptContentShort">Nội dung</div>
-            <div id="cntContent" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
-          <button type="button" onclick="setFilter('HUMAN RESOURCES DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-emerald-700 truncate" data-i18n="deptHrShort">Nhân sự</div>
-            <div id="cntHr" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
-          <button type="button" onclick="setFilter('EVENT & EXTERNAL RELATIONS DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-pink-50 border border-pink-200 hover:shadow-sm transition cursor-pointer">
-            <div class="text-xs font-bold text-pink-700 truncate" data-i18n="deptEventShort">Đối ngoại</div>
-            <div id="cntEvent" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
-          </button>
+          <div class="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <button type="button" onclick="setFilter('EXCUTIVE BOARD')" class="text-left p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-indigo-700 truncate" data-i18n="deptExecShort">Ban Chủ nhiệm</div>
+              <div id="cntExec" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+            <button type="button" onclick="setFilter('PUBLIC RELATIONS DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-sky-50 border border-sky-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-sky-700 truncate" data-i18n="deptPrShort">Truyền thông</div>
+              <div id="cntPr" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+            <button type="button" onclick="setFilter('DESIGN DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-red-50 border border-red-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-red-700 truncate" data-i18n="deptDesignShort">Thiết kế</div>
+              <div id="cntDesign" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+            <button type="button" onclick="setFilter('CONTENT DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-amber-50 border border-amber-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-amber-700 truncate" data-i18n="deptContentShort">Nội dung</div>
+              <div id="cntContent" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+            <button type="button" onclick="setFilter('HUMAN RESOURCES DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-emerald-700 truncate" data-i18n="deptHrShort">Nhân sự</div>
+              <div id="cntHr" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+            <button type="button" onclick="setFilter('EVENT & EXTERNAL RELATIONS DEPARTMENT')" class="text-left p-3.5 rounded-xl bg-pink-50 border border-pink-200 hover:shadow-sm transition cursor-pointer">
+              <div class="text-xs font-bold text-pink-700 truncate" data-i18n="deptEventShort">Đối ngoại</div>
+              <div id="cntEvent" class="font-display text-xl font-extrabold text-slate-900 mt-1">0</div>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Thanh tìm kiếm & lọc ban -->
-    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-      <div class="relative w-full sm:w-80">
-        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
-        <input type="text" id="searchInput" oninput="renderTable()" data-i18n-placeholder="searchPlaceholder" placeholder="Tìm theo tên thành viên..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
-      </div>
+      <!-- Thanh tìm kiếm & lọc ban -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+        <div class="relative w-full sm:w-80">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+          <input type="text" id="searchInput" oninput="renderTable()" data-i18n-placeholder="searchPlaceholder" placeholder="Tìm theo tên thành viên..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+        </div>
 
-      <div class="flex items-center justify-between sm:justify-end gap-2">
-        <span class="text-xs font-semibold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Lọc theo ban:</span></span>
-        <div class="wheel-picker-wrap" id="deptWheelPicker">
-          <button type="button" class="wheel-trigger min-w-[165px] sm:min-w-[180px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
-            <span id="deptWheelLabel">Tất cả các ban</span>
-            <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
-          </button>
-          <div class="wheel-popover" onclick="event.stopPropagation()">
-            <div class="wheel-drum-viewport">
-              <div class="wheel-center-highlight"></div>
-              <div class="wheel-drum-list" id="deptDrumList"></div>
-            </div>
-            <div class="wheel-footer">
-              <span data-i18n="wheelHint">Kéo hoặc cuộn</span>
-              <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelDone">Xong</button>
+        <div class="flex items-center justify-between sm:justify-end gap-2">
+          <span class="text-xs font-semibold text-slate-500 uppercase"><i class="fa-solid fa-filter"></i> <span data-i18n="filterDeptLabel">Lọc theo ban:</span></span>
+          <div class="wheel-picker-wrap" id="deptWheelPicker">
+            <button type="button" class="wheel-trigger min-w-[165px] sm:min-w-[180px]" onclick="CTEC.toggleWheel('deptWheelPicker', event)">
+              <span id="deptWheelLabel">Tất cả các ban</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </button>
+            <div class="wheel-popover" onclick="event.stopPropagation()">
+              <div class="wheel-drum-viewport">
+                <div class="wheel-center-highlight"></div>
+                <div class="wheel-drum-list" id="deptDrumList"></div>
+              </div>
+              <div class="wheel-footer">
+                <span data-i18n="wheelHint">Kéo hoặc cuộn</span>
+                <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelDone">Xong</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Gợi ý vuốt ngang trên Mobile -->
-    <div class="flex md:hidden items-center justify-end gap-1.5 text-xs text-slate-500 mb-2">
-      <i class="fa-solid fa-arrows-left-right text-indigo-500"></i>
-      <span data-i18n="mobileSwipeHint">Vuốt ngang để xem đầy đủ cột (cột Tên được ghim)</span>
-    </div>
-
-    <!-- Bảng danh sách thành viên -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="overflow-x-auto relative">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-              <th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
-              <th class="sticky-name-col bg-slate-900 py-3.5 px-4 sm:px-6 border-r border-slate-700 min-w-[165px] sm:min-w-[200px]" data-i18n="colName">Họ và tên</th>
-              <th class="py-3.5 px-5 sm:px-6 border-r border-slate-800 min-w-[210px]" data-i18n="colDept">Ban</th>
-              <th class="py-3.5 px-5 sm:px-6 text-center border-r border-slate-800 min-w-[165px]" data-i18n="colRole">Chức vụ</th>
-              <th class="py-3.5 px-5 sm:px-6 text-center min-w-[135px]" data-i18n="colStatus">Trạng thái</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody" class="divide-y divide-slate-100 text-sm font-medium"></tbody>
-        </table>
+      <!-- Gợi ý vuốt ngang trên Mobile -->
+      <div class="flex md:hidden items-center justify-end gap-1.5 text-xs text-slate-500 mb-2">
+        <i class="fa-solid fa-arrows-left-right text-indigo-500"></i>
+        <span data-i18n="mobileSwipeHint">Vuốt ngang để xem đầy đủ cột (cột Tên được ghim)</span>
       </div>
 
-      <div id="loadingState" class="py-12 text-center text-slate-500">
-        <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-600 mb-3"></i>
-        <p class="text-sm font-medium" data-i18n="loadingText">Đang đồng bộ dữ liệu danh sách qua hệ thống CTEC...</p>
+      <!-- Bảng danh sách thành viên -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto relative">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                <th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
+                <th class="sticky-name-col bg-slate-900 py-3.5 px-4 sm:px-6 border-r border-slate-700 min-w-[165px] sm:min-w-[200px]" data-i18n="colName">Họ và tên</th>
+                <th class="py-3.5 px-5 sm:px-6 border-r border-slate-800 min-w-[210px]" data-i18n="colDept">Ban</th>
+                <th class="py-3.5 px-5 sm:px-6 text-center border-r border-slate-800 min-w-[165px]" data-i18n="colRole">Chức vụ</th>
+                <th class="py-3.5 px-5 sm:px-6 text-center min-w-[135px]" data-i18n="colStatus">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-slate-100 text-sm font-medium"></tbody>
+          </table>
+        </div>
+
+        <div id="loadingState" class="py-12 text-center text-slate-500">
+          <i class="fa-solid fa-spinner fa-spin text-3xl text-indigo-600 mb-3"></i>
+          <p class="text-sm font-medium" data-i18n="loadingText">Đang đồng bộ dữ liệu danh sách qua hệ thống CTEC...</p>
+        </div>
+
+        <div id="errorState" class="hidden py-12 text-center text-red-500 px-4">
+          <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+          <p class="text-sm font-semibold" data-i18n="errorTitle">Không thể lấy dữ liệu danh sách!</p>
+          <p class="text-xs text-slate-500 mt-1" data-i18n="errorDesc">Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.</p>
+        </div>
+
+        <div id="noResults" class="hidden py-12 text-center text-slate-400">
+          <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
+          <p class="text-sm" data-i18n="noResultsText">Không có thành viên nào khớp với từ khóa hoặc bộ lọc đã chọn.</p>
+        </div>
       </div>
 
-      <div id="errorState" class="hidden py-12 text-center text-red-500 px-4">
-        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
-        <p class="text-sm font-semibold" data-i18n="errorTitle">Không thể lấy dữ liệu danh sách!</p>
-        <p class="text-xs text-slate-500 mt-1" data-i18n="errorDesc">Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.</p>
-      </div>
+      <footer class="mt-8 pt-6 border-t border-slate-200 text-center text-xs text-slate-500">
+        <p class="font-medium text-slate-700" data-i18n="footerText">Báo cáo nhân sự chính thức CTEC | Thực hiện bởi Nhat Minh</p>
+      </footer>
+    </main>
+  </div>
 
-      <div id="noResults" class="hidden py-12 text-center text-slate-400">
-        <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
-        <p class="text-sm" data-i18n="noResultsText">Không có thành viên nào khớp với từ khóa hoặc bộ lọc đã chọn.</p>
-      </div>
-    </div>
-
-    <footer class="mt-8 pt-6 border-t border-slate-200 text-center text-xs text-slate-500">
-      <p class="font-medium text-slate-700" data-i18n="footerText">Báo cáo nhân sự chính thức CTEC | Thực hiện bởi Nhat Minh</p>
-    </footer>
-  </main>
-</div>
-
-<script src="../assets/ctec-core.js"></script>
-<script src="./roster-app.js"></script>
+  <script src="../assets/ctec-core.js"></script>
+  <script src="./roster-app.js"></script>
 </body>
 </html>
