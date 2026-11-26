@@ -11,7 +11,7 @@ const ROSTER_I18N = {
     wheelHint: "Kéo hoặc cuộn",
     wheelDone: "Xong",
     chartTitle: "Phân bổ nhân sự & Thống kê theo ban",
-    headcountLabel: "Quân số",
+    headcountLabel: "Số thành viên",
     deptExecShort: "Ban Chủ nhiệm",
     deptPrShort: "Truyền thông",
     deptDesignShort: "Thiết kế",
