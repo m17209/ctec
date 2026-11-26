@@ -200,7 +200,7 @@ window.CTEC = (() => {
       viShort: "Ban Chủ nhiệm",
       enShort: "Excutive Board",
       color: "#6366f1",
-      aliases: ["ban chu nhiem", "chu nhiem", "excutive board", "executive board", "excutive board department", "executive board department"]
+      aliases: ["ban chu nhiem", "chu nhiem", "bcn", "excutive board", "executive board", "excutive board department", "executive board department"]
     },
     {
       value: "DESIGN",
@@ -227,7 +227,7 @@ window.CTEC = (() => {
       viShort: "Ban Truyền thông",
       enShort: "Public Relations",
       color: "#0ea5e9",
-      aliases: ["ban truyen thong", "truyen thong", "public relations", "public relations department", "pr"]
+      aliases: ["ban truyen thong", "truyen thong", "public relations", "public relations department", "media", "media department", "pr"]
     },
     {
       value: "EVENT & EXTERNAL RELATIONS",
@@ -236,7 +236,7 @@ window.CTEC = (() => {
       viShort: "Ban Đối ngoại",
       enShort: "Event & External Relations",
       color: "#ec4899",
-      aliases: ["ban doi ngoai", "doi ngoai", "event & external relations", "event & external relations department", "external relations", "ban su kien & doi ngoai", "su kien & doi ngoai"]
+      aliases: ["ban doi ngoai", "doi ngoai", "event & external relations", "event & external relations department", "external relations", "external relations department", "event", "event department", "ban su kien & doi ngoai", "su kien & doi ngoai"]
     },
     {
       value: "HUMAN RESOURCES",
@@ -285,10 +285,33 @@ window.CTEC = (() => {
     if (DEPT_KEYS.includes(upper)) return upper;
 
     const normalized = normText(raw).replace(/\band\b/g, "&").replace(/\s+/g, " ").trim();
-    return DEPT_LOOKUP_MAP.get(normalized) || fallback;
+    if (DEPT_LOOKUP_MAP.has(normalized)) {
+      return DEPT_LOOKUP_MAP.get(normalized);
+    }
+
+    if (normalized.includes("excutive") || normalized.includes("executive") || normalized.includes("chu nhiem") || normalized === "bcn") {
+      return "EXCUTIVE BOARD";
+    }
+    if (normalized.includes("design") || normalized.includes("thiet ke")) {
+      return "DESIGN";
+    }
+    if (normalized.includes("public relation") || normalized.includes("truyen thong") || normalized.includes("media") || normalized === "pr") {
+      return "PUBLIC RELATIONS";
+    }
+    if (normalized.includes("content") || normalized.includes("noi dung")) {
+      return "CONTENT";
+    }
+    if (normalized.includes("event") || normalized.includes("external") || normalized.includes("doi ngoai") || normalized.includes("su kien")) {
+      return "EVENT & EXTERNAL RELATIONS";
+    }
+    if (normalized.includes("human resource") || normalized.includes("nhan su") || normalized === "hr") {
+      return "HUMAN RESOURCES";
+    }
+
+    return fallback;
   };
 
-  const normalizeDeptKey = (dept) => canonDept(dept, String(dept ?? '').trim().toUpperCase());
+  const normalizeDeptKey = (dept) => canonDept(dept, DEFAULT_DEPT);
 
   const normalizeMemberName = (name) =>
     String(name ?? '').trim().replace(/\s+/g, ' ');
@@ -313,7 +336,8 @@ window.CTEC = (() => {
     );
   };
 
-  // Logic đếm ban theo cấu trúc cũ (đếm từng ban độc lập) + gộp trùng tên (1 tên ở 2 ban vẫn tính là 1 người)
+  // Logic đếm ban chuẩn: 1 tên có thể ở 2 ban (kiêm nhiệm) nhưng vẫn tính là 1 người ở tổng quân số
+  // và được đếm đầy đủ trong từng ban mà người đó tham gia
   const getHeadcountStats = (members) => {
     const peopleMap = new Map();
     const deptPeople = {
