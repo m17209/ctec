@@ -112,7 +112,7 @@ function copyBankAccountNumber() {
   const label = document.getElementById("copyStkText");
 
   const markCopied = () => {
-    if (icon) icon.className = "fa-solid fa-check text-emerald-600";
+    if (icon) icon.className = "fa-solid fa-check text-emerald-600 dark:text-emerald-400";
     if (label) label.textContent = t.copyStkDone;
     clearTimeout(copyBankAccountNumber._timer);
     copyBankAccountNumber._timer = setTimeout(() => {
@@ -180,7 +180,7 @@ function renderQrFromHtml(containerId, qrHtmlInput) {
       "dark:bg-slate-950/60",
       "p-1"
     );
-    container.classList.add("border", "border-slate-200", "p-1.5", "qr-safe-surface");
+    container.classList.add("border", "border-slate-200", "dark:border-slate-700", "p-1.5", "qr-safe-surface");
   } else {
     container.classList.add(
       "border-2",
@@ -191,7 +191,7 @@ function renderQrFromHtml(containerId, qrHtmlInput) {
       "dark:bg-slate-950/60",
       "p-1"
     );
-    container.classList.remove("border", "border-slate-200", "p-1.5", "qr-safe-surface");
+    container.classList.remove("border", "border-slate-200", "dark:border-slate-700", "p-1.5", "qr-safe-surface");
   }
 }
 
@@ -270,12 +270,12 @@ function getStatusOptions(lang) {
 function getBadgeHtml(key, lang) {
   const t = FUND_I18N[lang] || FUND_I18N.vi;
   if (key === "PAID") {
-    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">${CTEC.escapeHtml(t.statusPaid)}</span>`;
+    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusPaid)}</span>`;
   }
   if (key === "DEBT") {
-    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">${CTEC.escapeHtml(t.statusDebt)}</span>`;
+    return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusDebt)}</span>`;
   }
-  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 whitespace-nowrap">${CTEC.escapeHtml(t.statusUnpaid)}</span>`;
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-700/60 whitespace-nowrap">${CTEC.escapeHtml(t.statusUnpaid)}</span>`;
 }
 
 let rawFunds = [];
@@ -319,7 +319,7 @@ function renderArrearsBadge(dayVal, lang) {
   const label = (day > 0 && day <= 31)
     ? `${t.overdueFromPrefix} ${day}`
     : t.statusDebt;
-  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">${CTEC.escapeHtml(label)}</span>`;
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-700/60 whitespace-nowrap">${CTEC.escapeHtml(label)}</span>`;
 }
 
 function applyFundStaticI18n(lang) {
@@ -544,20 +544,20 @@ function renderTableHeader() {
   const ms = getMonths(lang);
 
   const base =
-    `<th class="py-3.5 px-3 sm:px-4 text-center w-14 border-r border-slate-200 dark:border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
-    `<th class="sticky-name-col bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white py-3.5 px-4 sm:px-5 border-r border-slate-200 dark:border-slate-700 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
-    `<th class="py-3.5 px-5 border-r border-slate-200 dark:border-slate-800 min-w-[210px]">${CTEC.escapeHtml(t.colDept)}</th>`;
+    `<th class="py-3.5 px-3 sm:px-4 text-center w-14 bg-[#111827] text-white border-r border-slate-800">${CTEC.escapeHtml(t.colNo)}</th>` +
+    `<th class="sticky-name-col bg-[#111827] text-white py-3.5 px-4 sm:px-5 border-r border-slate-800 min-w-[165px] sm:min-w-[200px]">${CTEC.escapeHtml(t.colFullName)}</th>` +
+    `<th class="py-3.5 px-5 bg-[#111827] text-white border-r border-slate-800 min-w-[210px]">${CTEC.escapeHtml(t.colDept)}</th>`;
 
   if (selectedMonthIndex === "ALL") {
-    const mCols = ms.map((m, idx) => `<th class="py-3.5 px-3 text-center ${idx < ms.length - 1 ? "border-r border-slate-200 dark:border-slate-800" : ""}">${CTEC.escapeHtml(m)}</th>`).join("");
-    document.getElementById("tableHead").innerHTML = `<tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
+    const mCols = ms.map((m, idx) => `<th class="py-3.5 px-3 text-center bg-[#111827] text-white ${idx < ms.length - 1 ? "border-r border-slate-800" : ""}">${CTEC.escapeHtml(m)}</th>`).join("");
+    document.getElementById("tableHead").innerHTML = `<tr class="bg-[#111827] text-white border-b border-slate-800 text-xs font-bold uppercase tracking-wider">${base}${mCols}</tr>`;
   } else {
     const mName = ms[selectedMonthIndex];
     document.getElementById("tableHead").innerHTML =
-      `<tr class="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-white border-b border-slate-200 dark:border-slate-700 text-xs font-bold uppercase tracking-wider">${base}` +
-        `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colPayStatus)} (${CTEC.escapeHtml(mName)})</th>` +
-        `<th class="py-3.5 px-4 text-center border-r border-slate-200 dark:border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colArrears)} (${CTEC.escapeHtml(mName)})</th>` +
-        `<th class="py-3.5 px-5 min-w-[160px]">${CTEC.escapeHtml(t.colNote)}</th>` +
+      `<tr class="bg-[#111827] text-white border-b border-slate-800 text-xs font-bold uppercase tracking-wider">${base}` +
+        `<th class="py-3.5 px-4 text-center bg-[#111827] text-white border-r border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colPayStatus)} (${CTEC.escapeHtml(mName)})</th>` +
+        `<th class="py-3.5 px-4 text-center bg-[#111827] text-white border-r border-slate-800 min-w-[150px]">${CTEC.escapeHtml(t.colArrears)} (${CTEC.escapeHtml(mName)})</th>` +
+        `<th class="py-3.5 px-5 bg-[#111827] text-white min-w-[160px]">${CTEC.escapeHtml(t.colNote)}</th>` +
       `</tr>`;
   }
 }
@@ -576,9 +576,9 @@ function renderTable() {
       .map(dKey => CTEC.renderDeptBadge(dKey, t.deptLabels[dKey] || item.dept))
       .join(" ");
     const prefix =
-      `<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/60 transition duration-150 border-b border-slate-100 dark:border-slate-800">` +
-        `<td class="py-3 px-3 sm:px-4 text-center text-xs font-semibold text-slate-400 border-r border-slate-100 dark:border-slate-800">${idx}</td>` +
-        `<td class="sticky-name-col bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/60 py-3 px-4 sm:px-5 font-semibold text-slate-800 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap transition duration-150"><span>${CTEC.escapeHtml(item.name)}</span></td>` +
+      `<tr class="group bg-white dark:bg-[#131b2e] hover:bg-slate-50 dark:hover:bg-[#1a243b] transition duration-150 border-b border-slate-100 dark:border-slate-800">` +
+        `<td class="py-3 px-3 sm:px-4 text-center text-xs font-semibold text-slate-400 dark:text-slate-500 border-r border-slate-100 dark:border-slate-800">${idx}</td>` +
+        `<td class="sticky-name-col bg-white dark:bg-[#131b2e] group-hover:bg-slate-50 dark:group-hover:bg-[#1a243b] py-3 px-4 sm:px-5 font-semibold text-slate-800 dark:text-slate-100 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap transition duration-150"><span>${CTEC.escapeHtml(item.name)}</span></td>` +
         `<td class="py-3 px-5 border-r border-slate-100 dark:border-slate-800 whitespace-nowrap"><div class="flex flex-wrap items-center gap-1.5">${deptBadgesHtml}</div></td>`;
 
     if (isAll) {
@@ -592,11 +592,11 @@ function renderTable() {
         ? renderArrearsBadge(deadlineDay, lang)
         : (key === "PAID"
           ? `<span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">${CTEC.escapeHtml(t.clearedText)}</span>`
-          : `<span class="text-xs font-semibold text-amber-700 dark:text-amber-400">${CTEC.escapeHtml(t.pendingText)}</span>`);
+          : `<span class="text-xs font-semibold text-amber-600 dark:text-amber-400">${CTEC.escapeHtml(t.pendingText)}</span>`);
 
       rows.push(
         `${prefix}` +
-        `<td class="py-3 px-4 text-center border-r border-slate-100 dark:border-slate-800 bg-indigo-50/30 dark:bg-indigo-950/20">${getBadgeHtml(key, lang)}</td>` +
+        `<td class="py-3 px-4 text-center border-r border-slate-100 dark:border-slate-800 bg-indigo-50/30 dark:bg-indigo-950/25">${getBadgeHtml(key, lang)}</td>` +
         `<td class="py-3 px-4 text-center border-r border-slate-100 dark:border-slate-800">${debtHtml}</td>` +
         `<td class="py-3 px-5 text-xs text-slate-500 dark:text-slate-400"><span>${noteText}</span></td></tr>`
       );
