@@ -60,18 +60,18 @@
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
-  <header class="ctec-header shadow-lg">
-    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3.5 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-      <div class="ctec-brand flex items-center gap-3">
-        <a id="homeLink" href="../" class="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center shrink-0 hover:scale-105 transition" title="Về trang chủ CTEC">
+<body class="min-h-screen flex flex-col">
+  <header class="ctec-header shadow-md">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <a id="homeLink" href="../" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Administrator">
+        <span class="ctec-brand-logo">
           <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
-        </a>
-        <div class="flex flex-col leading-tight">
-          <h1 class="ctec-brand-title text-base sm:text-xl font-bold tracking-tight">CTEC Administrator</h1>
-          <span class="text-[11px] sm:text-xs font-medium text-amber-300 tracking-wide">Administrative Hub</span>
-        </div>
-      </div>
+        </span>
+        <span class="ctec-brand-text-wrap">
+          <span class="ctec-brand-title text-sm sm:text-base font-bold tracking-tight text-white leading-tight">CTEC Administrator</span>
+          <span class="text-[10px] font-medium text-amber-300 tracking-wide leading-tight">Administrative Hub</span>
+        </span>
+      </a>
 
       <div class="ctec-nav-group flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
         <a href="../roster/" target="_blank" rel="noopener noreferrer"
