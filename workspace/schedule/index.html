@@ -250,49 +250,6 @@
     </section>
 
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-6">
-      <!-- Event Countdown Card -->
-      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div class="space-y-1.5 min-w-0">
-            <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 px-2.5 py-1 rounded-md">
-              <i class="fa-solid fa-hourglass-half"></i>
-              <span data-i18n="countdownLabel">Event Countdown</span>
-            </div>
-            <h2 id="countdownEventTitle" class="text-lg sm:text-2xl font-extrabold text-slate-900 truncate">
-              Đang tải sự kiện sắp tới...
-            </h2>
-            <p id="countdownEventMeta" class="text-xs sm:text-sm text-slate-500 flex flex-wrap items-center gap-2"></p>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
-            <div id="countdownBoxes" class="grid grid-cols-4 gap-2 sm:gap-2.5">
-              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <div id="cdDays" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitDays">Ngày</div>
-              </div>
-              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <div id="cdHours" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitHours">Giờ</div>
-              </div>
-              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <div id="cdMinutes" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitMinutes">Phút</div>
-              </div>
-              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                <div id="cdSeconds" class="font-display text-xl sm:text-2xl font-extrabold text-indigo-600 leading-tight">--</div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitSeconds">Giây</div>
-              </div>
-            </div>
-
-            <button id="jumpNearestBtn" type="button"
-                    class="hidden px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition items-center gap-1.5 cursor-pointer shrink-0">
-              <i class="fa-solid fa-location-crosshairs"></i>
-              <span data-i18n="jumpToEventBtn">Xem trên lịch</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
       <!-- Trạng thái tải / lỗi -->
       <div id="loadingState" class="bg-white rounded-2xl border border-slate-200 py-10 text-center text-slate-500">
         <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i>
@@ -305,9 +262,9 @@
         <p class="text-xs text-slate-500 mt-1" data-i18n="errorDesc">Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.</p>
       </div>
 
-      <!-- Lưới Lịch & Chi tiết sự kiện -->
+      <!-- Lưới Lịch & Cột thông tin bên phải -->
       <div id="scheduleWorkspace" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <!-- Cột trái: Calendar Grid -->
+        <!-- Cột trái: Calendar Grid (dồn lên trên cùng) -->
         <section class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
           <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div class="flex items-center gap-2">
@@ -370,8 +327,50 @@
           </div>
         </section>
 
-        <!-- Cột phải: Chi tiết ngày đang chọn + Danh sách sự kiện sắp tới -->
+        <!-- Cột phải: Event Countdown (thu gọn) + Chi tiết sự kiện + Sự kiện sắp tới -->
         <aside class="lg:col-span-5 space-y-6">
+          <!-- Event Countdown Card (gọn đồng bộ với cột phải) -->
+          <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <span class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 px-2.5 py-0.5 rounded-md">
+                <i class="fa-solid fa-hourglass-half"></i>
+                <span data-i18n="countdownLabel">Event Countdown</span>
+              </span>
+
+              <button id="jumpNearestBtn" type="button"
+                      class="hidden px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white text-[11px] font-bold transition items-center gap-1.5 cursor-pointer shrink-0">
+                <i class="fa-solid fa-location-crosshairs text-amber-400"></i>
+                <span data-i18n="jumpToEventBtn">Xem trên lịch</span>
+              </button>
+            </div>
+
+            <div class="mt-3.5">
+              <h2 id="countdownEventTitle" class="text-base sm:text-lg font-extrabold text-slate-900 truncate">
+                Đang tải sự kiện sắp tới...
+              </h2>
+              <p id="countdownEventMeta" class="mt-1 text-xs text-slate-500 flex flex-wrap items-center gap-2"></p>
+            </div>
+
+            <div id="countdownBoxes" class="mt-3.5 grid grid-cols-4 gap-2">
+              <div class="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdDays" class="font-display text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitDays">Ngày</div>
+              </div>
+              <div class="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdHours" class="font-display text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitHours">Giờ</div>
+              </div>
+              <div class="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdMinutes" class="font-display text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitMinutes">Phút</div>
+              </div>
+              <div class="px-2 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdSeconds" class="font-display text-lg sm:text-xl font-extrabold text-indigo-600 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitSeconds">Giây</div>
+              </div>
+            </div>
+          </section>
+
           <!-- Chi tiết sự kiện ngày đã chọn -->
           <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
             <div class="flex items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
