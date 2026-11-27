@@ -1,141 +1,169 @@
-document.addEventListener('DOMContentLoaded', () => {
-  if (!window.CTECSettings) {
-    console.error('CTECSettings chưa được nạp từ ../workspace/assets/ctec-core.js');
-    return;
-  }
+/* ===== SETTINGS LAYOUT ===== */
+.ctec-setting-container {
+  width: 100%;
+  max-width: 880px;
+  margin: 2rem auto;
+  padding: 0 1.25rem;
+}
 
-  const ITEM_HEIGHT = 48;
-  const toastEl = document.getElementById('setting-toast');
-  let toastTimer = null;
+.ctec-setting-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
 
-  function showSavedToast() {
-    if (!toastEl) return;
-    toastEl.classList.add('is-visible');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 1600);
-  }
+.ctec-setting-title {
+  margin: 0 0 0.3rem;
+  font-size: 1.55rem;
+}
 
-  function createWheelPicker(containerId, initialValue, onChange) {
-    const root = document.getElementById(containerId);
-    if (!root) return null;
+.ctec-setting-subtitle {
+  margin: 0;
+  color: var(--ctec-text-secondary);
+  font-size: 0.94rem;
+}
 
-    const track = root.querySelector('.ctec-wheel-track');
-    const items = Array.from(root.querySelectorAll('.ctec-wheel-item'));
-    let activeIndex = Math.max(0, items.findIndex((el) => el.dataset.value === initialValue));
-    let scrollEndTimer = null;
-    let isDragging = false;
-    let startY = 0;
-    let startScrollTop = 0;
+.ctec-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: var(--ctec-accent-soft);
+  color: var(--ctec-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid var(--ctec-border);
+}
 
-    function updateVisual3D() {
-      const centerScroll = track.scrollTop;
-      items.forEach((item, idx) => {
-        const offset = (idx * ITEM_HEIGHT - centerScroll) / ITEM_HEIGHT;
-        const clamped = Math.max(-2, Math.min(2, offset));
-        const rotateX = -clamped * 26;
-        const scale = 1 - Math.abs(clamped) * 0.08;
-        const opacity = 1 - Math.abs(clamped) * 0.35;
+.ctec-setting-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 1.5rem;
+}
 
-        item.style.transform = `rotateX(${rotateX}deg) scale(${scale})`;
-        item.style.opacity = `${Math.max(0.25, opacity)}`;
-      });
-    }
+.ctec-setting-card {
+  background: var(--ctec-surface);
+  border: 1px solid var(--ctec-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--ctec-shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
 
-    function commitIndex(idx, smooth = true, triggerCallback = true) {
-      const bounded = Math.max(0, Math.min(items.length - 1, idx));
-      activeIndex = bounded;
+.ctec-setting-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
-      items.forEach((item, i) => {
-        const selected = i === bounded;
-        item.classList.toggle('is-active', selected);
-        item.setAttribute('aria-selected', selected ? 'true' : 'false');
-      });
+.ctec-setting-card h2 i {
+  color: var(--ctec-accent);
+  font-size: 0.95rem;
+}
 
-      track.scrollTo({
-        top: bounded * ITEM_HEIGHT,
-        behavior: smooth ? 'smooth' : 'auto'
-      });
+.ctec-setting-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ctec-text-secondary);
+  line-height: 1.45;
+}
 
-      updateVisual3D();
+/* ===== 3D WHEEL PICKER ===== */
+.ctec-wheel {
+  position: relative;
+  height: 168px; /* 3.5 items * 48px */
+  border-radius: 14px;
+  background: var(--ctec-surface-subtle);
+  border: 1px solid var(--ctec-border);
+  overflow: hidden;
+  user-select: none;
+  outline: none;
+}
 
-      if (triggerCallback && items[bounded]) {
-        onChange(items[bounded].dataset.value);
-        showSavedToast();
-      }
-    }
+.ctec-wheel:focus-visible {
+  box-shadow: 0 0 0 3px var(--ctec-accent-soft);
+  border-color: var(--ctec-accent);
+}
 
-    commitIndex(activeIndex, false, false);
+.ctec-wheel-highlight {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  right: 10px;
+  height: 48px;
+  transform: translateY(-50%);
+  border-radius: 10px;
+  background: var(--ctec-surface);
+  border: 1.5px solid var(--ctec-accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  pointer-events: none;
+  z-index: 1;
+}
 
-    track.addEventListener('scroll', () => {
-      updateVisual3D();
-      clearTimeout(scrollEndTimer);
-      scrollEndTimer = setTimeout(() => {
-        const snappedIdx = Math.round(track.scrollTop / ITEM_HEIGHT);
-        if (snappedIdx !== activeIndex) {
-          commitIndex(snappedIdx, true, true);
-        } else {
-          track.scrollTo({ top: activeIndex * ITEM_HEIGHT, behavior: 'smooth' });
-        }
-      }, 90);
-    }, { passive: true });
+.ctec-wheel-track {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  padding: 60px 0; /* (168 - 48) / 2 = 60px */
+  box-sizing: border-box;
+  perspective: 600px;
+}
 
-    items.forEach((item, idx) => {
-      item.addEventListener('click', () => {
-        if (!isDragging) commitIndex(idx, true, true);
-      });
-    });
+.ctec-wheel-track::-webkit-scrollbar {
+  display: none;
+}
 
-    track.addEventListener('mousedown', (e) => {
-      isDragging = false;
-      startY = e.pageY;
-      startScrollTop = track.scrollTop;
+.ctec-wheel-item {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  scroll-snap-align: center;
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: var(--ctec-text-secondary);
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: color 0.15s ease, font-weight 0.15s ease;
+}
 
-      const onMouseMove = (moveEvent) => {
-        const dy = moveEvent.pageY - startY;
-        if (Math.abs(dy) > 4) isDragging = true;
-        track.scrollTop = startScrollTop - dy;
-      };
+.ctec-wheel-item.is-active {
+  color: var(--ctec-accent);
+  font-weight: 700;
+}
 
-      const onMouseUp = () => {
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-        setTimeout(() => { isDragging = false; }, 0);
-      };
+.ctec-wheel-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--ctec-wheel-mask);
+  pointer-events: none;
+  z-index: 3;
+}
 
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    });
+.ctec-setting-toast {
+  margin-top: 1.25rem;
+  text-align: right;
+  font-size: 0.84rem;
+  color: var(--ctec-accent);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
 
-    root.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        commitIndex(activeIndex + 1, true, true);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        commitIndex(activeIndex - 1, true, true);
-      }
-    });
-
-    return {
-      setValue(val) {
-        const idx = items.findIndex((el) => el.dataset.value === val);
-        if (idx !== -1 && idx !== activeIndex) {
-          commitIndex(idx, true, false);
-        }
-      }
-    };
-  }
-
-  const langWheel = createWheelPicker('wheel-lang', CTECSettings.getLang(), (newLang) => {
-    CTECSettings.setLang(newLang);
-  });
-
-  const themeWheel = createWheelPicker('wheel-theme', CTECSettings.getTheme(), (newTheme) => {
-    CTECSettings.setTheme(newTheme);
-  });
-
-  window.addEventListener('ctec:settingschange', (e) => {
-    if (langWheel && e.detail.lang) langWheel.setValue(e.detail.lang);
-    if (themeWheel && e.detail.theme) themeWheel.setValue(e.detail.theme);
-  });
-});
+.ctec-setting-toast.is-visible {
+  opacity: 1;
+}
