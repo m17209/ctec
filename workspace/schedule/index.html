@@ -127,6 +127,67 @@
       background-color: #fde68a;
     }
 
+    /* ===== Event Cards (Upcoming & Detail) ===== */
+    .ctec-event-card {
+      background-color: rgba(248, 250, 252, 0.7);
+      border: 1px solid #e2e8f0;
+      transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    button.ctec-event-card:hover {
+      border-color: #fbbf24;
+      background-color: #f8fafc;
+    }
+
+    .ctec-event-card.is-selected {
+      background-color: rgba(238, 242, 255, 0.7);
+      border-color: #818cf8;
+    }
+
+    .ctec-event-card-title {
+      color: #0f172a;
+    }
+
+    .ctec-event-card-desc {
+      color: #64748b;
+    }
+
+    .ctec-event-date-pill {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    html.dark .ctec-event-card {
+      background-color: rgba(30, 41, 59, 0.8);
+      border-color: rgba(51, 65, 85, 0.8);
+    }
+
+    html.dark button.ctec-event-card:hover {
+      background-color: #1e293b;
+      border-color: rgba(251, 191, 36, 0.8);
+    }
+
+    html.dark .ctec-event-card.is-selected {
+      background-color: rgba(30, 27, 75, 0.75);
+      border-color: rgba(129, 140, 248, 0.8);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.25);
+    }
+
+    html.dark .ctec-event-card-title {
+      color: #f1f5f9;
+    }
+
+    html.dark .ctec-event-card-desc {
+      color: #94a3b8;
+    }
+
+    html.dark .ctec-event-date-pill {
+      background-color: #0f172a;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+
     @media (max-width: 480px) {
       .cal-grid {
         gap: 4px;
