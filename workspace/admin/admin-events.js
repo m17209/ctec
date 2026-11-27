@@ -2,7 +2,8 @@
  * CTEC Administrator — admin-events.js
  * ----------------------------------------------------------------------------
  * Trình soạn thảo Tab 3: Sự kiện (Events) chạy trên bản NHÁP trong trình duyệt,
- * sau đó ghi lên Cloudflare Worker / D1 qua POST /api/admin/events/save.
+ * hỗ trợ chọn ngày & giờ/phút cụ thể (HH:MM), yêu cầu xác thực ADMIN_TOKEN
+ * trước mọi thao tác chỉnh sửa và ghi lên Cloudflare Worker / D1.
  *
  * Phụ thuộc : ../assets/ctec-core.js  (window.CTEC)
  *             ./admin-app.js          (tải trước file này)
@@ -23,9 +24,10 @@
    * ==================================================================== */
   const MIN_EVENT_DATE = '2026-08-01';
   const MAX_EVENT_DATE = '2027-12-31';
+  const DEFAULT_EVENT_TIME = '08:00';
 
   const eventsState = {
-    events: [],       // [{ uid, date, title, description }]
+    events: [],       // [{ uid, date, time, title, description }]
     dirty: false,
     loaded: false,
     busy: false,
@@ -49,13 +51,14 @@
       saveEventsBtn: 'Lưu sự kiện',
       colNo: 'STT',
       colEventDate: 'Ngày (YYYY-MM-DD)',
+      colEventTime: 'Giờ (HH:MM)',
       colEventTitle: 'Tiêu đề sự kiện',
       colEventDesc: 'Mô tả sự kiện',
       colDelete: 'Xóa',
       eventsNote1: 'Lưu ý:',
-      eventsNote2: 'Nhập ngày theo định dạng YYYY-MM-DD (ví dụ: 2027-01-15)',
+      eventsNote2: 'Nhập ngày (YYYY-MM-DD) và giờ cụ thể (HH:MM, múi giờ Việt Nam UTC+7) cho từng sự kiện',
       eventsNote3: 'Sự kiện sẽ hiển thị trên trang Lịch trình công khai sau khi lưu',
-      eventsNote4: 'Sự kiện gần nhất sẽ được hiển thị trong mục Event Countdown',
+      eventsNote4: 'Đồng hồ Event Countdown sẽ đếm ngược đến sự kiện bạn bấm chọn trên lịch hoặc danh sách sắp tới',
 
       // Động
       eventsCount: '{n} sự kiện',
@@ -69,6 +72,7 @@
       errNotLoaded: 'Chưa tải được dữ liệu sự kiện từ D1 nên tạm khóa lưu. Hãy bấm “Tải lại từ D1”.',
       errEmptyEvents: 'Danh sách sự kiện đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
       errInvalidDate: 'Dòng {row}: Ngày sự kiện không hợp lệ (cần định dạng YYYY-MM-DD).',
+      errInvalidTime: 'Dòng {row}: Giờ sự kiện không hợp lệ (cần định dạng HH:MM).',
       errMissingTitle: 'Dòng {row}: Vui lòng nhập tiêu đề sự kiện.',
       warnBlankDropped: 'Đã bỏ qua {n} dòng trống.',
       toastSavedEvents: 'Đã lưu {n} sự kiện lên D1.',
@@ -88,13 +92,14 @@
       saveEventsBtn: 'Save events',
       colNo: 'No.',
       colEventDate: 'Date (YYYY-MM-DD)',
+      colEventTime: 'Time (HH:MM)',
       colEventTitle: 'Event title',
       colEventDesc: 'Event description',
       colDelete: 'Delete',
       eventsNote1: 'Notes:',
-      eventsNote2: 'Enter dates in YYYY-MM-DD format (e.g. 2027-01-15)',
+      eventsNote2: 'Set a specific date (YYYY-MM-DD) and time (HH:MM, Vietnam time UTC+7) for each event',
       eventsNote3: 'Events appear on the public Schedule page once saved',
-      eventsNote4: 'The nearest upcoming event is displayed in the Event Countdown',
+      eventsNote4: 'The Event Countdown timer counts down to whichever event is selected on the calendar or upcoming list',
 
       // Dynamic
       eventsCount: '{n} event(s)',
@@ -108,6 +113,7 @@
       errNotLoaded: 'Events have not been loaded from D1 yet, so saving is locked. Press “Reload from D1”.',
       errEmptyEvents: 'The Events list is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
       errInvalidDate: 'Row {row}: Invalid event date (expected YYYY-MM-DD).',
+      errInvalidTime: 'Row {row}: Invalid event time (expected HH:MM).',
       errMissingTitle: 'Row {row}: Please enter an event title.',
       warnBlankDropped: 'Skipped {n} empty row(s).',
       toastSavedEvents: 'Saved {n} event(s) to D1.',
@@ -132,11 +138,9 @@
   function applyEventsStaticI18n() {
     const dict = EVENTS_I18N[curLang()] || EVENTS_I18N.vi;
 
-    // Cập nhật nhãn nút tab Events trên thanh điều hướng
     const tabSpan = $('tabBtnEvents')?.querySelector('[data-i18n="tabEvents"]');
     if (tabSpan && dict.tabEvents) tabSpan.textContent = dict.tabEvents;
 
-    // Cập nhật toàn bộ phần tử bên trong #panelEvents
     const panel = $('panelEvents');
     if (panel) {
       panel.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -153,8 +157,17 @@
   }
 
   /* ======================================================================
-   * 3. TIỆN ÍCH (Toast, Busy, Dirty, Validate)
+   * 3. TIỆN ÍCH (Auth check, Toast, Busy, Dirty, Validate)
    * ==================================================================== */
+  function checkAdminAuth() {
+    if (typeof window.requireAdminAuth === 'function') {
+      return window.requireAdminAuth();
+    }
+    if (window.__ctecAdminAuthenticated && CTEC.getAdminToken()) return true;
+    if (typeof window.openAdminAuthModal === 'function') window.openAdminAuthModal(false);
+    return false;
+  }
+
   const TOAST_STYLES = {
     success: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-circle-check' },
     error: { cls: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-circle-exclamation' },
@@ -231,10 +244,25 @@
     return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
   }
 
+  function normalizeTimeHm(raw, fallback = '00:00') {
+    const str = String(raw ?? '').trim();
+    if (!str) return fallback;
+    const m = str.match(/^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
+    if (!m) return null;
+    return `${String(parseInt(m[1], 10)).padStart(2, '0')}:${m[2]}`;
+  }
+
+  function isValidHm(str) {
+    return normalizeTimeHm(str, null) !== null;
+  }
+
   function makeEventRow(o = {}) {
+    const rawTime = o.time ?? o.event_time;
+    const cleanTime = normalizeTimeHm(rawTime, '00:00') || '00:00';
     return {
       uid: nextEventUid(),
       date: String(o.date ?? o.event_date ?? '').trim(),
+      time: cleanTime,
       title: String(o.title ?? '').trim(),
       description: String(o.description ?? '').trim()
     };
@@ -277,7 +305,7 @@
 
     if (!eventsState.events.length) {
       body.innerHTML =
-        `<tr><td colspan="5" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t('emptyEvents'))}</td></tr>`;
+        `<tr><td colspan="6" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t('emptyEvents'))}</td></tr>`;
       return;
     }
 
@@ -291,12 +319,20 @@
         const dateCls = invalidDate
           ? 'border-red-400 bg-red-50/60 focus:ring-red-500'
           : 'border-slate-200 bg-slate-50 focus:ring-amber-500';
+        const invalidTime = ev.time && !isValidHm(ev.time);
+        const timeCls = invalidTime
+          ? 'border-red-400 bg-red-50/60 focus:ring-red-500'
+          : 'border-slate-200 bg-slate-50 focus:ring-amber-500';
         return (
           `<tr data-uid="${esc(ev.uid)}" class="hover:bg-slate-50/80 transition">` +
             `<td class="py-2.5 px-3 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${idx + 1}</td>` +
             `<td class="py-2 px-3 border-r border-slate-100">` +
               `<input type="date" data-field="date" min="${MIN_EVENT_DATE}" max="${MAX_EVENT_DATE}" value="${esc(ev.date)}" ` +
                      `class="w-full px-2.5 py-1.5 border ${dateCls} rounded-lg text-xs sm:text-sm font-mono font-semibold text-slate-800 focus:outline-none focus:ring-2">` +
+            `</td>` +
+            `<td class="py-2 px-3 border-r border-slate-100">` +
+              `<input type="time" data-field="time" step="60" value="${esc(ev.time || '00:00')}" ` +
+                     `class="w-full px-2.5 py-1.5 border ${timeCls} rounded-lg text-xs sm:text-sm font-mono font-semibold text-slate-800 focus:outline-none focus:ring-2">` +
             `</td>` +
             `<td class="py-2 px-3 border-r border-slate-100">` +
               `<input type="text" data-field="title" value="${esc(ev.title)}" placeholder="${titlePh}" ` +
@@ -326,6 +362,7 @@
     body.addEventListener('input', (e) => {
       const input = e.target.closest('input[data-field]');
       if (!input) return;
+      if (!checkAdminAuth()) return;
       const tr = input.closest('tr[data-uid]');
       const row = eventsState.events.find((x) => x.uid === tr?.dataset.uid);
       if (!row) return;
@@ -337,6 +374,12 @@
         input.classList.toggle('bg-red-50/60', bad);
         input.classList.toggle('border-slate-200', !bad);
         input.classList.toggle('bg-slate-50', !bad);
+      } else if (field === 'time') {
+        const bad = row.time && !isValidHm(row.time);
+        input.classList.toggle('border-red-400', bad);
+        input.classList.toggle('bg-red-50/60', bad);
+        input.classList.toggle('border-slate-200', !bad);
+        input.classList.toggle('bg-slate-50', !bad);
       }
       setEventsDirty(true);
     });
@@ -344,6 +387,7 @@
     body.addEventListener('click', (e) => {
       const delBtn = e.target.closest('button[data-act="delete"]');
       if (!delBtn) return;
+      if (!checkAdminAuth()) return;
       const tr = delBtn.closest('tr[data-uid]');
       const uid = tr?.dataset.uid;
       if (!uid) return;
@@ -360,7 +404,7 @@
     const body = $('eventsEditorBody');
     if (body && !eventsState.loaded) {
       body.innerHTML =
-        `<tr><td colspan="5" class="py-10 px-4 text-center text-sm text-slate-400">` +
+        `<tr><td colspan="6" class="py-10 px-4 text-center text-sm text-slate-400">` +
         `<i class="fa-solid fa-spinner fa-spin mr-2 text-amber-500"></i>${esc(t('loadingEvents'))}</td></tr>`;
     }
 
@@ -383,9 +427,15 @@
   }
 
   function addEventRow() {
+    if (!checkAdminAuth()) return;
     const defaultDate = '2026-11-28';
     const last = eventsState.events[eventsState.events.length - 1];
-    const row = makeEventRow({ date: last?.date || defaultDate, title: '', description: '' });
+    const row = makeEventRow({
+      date: last?.date || defaultDate,
+      time: last?.time || DEFAULT_EVENT_TIME,
+      title: '',
+      description: ''
+    });
     eventsState.events.push(row);
     setEventsDirty(true);
     renderEventsEditor();
@@ -395,6 +445,7 @@
   }
 
   async function saveEventsToStorage() {
+    if (!checkAdminAuth()) return;
     if (!eventsState.loaded) {
       return showToast(t('errNotLoaded'), 'error');
     }
@@ -405,6 +456,7 @@
     for (let i = 0; i < eventsState.events.length; i++) {
       const ev = eventsState.events[i];
       const date = String(ev.date || '').trim();
+      const rawTime = String(ev.time || '').trim();
       const title = String(ev.title || '').trim();
       const description = String(ev.description || '').trim();
 
@@ -419,13 +471,20 @@
         return showToast(t('errInvalidDate', { row: i + 1 }), 'error');
       }
 
+      const cleanTime = normalizeTimeHm(rawTime, '00:00');
+      if (!cleanTime) {
+        const timeInput = $('eventsEditorBody')?.querySelector(`tr[data-uid="${ev.uid}"] input[data-field="time"]`);
+        timeInput?.focus();
+        return showToast(t('errInvalidTime', { row: i + 1 }), 'error');
+      }
+
       if (!title) {
         const titleInput = $('eventsEditorBody')?.querySelector(`tr[data-uid="${ev.uid}"] input[data-field="title"]`);
         titleInput?.focus();
         return showToast(t('errMissingTitle', { row: i + 1 }), 'error');
       }
 
-      cleanRows.push({ date, title, description });
+      cleanRows.push({ date, time: cleanTime, event_time: cleanTime, title, description });
     }
 
     if (!cleanRows.length) {
@@ -439,8 +498,8 @@
           body: { rows: cleanRows }
         });
 
-        // Sắp xếp lại bản nháp theo ngày giống D1
-        cleanRows.sort((a, b) => a.date.localeCompare(b.date));
+        // Sắp xếp lại bản nháp theo ngày và giờ giống D1
+        cleanRows.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
         eventsState.events = cleanRows.map((r) => makeEventRow(r));
         setEventsDirty(false);
         renderEventsEditor();
@@ -484,7 +543,6 @@
     window.switchAdminTab = function patchedSwitchAdminTab(tab) {
       if (tab === 'events') {
         eventsState.activeTab = 'events';
-        // Tắt trạng thái active của 2 tab Roster & Fund
         ['roster', 'fund'].forEach((k) => {
           const p = $(k === 'roster' ? 'panelRoster' : 'panelFund');
           const b = $(k === 'roster' ? 'tabBtnRoster' : 'tabBtnFund');
@@ -530,6 +588,8 @@
         return;
       }
 
+      if (!checkAdminAuth()) return;
+
       const word = 'RESET';
       const answer = window.prompt(t('promptResetEvents', { word }), '');
       if (answer === null) return;
@@ -564,7 +624,6 @@
     integrateWithAdminApp();
     applyEventsStaticI18n();
 
-    // Chặn Ctrl/Cmd + S ở phase capture khi đang ở tab Events để không kích hoạt lưu Roster nhầm
     document.addEventListener(
       'keydown',
       (e) => {
