@@ -1,169 +1,195 @@
-/* ===== SETTINGS LAYOUT ===== */
-.ctec-setting-container {
-  width: 100%;
-  max-width: 880px;
-  margin: 2rem auto;
-  padding: 0 1.25rem;
-}
+document.addEventListener('DOMContentLoaded', () => {
+  // CTECSettings do ../workspace/assets/ctec-core.js định nghĩa (bọc window.CTEC)
+  const Settings = window.CTECSettings;
+  if (!Settings) {
+    console.error('CTECSettings chưa được nạp từ ../workspace/assets/ctec-core.js');
+    return;
+  }
 
-.ctec-setting-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.75rem;
-}
+  const SETTING_I18N = {
+    vi: {
+      pageTitle: 'CTEC — Cài đặt hệ thống',
+      homeTitle: 'Về trang chủ CTEC',
+      navRosterFull: 'DANH SÁCH', navRosterShort: 'DS',
+      navFundFull: 'TRA CỨU QUỸ', navFundShort: 'QUỸ',
+      title: 'Cài đặt hệ thống',
+      subtitle: 'Tùy chỉnh ngôn ngữ và giao diện áp dụng cho toàn bộ cổng thông tin CTEC.',
+      scopeBadge: 'Phạm vi: Toàn bộ hệ thống (Global)',
+      langLabel: 'Ngôn ngữ hiển thị',
+      langDesc: 'Cuộn hoặc chạm để chuyển đổi Tiếng Việt / English trên tất cả phân hệ.',
+      themeLabel: 'Chế độ giao diện',
+      themeDesc: 'Đồng bộ giao diện Sáng / Tối cho toàn bộ trang và các tab đang mở.',
+      saved: 'Đã lưu & áp dụng toàn web',
+      footerText: 'Cổng thông tin chính thức CTEC | Thực hiện bởi Nhat Minh'
+    },
+    en: {
+      pageTitle: 'CTEC — System Settings',
+      homeTitle: 'CTEC Home',
+      navRosterFull: 'ROSTER', navRosterShort: 'ROSTER',
+      navFundFull: 'FUND LOOKUP', navFundShort: 'FUND',
+      title: 'System Settings',
+      subtitle: 'Customize the language and appearance used across the entire CTEC portal.',
+      scopeBadge: 'Scope: Entire system (Global)',
+      langLabel: 'Display language',
+      langDesc: 'Scroll or tap to switch between Tiếng Việt / English on every module.',
+      themeLabel: 'Appearance',
+      themeDesc: 'Sync Light / Dark mode across all pages and open tabs.',
+      saved: 'Saved & applied site-wide',
+      footerText: 'Official CTEC Information Portal | Crafted by Nhat Minh'
+    }
+  };
 
-.ctec-setting-title {
-  margin: 0 0 0.3rem;
-  font-size: 1.55rem;
-}
+  function applySettingLanguage(lang) {
+    const t = SETTING_I18N[lang] || SETTING_I18N.vi;
+    document.documentElement.lang = lang === 'en' ? 'en' : 'vi';
+    document.title = t.pageTitle;
+    const home = document.getElementById('homeLink');
+    if (home) home.title = t.homeTitle;
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const v = t[el.getAttribute('data-i18n')];
+      if (v !== undefined) el.textContent = v;
+    });
+  }
 
-.ctec-setting-subtitle {
-  margin: 0;
-  color: var(--ctec-text-secondary);
-  font-size: 0.94rem;
-}
+  const ITEM_HEIGHT = 48;
+  const toastEl = document.getElementById('setting-toast');
+  let toastTimer = null;
 
-.ctec-scope-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  background: var(--ctec-accent-soft);
-  color: var(--ctec-accent);
-  font-size: 0.82rem;
-  font-weight: 600;
-  border: 1px solid var(--ctec-border);
-}
+  function showSavedToast() {
+    if (!toastEl) return;
+    toastEl.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 1600);
+  }
 
-.ctec-setting-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
-  gap: 1.5rem;
-}
+  function createWheelPicker(containerId, initialValue, onChange) {
+    const root = document.getElementById(containerId);
+    if (!root) return null;
 
-.ctec-setting-card {
-  background: var(--ctec-surface);
-  border: 1px solid var(--ctec-border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: var(--ctec-shadow);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1.25rem;
-}
+    const track = root.querySelector('.ctec-wheel-track');
+    const items = Array.from(root.querySelectorAll('.ctec-wheel-item'));
+    let activeIndex = Math.max(0, items.findIndex((el) => el.dataset.value === initialValue));
+    let scrollEndTimer = null;
+    let isDragging = false;
+    let startY = 0;
+    let startScrollTop = 0;
 
-.ctec-setting-card h2 {
-  margin: 0 0 0.35rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+    function updateVisual3D() {
+      const centerScroll = track.scrollTop;
+      items.forEach((item, idx) => {
+        const offset = (idx * ITEM_HEIGHT - centerScroll) / ITEM_HEIGHT;
+        const clamped = Math.max(-2, Math.min(2, offset));
+        const rotateX = -clamped * 26;
+        const scale = 1 - Math.abs(clamped) * 0.08;
+        const opacity = 1 - Math.abs(clamped) * 0.35;
 
-.ctec-setting-card h2 i {
-  color: var(--ctec-accent);
-  font-size: 0.95rem;
-}
+        item.style.transform = `rotateX(${rotateX}deg) scale(${scale})`;
+        item.style.opacity = `${Math.max(0.25, opacity)}`;
+      });
+    }
 
-.ctec-setting-card p {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--ctec-text-secondary);
-  line-height: 1.45;
-}
+    function commitIndex(idx, smooth = true, triggerCallback = true) {
+      const bounded = Math.max(0, Math.min(items.length - 1, idx));
+      activeIndex = bounded;
 
-/* ===== 3D WHEEL PICKER ===== */
-.ctec-wheel {
-  position: relative;
-  height: 168px; /* 3.5 items * 48px */
-  border-radius: 14px;
-  background: var(--ctec-surface-subtle);
-  border: 1px solid var(--ctec-border);
-  overflow: hidden;
-  user-select: none;
-  outline: none;
-}
+      items.forEach((item, i) => {
+        const selected = i === bounded;
+        item.classList.toggle('is-active', selected);
+        item.setAttribute('aria-selected', selected ? 'true' : 'false');
+      });
 
-.ctec-wheel:focus-visible {
-  box-shadow: 0 0 0 3px var(--ctec-accent-soft);
-  border-color: var(--ctec-accent);
-}
+      track.scrollTo({
+        top: bounded * ITEM_HEIGHT,
+        behavior: smooth ? 'smooth' : 'instant'
+      });
 
-.ctec-wheel-highlight {
-  position: absolute;
-  top: 50%;
-  left: 10px;
-  right: 10px;
-  height: 48px;
-  transform: translateY(-50%);
-  border-radius: 10px;
-  background: var(--ctec-surface);
-  border: 1.5px solid var(--ctec-accent);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  pointer-events: none;
-  z-index: 1;
-}
+      updateVisual3D();
 
-.ctec-wheel-track {
-  position: relative;
-  z-index: 2;
-  height: 100%;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none;
-  padding: 60px 0; /* (168 - 48) / 2 = 60px */
-  box-sizing: border-box;
-  perspective: 600px;
-}
+      if (triggerCallback && items[bounded]) {
+        onChange(items[bounded].dataset.value);
+        showSavedToast();
+      }
+    }
 
-.ctec-wheel-track::-webkit-scrollbar {
-  display: none;
-}
+    commitIndex(activeIndex, false, false);
 
-.ctec-wheel-item {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  scroll-snap-align: center;
-  font-size: 0.98rem;
-  font-weight: 500;
-  color: var(--ctec-text-secondary);
-  cursor: pointer;
-  transform-style: preserve-3d;
-  transition: color 0.15s ease, font-weight 0.15s ease;
-}
+    track.addEventListener('scroll', () => {
+      updateVisual3D();
+      clearTimeout(scrollEndTimer);
+      scrollEndTimer = setTimeout(() => {
+        const snappedIdx = Math.round(track.scrollTop / ITEM_HEIGHT);
+        if (snappedIdx !== activeIndex) {
+          commitIndex(snappedIdx, true, true);
+        } else {
+          track.scrollTo({ top: activeIndex * ITEM_HEIGHT, behavior: 'smooth' });
+        }
+      }, 90);
+    }, { passive: true });
 
-.ctec-wheel-item.is-active {
-  color: var(--ctec-accent);
-  font-weight: 700;
-}
+    items.forEach((item, idx) => {
+      item.addEventListener('click', () => {
+        if (!isDragging) commitIndex(idx, true, true);
+      });
+    });
 
-.ctec-wheel-overlay {
-  position: absolute;
-  inset: 0;
-  background: var(--ctec-wheel-mask);
-  pointer-events: none;
-  z-index: 3;
-}
+    track.addEventListener('mousedown', (e) => {
+      isDragging = false;
+      startY = e.pageY;
+      startScrollTop = track.scrollTop;
 
-.ctec-setting-toast {
-  margin-top: 1.25rem;
-  text-align: right;
-  font-size: 0.84rem;
-  color: var(--ctec-accent);
-  font-weight: 600;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
+      const onMouseMove = (moveEvent) => {
+        const dy = moveEvent.pageY - startY;
+        if (Math.abs(dy) > 4) isDragging = true;
+        track.scrollTop = startScrollTop - dy;
+      };
 
-.ctec-setting-toast.is-visible {
-  opacity: 1;
-}
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        setTimeout(() => { isDragging = false; }, 0);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    root.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        commitIndex(activeIndex + 1, true, true);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        commitIndex(activeIndex - 1, true, true);
+      }
+    });
+
+    return {
+      setValue(val) {
+        const idx = items.findIndex((el) => el.dataset.value === val);
+        if (idx !== -1 && idx !== activeIndex) {
+          commitIndex(idx, true, false);
+        }
+      }
+    };
+  }
+
+  const langWheel = createWheelPicker('wheel-lang', Settings.getLang(), (newLang) => {
+    Settings.setLang(newLang);
+  });
+
+  const themeWheel = createWheelPicker('wheel-theme', Settings.getTheme(), (newTheme) => {
+    Settings.setTheme(newTheme);
+  });
+
+  applySettingLanguage(Settings.getLang());
+
+  // Đổi từ chính trang này hoặc từ tab khác (BroadcastChannel) đều cập nhật lại giao diện + bánh xe
+  window.addEventListener('ctec:settingschange', (e) => {
+    const d = (e && e.detail) || {};
+    if (d.lang) {
+      applySettingLanguage(d.lang);
+      if (langWheel) langWheel.setValue(d.lang);
+    }
+    if (d.theme && themeWheel) themeWheel.setValue(d.theme);
+  });
+});
