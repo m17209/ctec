@@ -26,19 +26,6 @@
   font-size: 0.94rem;
 }
 
-.ctec-scope-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  background: var(--ctec-accent-soft);
-  color: var(--ctec-accent);
-  font-size: 0.82rem;
-  font-weight: 600;
-  border: 1px solid var(--ctec-border);
-}
-
 .ctec-setting-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
