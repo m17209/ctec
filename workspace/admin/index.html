@@ -99,7 +99,7 @@
     <!-- DASHBOARD: 2 SHEET NATIVE -->
     <main id="adminWorkspace" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        <div class="grid grid-cols-2 w-full sm:w-auto sm:inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
+        <div class="grid grid-cols-3 w-full sm:w-auto sm:inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
           <button id="tabBtnRoster" type="button" onclick="switchAdminTab('roster')"
                   class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 bg-indigo-600 text-white shadow-sm cursor-pointer">
             <i class="fa-solid fa-users"></i>
@@ -111,6 +111,12 @@
             <i class="fa-solid fa-wallet"></i>
             <span class="truncate" data-i18n="tabFund">Sheet 2: Quỹ CLB (Fund)</span>
             <span id="badgeFundCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700 shrink-0">0</span>
+          </button>
+          <button id="tabBtnEvents" type="button" onclick="switchAdminTab('events')"
+                  class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span class="truncate" data-i18n="tabEvents">Sự kiện (Events)</span>
+            <span id="badgeEventsCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700 shrink-0">0</span>
           </button>
         </div>
 
@@ -435,6 +441,65 @@
       </div>
     </div>
 
+      <!-- ================= TAB 3: EVENTS EDITOR ================= -->
+      <section id="panelEvents" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-days text-amber-500"></i>
+              <span data-i18n="eventsEditorTitle">Quản lý sự kiện CLB (Tháng 8/2026 – Tháng 12/2027)</span>
+            </span>
+            <span id="eventsStatsPill" class="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold whitespace-nowrap">
+              0 sự kiện
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <button type="button" onclick="addEventRow()"
+                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-plus"></i>
+              <span data-i18n="addEventBtn">Thêm sự kiện</span>
+            </button>
+            <button id="saveEventsBtn" type="button" onclick="saveEventsToStorage()"
+                    class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span data-i18n="saveEventsBtn">Lưu sự kiện</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto relative">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                  <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[160px]" data-i18n="colEventDate">Ngày (YYYY-MM-DD)</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[220px]" data-i18n="colEventTitle">Tiêu đề sự kiện</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[320px]" data-i18n="colEventDesc">Mô tả sự kiện</th>
+                  <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
+                </tr>
+              </thead>
+              <tbody id="eventsEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+          <div class="flex items-start gap-2">
+            <i class="fa-solid fa-circle-info mt-0.5 text-amber-500"></i>
+            <div>
+              <p class="font-bold mb-1" data-i18n="eventsNote1">Lưu ý:</p>
+              <ul class="list-disc list-inside space-y-0.5 text-amber-700">
+                <li data-i18n="eventsNote2">Nhập ngày theo định dạng YYYY-MM-DD (ví dụ: 2027-01-15)</li>
+                <li data-i18n="eventsNote3">Sự kiện sẽ hiển thị trên trang Lịch trình công khai sau khi lưu</li>
+                <li data-i18n="eventsNote4">Sự kiện gần nhất sẽ được hiển thị trong mục Event Countdown</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
         <p class="font-medium text-slate-700">CTEC Administrator | D1 Cloud Database</p>
@@ -445,5 +510,6 @@
 
   <script src="../assets/ctec-core.js"></script>
   <script src="./admin-app.js"></script>
+  <script src="./admin-events.js"></script>
 </body>
 </html>
