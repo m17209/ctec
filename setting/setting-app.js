@@ -10,11 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     vi: {
       pageTitle: 'CTEC — Cài đặt hệ thống',
       homeTitle: 'Về trang chủ CTEC',
-      navRosterFull: 'DANH SÁCH', navRosterShort: 'DS',
-      navFundFull: 'TRA CỨU QUỸ', navFundShort: 'QUỸ',
       title: 'Cài đặt hệ thống',
       subtitle: 'Tùy chỉnh ngôn ngữ và giao diện áp dụng cho toàn bộ cổng thông tin CTEC.',
-      scopeBadge: 'Phạm vi: Toàn bộ hệ thống (Global)',
       langLabel: 'Ngôn ngữ hiển thị',
       langDesc: 'Cuộn hoặc chạm để chuyển đổi Tiếng Việt / English trên tất cả phân hệ.',
       themeLabel: 'Chế độ giao diện',
@@ -25,11 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     en: {
       pageTitle: 'CTEC — System Settings',
       homeTitle: 'CTEC Home',
-      navRosterFull: 'ROSTER', navRosterShort: 'ROSTER',
-      navFundFull: 'FUND LOOKUP', navFundShort: 'FUND',
       title: 'System Settings',
       subtitle: 'Customize the language and appearance used across the entire CTEC portal.',
-      scopeBadge: 'Scope: Entire system (Global)',
       langLabel: 'Display language',
       langDesc: 'Scroll or tap to switch between Tiếng Việt / English on every module.',
       themeLabel: 'Appearance',
