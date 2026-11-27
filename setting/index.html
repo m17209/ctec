@@ -1,89 +1,130 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CTEC — Cài đặt hệ thống</title>
+  <script>
+    tailwind = window.tailwind || {};
+    tailwind.config = { darkMode: 'class' };
+    (function () {
+      const m = document.cookie.match(/(?:^|;\s*)ctec_theme=(dark|light)(?:;|$)/);
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if ((m && m[1] === 'dark') || (!m && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+      const l = document.cookie.match(/(?:^|;\s*)ctec_lang=(vi|en)(?:;|$)/);
+      document.documentElement.lang = l ? l[1] : 'vi';
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Core CSS & JS dùng chung toàn web -->
+  <!-- CSS & JS dùng chung toàn web -->
   <link rel="stylesheet" href="../workspace/assets/ctec-core.css" />
-  <script src="../workspace/assets/ctec-core.js"></script>
-
-  <!-- CSS riêng của trang Setting -->
+  <!-- CSS riêng của trang Cài đặt -->
   <link rel="stylesheet" href="./setting-app.css" />
 </head>
-<body>
-  <header class="ctec-topbar">
-    <nav class="ctec-nav">
-      <a href="../workspace/index.html" class="ctec-brand">
-        <img src="../workspace/assets/logoctec.png" alt="CTEC Logo" class="ctec-brand-logo" />
-        <span>CTEC</span>
+<body class="min-h-screen flex flex-col">
+  <header class="ctec-header shadow-md">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <a id="homeLink" href="../workspace/index.html" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Workspace - Settings">
+        <span class="ctec-brand-logo">
+          <img src="../workspace/assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+        </span>
+        <span class="ctec-brand-text-wrap">
+          <span id="brandTitle" class="ctec-brand-title text-sm sm:text-base font-bold tracking-tight text-white leading-tight">CTEC Workspace</span>
+          <span id="brandSub" class="text-[10px] font-medium text-amber-300 tracking-wide leading-tight">Settings</span>
+        </span>
       </a>
-      <div class="ctec-nav-links">
-        <a href="../workspace/index.html" data-i18n="nav.home">Trang chủ</a>
-        <a href="../workspace/admin/index.html" data-i18n="nav.admin">Quản trị</a>
-        <a href="../workspace/fund/index.html" data-i18n="nav.fund">Quỹ</a>
-        <a href="../workspace/roster/index.html" data-i18n="nav.roster">Nhân sự</a>
-        <a href="./index.html" data-i18n="nav.setting" aria-current="page" class="is-active">Cài đặt</a>
-      </div>
-    </nav>
+
+      <nav aria-label="Liên kết nhanh chính" class="ctec-nav-group flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <a href="../workspace/roster/index.html"
+           class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-users text-[11px]"></i>
+          <span class="ctec-btn-label-full" data-i18n="navRosterFull">DANH SÁCH</span>
+          <span class="ctec-btn-label-short" data-i18n="navRosterShort">DS</span>
+        </a>
+        <a href="../workspace/fund/index.html"
+           class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-wallet text-[11px]"></i>
+          <span class="ctec-btn-label-full" data-i18n="navFundFull">TRA CỨU QUỸ</span>
+          <span class="ctec-btn-label-short" data-i18n="navFundShort">QUỸ</span>
+        </a>
+        <a href="./index.html" class="ctec-settings-link" aria-current="page" title="Cài đặt / Settings" aria-label="Cài đặt / Settings">
+          <i class="fa-solid fa-gear"></i>
+        </a>
+      </nav>
+    </div>
   </header>
 
-  <main class="ctec-setting-container">
-    <section class="ctec-setting-header">
-      <div>
-        <h1 class="ctec-setting-title" data-i18n="setting.title">Cài đặt hệ thống</h1>
-        <p class="ctec-setting-subtitle" data-i18n="setting.subtitle">
-          Tùy chỉnh ngôn ngữ và giao diện áp dụng cho toàn bộ cổng thông tin CTEC.
-        </p>
+  <div class="ctec-page-shell flex-grow flex flex-col">
+    <main class="ctec-setting-container flex-grow">
+      <section class="ctec-setting-header">
+        <div>
+          <h1 class="ctec-setting-title" data-i18n="title">Cài đặt hệ thống</h1>
+          <p class="ctec-setting-subtitle" data-i18n="subtitle">
+            Tùy chỉnh ngôn ngữ và giao diện áp dụng cho toàn bộ cổng thông tin CTEC.
+          </p>
+        </div>
+        <span class="ctec-scope-pill">
+          <i class="fa-solid fa-globe"></i>
+          <span data-i18n="scopeBadge">Phạm vi: Toàn bộ hệ thống (Global)</span>
+        </span>
+      </section>
+
+      <section class="ctec-setting-grid">
+        <!-- Ngôn ngữ vi / en -->
+        <article class="ctec-setting-card">
+          <div>
+            <h2><i class="fa-solid fa-language"></i> <span data-i18n="langLabel">Ngôn ngữ hiển thị</span></h2>
+            <p data-i18n="langDesc">Cuộn hoặc chạm để chuyển đổi Tiếng Việt / English trên tất cả phân hệ.</p>
+          </div>
+
+          <div class="ctec-wheel" id="wheel-lang" role="listbox" tabindex="0" aria-label="Language">
+            <div class="ctec-wheel-highlight"></div>
+            <div class="ctec-wheel-track">
+              <div class="ctec-wheel-item" role="option" data-value="vi">🇻🇳 Tiếng Việt (VI)</div>
+              <div class="ctec-wheel-item" role="option" data-value="en">🇬🇧 English (EN)</div>
+            </div>
+            <div class="ctec-wheel-overlay"></div>
+          </div>
+        </article>
+
+        <!-- Giao diện Light / Dark -->
+        <article class="ctec-setting-card">
+          <div>
+            <h2><i class="fa-solid fa-circle-half-stroke"></i> <span data-i18n="themeLabel">Chế độ giao diện</span></h2>
+            <p data-i18n="themeDesc">Đồng bộ giao diện Sáng / Tối cho toàn bộ trang và các tab đang mở.</p>
+          </div>
+
+          <div class="ctec-wheel" id="wheel-theme" role="listbox" tabindex="0" aria-label="Theme">
+            <div class="ctec-wheel-highlight"></div>
+            <div class="ctec-wheel-track">
+              <div class="ctec-wheel-item" role="option" data-value="light">☀️ Light Mode (Sáng)</div>
+              <div class="ctec-wheel-item" role="option" data-value="dark">🌙 Dark Mode (Tối)</div>
+            </div>
+            <div class="ctec-wheel-overlay"></div>
+          </div>
+        </article>
+      </section>
+
+      <div class="ctec-setting-toast" id="setting-toast" role="status" aria-live="polite" data-i18n="saved">
+        Đã lưu &amp; áp dụng toàn web
       </div>
-      <span class="ctec-scope-pill" data-i18n="setting.scope.badge">
-        Phạm vi: Toàn bộ hệ thống (Global)
-      </span>
-    </section>
+    </main>
 
-    <section class="ctec-setting-grid">
-      <!-- Wheel Picker 1: Ngôn ngữ vi / en -->
-      <article class="ctec-setting-card">
-        <div>
-          <h2 data-i18n="setting.lang.label">Ngôn ngữ hiển thị</h2>
-          <p data-i18n="setting.lang.desc">Cuộn hoặc chạm để chuyển đổi Tiếng Việt / English trên tất cả phân hệ.</p>
-        </div>
+    <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="font-medium text-slate-700" data-i18n="footerText">Cổng thông tin chính thức CTEC | Thực hiện bởi Nhat Minh</p>
+      </div>
+    </footer>
+  </div>
 
-        <div class="ctec-wheel" id="wheel-lang" role="listbox" tabindex="0" aria-label="Language Wheel Picker">
-          <div class="ctec-wheel-highlight"></div>
-          <div class="ctec-wheel-track">
-            <div class="ctec-wheel-item" role="option" data-value="vi">🇻🇳 Tiếng Việt (VI)</div>
-            <div class="ctec-wheel-item" role="option" data-value="en">🇬🇧 English (EN)</div>
-          </div>
-          <div class="ctec-wheel-overlay"></div>
-        </div>
-      </article>
-
-      <!-- Wheel Picker 2: Giao diện Light / Dark -->
-      <article class="ctec-setting-card">
-        <div>
-          <h2 data-i18n="setting.theme.label">Chế độ giao diện</h2>
-          <p data-i18n="setting.theme.desc">Đồng bộ giao diện Sáng / Tối cho toàn bộ trang và các tab đang mở.</p>
-        </div>
-
-        <div class="ctec-wheel" id="wheel-theme" role="listbox" tabindex="0" aria-label="Theme Wheel Picker">
-          <div class="ctec-wheel-highlight"></div>
-          <div class="ctec-wheel-track">
-            <div class="ctec-wheel-item" role="option" data-value="light">☀️ Light Mode (Sáng)</div>
-            <div class="ctec-wheel-item" role="option" data-value="dark">🌙 Dark Mode (Tối)</div>
-          </div>
-          <div class="ctec-wheel-overlay"></div>
-        </div>
-      </article>
-    </section>
-
-    <div class="ctec-setting-toast" id="setting-toast" data-i18n="setting.status.saved">
-      Đã lưu & áp dụng toàn web
-    </div>
-  </main>
-
-  <!-- JS riêng của trang Setting -->
+  <script src="../workspace/assets/ctec-core.js"></script>
   <script src="./setting-app.js"></script>
 </body>
 </html>
