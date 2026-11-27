@@ -62,8 +62,6 @@
     vi: {
       pageTitle: 'CTEC Administrator',
       homeTitle: 'Về trang chủ CTEC',
-      navViewRosterFull: 'XEM ROSTER', navViewRosterShort: 'DS',
-      navViewFundFull: 'XEM FUND', navViewFundShort: 'QUỸ',
       tabRoster: 'Sheet 1: Nhân sự (Roster)', tabFund: 'Sheet 2: Quỹ CLB (Fund)',
       migrateWorkerBtn: 'Đồng bộ Sheet/Docs gốc', reloadD1: 'Tải lại từ D1', resetD1Btn: 'Reset D1',
       filterMemberPlaceholder: 'Lọc nhanh tên thành viên...',
@@ -158,8 +156,6 @@
     en: {
       pageTitle: 'CTEC Administrator',
       homeTitle: 'Back to CTEC Home',
-      navViewRosterFull: 'VIEW ROSTER', navViewRosterShort: 'LIST',
-      navViewFundFull: 'VIEW FUND', navViewFundShort: 'FUND',
       tabRoster: 'Sheet 1: Roster', tabFund: 'Sheet 2: Club Fund',
       migrateWorkerBtn: 'Sync original Sheets/Docs', reloadD1: 'Reload from D1', resetD1Btn: 'Reset D1',
       filterMemberPlaceholder: 'Quick filter by member name...',
