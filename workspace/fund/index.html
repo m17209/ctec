@@ -232,7 +232,7 @@
 <body class="min-h-screen flex flex-col">
   <header class="ctec-header shadow-md">
     <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-      <a id="homeLink" href="../" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Workspace - Fund Management">
+      <a id="homeLink" href="../index.html" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Workspace - Fund Management">
         <span class="ctec-brand-logo">
           <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
         </span>
@@ -248,24 +248,9 @@
           <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
           <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
         </button>
-        <button type="button"
-                data-theme-toggle
-                onclick="CTEC.toggleTheme()"
-                aria-pressed="false"
-                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-100 text-xs font-bold tracking-wide rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-          <i data-theme-icon class="fa-solid fa-moon text-indigo-300 text-[11px]"></i>
-          <span data-theme-label class="ctec-btn-label-full">TỐI</span>
-          <span data-theme-label-short class="ctec-btn-label-short">TỐI</span>
-        </button>
-        <button type="button"
-                data-lang-toggle
-                onclick="CTEC.toggleLang()"
-                aria-pressed="false"
-                class="ctec-nav-btn px-2 sm:px-2.5 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-amber-300 text-xs font-bold tracking-wide rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-language text-amber-300 text-[11px]"></i>
-          <span data-lang-label class="ctec-btn-label-full">EN</span>
-          <span data-lang-label-short class="ctec-btn-label-short">EN</span>
-        </button>
+        <a href="../../setting/index.html" class="ctec-settings-link" title="Cài đặt / Settings" aria-label="Cài đặt / Settings">
+          <i class="fa-solid fa-gear"></i>
+        </a>
       </div>
     </div>
   </header>
