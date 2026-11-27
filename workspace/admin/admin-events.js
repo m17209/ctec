@@ -1,20 +1,21 @@
 /* ============================================================================
- * CTEC Administrator — admin-app.js
+ * CTEC Administrator — admin-events.js
  * ----------------------------------------------------------------------------
- * Trình soạn thảo 2 "sheet" (Roster + Fund) chạy trên bản NHÁP trong trình duyệt,
- * sau đó mới ghi lên Cloudflare Worker / D1 khi bấm Lưu.
+ * Trình soạn thảo Tab 3: Lịch trình / Sự kiện (Schedule / Events) chạy trên bản
+ * NHÁP trong trình duyệt, dùng 5 WheelPicker ('Ngày', 'Tháng', 'Năm', 'Giờ',
+ * 'Phút') cho mỗi sự kiện, yêu cầu xác thực ADMIN_TOKEN trước mọi thao tác chỉnh
+ * sửa và ghi lên Cloudflare Worker / D1.
  *
  * Phụ thuộc : ../assets/ctec-core.js  (window.CTEC)
- * Worker API: GET  /api/roster, /api/fund
- *             GET  /api/admin/fetch-sheet?url=
- *             POST /api/admin/roster/save, /api/admin/fund/save
- *             POST /api/admin/migrate-from-sheet
+ *             ./admin-app.js          (tải trước file này)
+ * Worker API: GET  /api/events?fresh=
+ *             POST /api/admin/events/save
  * ========================================================================== */
 (() => {
   'use strict';
 
   if (!window.CTEC) {
-    console.error('[admin-app] Thiếu window.CTEC — hãy nạp ../assets/ctec-core.js trước admin-app.js');
+    console.error('[admin-events] Thiếu window.CTEC — hãy nạp ../assets/ctec-core.js trước admin-events.js');
     return;
   }
   const CTEC = window.CTEC;
@@ -22,336 +23,166 @@
   /* ======================================================================
    * 1. HẰNG SỐ & TRẠNG THÁI
    * ==================================================================== */
-  const MONTHS_EN = CTEC.FUND_MONTHS_EN;
-  const MONTH_COUNT = MONTHS_EN.length;
-  const MONTH_INDEX = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
-  const FUND_STATUSES = ['UNPAID', 'PAID', 'DEBT']; // thứ tự xoay vòng khi bấm ô tháng
+  const DEFAULT_EVENT_TIME = '08:00';
+  const BASE_YEARS = [2026, 2027];
 
-  const TAB_CFG = {
-    roster: { btn: 'tabBtnRoster', badge: 'badgeRosterCount', on: ['bg-indigo-600', 'text-white', 'shadow-sm'] },
-    fund: { btn: 'tabBtnFund', badge: 'badgeFundCount', on: ['bg-emerald-600', 'text-white', 'shadow-sm'] }
-  };
-  const TAB_OFF = ['text-slate-600', 'hover:text-slate-900'];
-  const BADGE_ON = ['bg-white/20', 'text-white'];
-  const BADGE_OFF = ['bg-slate-200', 'text-slate-700'];
-
-  const state = {
-    tab: 'roster',
-    roster: [],                                   // [{uid,name,dept,role,status}]
-    fund: [],                                     // [{uid,name,dept,months[8],note}]
-    deadlines: new Array(MONTH_COUNT).fill(0),
-    deadlineDraftMonth: 0,                        // tháng đang chọn ở WheelPicker 1
-    deadlineMonthLockedIn: false,                 // true sau khi bấm "Lưu tháng" -> mở khóa WheelPicker ngày
-    deadlineDraftDay: 0,                          // ngày đang chọn ở WheelPicker 2
-    bankInfoRaw: {},                              // bankInfo gốc từ D1 (để không ghi đè mất rawHtml)
-    selected: { roster: new Set(), fund: new Set() },
-    anchor: { roster: null, fund: null },         // dòng mốc cho Shift + Click
-    dirty: { roster: false, fund: false },
-    loaded: false,                                // đã tải D1 thành công ít nhất 1 lần
+  const eventsState = {
+    events: [],       // [{ uid, date, time, title, description }]
+    dirty: false,
+    loaded: false,
     busy: false,
-    importTarget: 'roster'
+    activeTab: location.hash === '#events' ? 'events' : (location.hash === '#fund' ? 'fund' : 'roster')
   };
 
-  let uidSeq = 0;
-  const newUid = () => `u${++uidSeq}`;
+  let eventUidSeq = 0;
+  const nextEventUid = () => `ev_${++eventUidSeq}`;
   const $ = (id) => document.getElementById(id);
   const esc = CTEC.escapeHtml;
   const curLang = () => CTEC.getSavedLang();
+  const pad2 = (n) => String(n).padStart(2, '0');
 
   /* ======================================================================
    * 2. I18N (vi / en)
    * ==================================================================== */
-  const ADMIN_I18N = {
+  const EVENTS_I18N = {
     vi: {
-      pageTitle: 'CTEC Administrator',
-      homeTitle: 'Về trang chủ CTEC',
-      authModalTitle: 'Xác thực quyền quản trị',
-      authModalDesc: 'Nhập ADMIN_TOKEN để mở khóa chỉnh sửa dữ liệu.',
-      authTokenLabel: 'Mã quản trị (ADMIN_TOKEN)',
-      authBackBtn: 'Quay lại',
-      authUnlockBtn: 'Xác nhận & Mở khóa',
-      lockBtnTitle: 'Đổi hoặc khóa lại mã quản trị',
-      lockBtnLocked: 'Chưa xác thực',
-      lockBtnUnlocked: 'Đã xác thực',
-      errAuthRequired: 'Vui lòng nhập và xác thực ADMIN_TOKEN trước khi thực hiện thao tác chỉnh sửa.',
-      errAuthInvalid: 'Mã quản trị (ADMIN_TOKEN) không chính xác.',
-      toastAuthSuccess: 'Đã xác thực quyền quản trị.',
-      tabRoster: 'Sheet 1: Nhân sự (Roster)', tabFund: 'Sheet 2: Quỹ CLB (Fund)',
-      migrateWorkerBtn: 'Đồng bộ Sheet/Docs gốc', reloadD1: 'Tải lại từ D1', resetD1Btn: 'Reset D1',
-      filterMemberPlaceholder: 'Lọc nhanh tên thành viên...',
-      importSheetBtn: 'Nhập từ Google Sheet', addMemberBtn: 'Thêm thành viên', saveRosterBtn: 'Lưu Roster lên D1',
-      clearSelectionBtn: 'Bỏ chọn',
-      shiftSelectHint: '(Mẹo: Giữ Shift + Click để chọn nhanh một khoảng)',
-      bulkApplyDeptBtn: 'Đổi ban', bulkApplyRoleBtn: 'Đổi chức vụ', bulkApplyStatusBtn: 'Đổi trạng thái',
-      bulkDeleteBtn: 'Xóa đã chọn',
-      selectAllTitle: 'Chọn tất cả dòng đang hiển thị',
-      colNo: 'STT', colFullName: 'Họ và tên', colDeptFull: 'Ban (Department)', colRoleFull: 'Chức vụ (Role)',
-      colStatus: 'Trạng thái', colDelete: 'Xóa', colNote: 'Ghi chú',
-      deadlinesTitle: 'Cấu hình ngày hạn đóng hàng tháng (WheelPicker)',
-      deadlineStep1Label: 'Bước 1: Chọn tháng',
-      deadlineStep2Label: 'Bước 2: Chọn ngày hạn nộp',
-      saveMonthBtn: 'Lưu tháng',
-      saveDeadlineDayBtn: 'Lưu hạn nộp',
-      dayWheelLockedBadge: 'Đang khóa',
-      dayWheelUnlockedBadge: 'Đã mở khóa',
-      dayWheelLockedPlaceholder: 'Lưu tháng trước',
+      tabEvents: 'Lịch trình (Schedule)',
+      eventsEditorTitle: 'Quản lý lịch trình sự kiện CLB (Tháng 8/2026 – Tháng 12/2027)',
+      addEventBtn: 'Thêm sự kiện',
+      saveEventsBtn: 'Lưu sự kiện',
+      colNo: 'STT',
+      colEventDate: 'Ngày / Tháng / Năm',
+      colEventTime: 'Giờ : Phút',
+      colEventTitle: 'Tiêu đề sự kiện',
+      colEventDesc: 'Mô tả sự kiện',
+      colDelete: 'Xóa',
+      wheelCapDay: 'Ngày',
+      wheelCapMonth: 'Tháng',
+      wheelCapYear: 'Năm',
+      wheelCapHour: 'Giờ',
+      wheelCapMinute: 'Phút',
       wheelScrollHint: 'Cuộn hoặc kéo',
       wheelDoneBtn: 'Xong',
-      deadlineNoDeadlineOption: '0 — Không đặt hạn',
-      deadlineDayOption: 'Ngày {d}',
-      deadlineTableNotSet: 'Chưa đặt',
-      deadlineTableDay: 'Ngày {d}',
-      deadlineStepHintLock: 'Hãy chọn tháng ở Bước 1 và bấm “Lưu tháng” để mở khóa chọn ngày hạn nộp.',
-      deadlineStepHintUnlock: 'Đang chỉnh hạn nộp cho {month}. Chọn ngày ở Bước 2 rồi bấm “Lưu hạn nộp”.',
-      toastDeadlineMonthSaved: 'Đã chốt tháng {month}. Hãy chọn ngày hạn nộp và bấm “Lưu hạn nộp”.',
-      toastDeadlineDaySaved: 'Đã cập nhật hạn nộp {month}: {val}. Nhớ bấm “Lưu Fund lên D1”.',
-      deadlinesHint: '* Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.',
-      bankInfoTitle: 'Thông tin chuyển khoản (Bank Info)',
-      bankStkLabel: 'Số tài khoản (STK)', bankNameLabel: 'Ngân hàng', bankHolderLabel: 'Tên chủ tài khoản',
-      bankQrLabel: 'URL ảnh QR / Mã HTML QR 10K',
-      fundSearchPlaceholder: 'Tìm thành viên trong bảng quỹ...',
-      fundTipHtml: 'Mẹo: Bấm vào ô tháng để xoay vòng <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>',
-      pruneMissingLabel: 'Xóa người không có trong Roster',
-      syncFromRosterBtn: 'Đồng bộ từ Roster',
-      syncFromRosterTitle: 'Đồng bộ danh sách thành viên từ tab Roster sang Fund',
-      saveFundBtn: 'Lưu Fund lên D1',
-      bulkApplyAllMonthsBtn: 'Đặt 8 tháng cho dòng chọn',
-      modalBadge: 'Tiền xử lý trước khi đẩy D1',
-      modalMethod1: 'Cách 1: Tải từ Link Google Sheets (đã bật chia sẻ xem) hoặc link xuất CSV',
-      modalMethod2: 'Cách 2: Dán trực tiếp từ Google Sheets (Ctrl + C trên Sheet rồi Ctrl + V vào đây)',
-      modalReplaceCheck: 'Ghi đè danh sách hiện tại trong bảng nháp',
-      modalCancelBtn: 'Hủy', modalApplyBtn: 'Nạp vào bảng xem trước', modalFetchBtn: 'Tải Sheet',
+      eventsNote1: 'Lưu ý:',
+      eventsNote2: 'Dùng 5 WheelPicker (Ngày, Tháng, Năm, Giờ, Phút — múi giờ Việt Nam UTC+7) để chỉnh thời gian cho từng sự kiện',
+      eventsNote3: 'Sự kiện sẽ hiển thị trên trang Lịch trình công khai sau khi lưu',
+      eventsNote4: 'Đồng hồ Event Countdown sẽ đếm ngược đến sự kiện bạn bấm chọn trên lịch hoặc danh sách sắp tới',
 
       // Động
-      selectedRows: 'Đã chọn {n} dòng',
-      rosterMembersCount: '{n} thành viên',
-      rosterMembersCountRows: '{n} thành viên · {rows} dòng (có kiêm nhiệm)',
-      loadingRows: 'Đang tải dữ liệu từ D1...',
-      loadFailedRows: 'Không tải được dữ liệu. Bấm “Tải lại từ D1” để thử lại.',
-      emptyRoster: 'Chưa có thành viên nào. Bấm “Thêm thành viên” hoặc “Nhập từ Google Sheet”.',
-      emptyFund: 'Bảng quỹ đang trống. Dùng “Đồng bộ từ Roster” hoặc “Nhập từ Google Sheet”.',
-      emptySearch: 'Không có dòng nào khớp với từ khóa.',
-      namePlaceholder: 'Họ và tên...', notePlaceholder: 'Ghi chú...',
-      deleteRowTitle: 'Xóa dòng này khỏi bảng nháp',
-      overdueTitle: 'Đã quá hạn đóng — trang công khai sẽ hiển thị là DEBT',
-      invalidDayTitle: 'Tháng này không có ngày {day}',
+      eventsCount: '{n} sự kiện',
+      loadingEvents: 'Đang tải danh sách sự kiện từ D1...',
+      emptyEvents: 'Chưa có sự kiện nào. Bấm “Thêm sự kiện” để tạo mốc sự kiện mới.',
+      titlePlaceholder: 'Nhập tên sự kiện...',
+      descPlaceholder: 'Mô tả chi tiết nội dung, địa điểm hoặc ghi chú...',
+      deleteEventTitle: 'Xóa sự kiện này khỏi bảng nháp',
       toastBusy: 'Đang xử lý, vui lòng đợi...',
-      toastLoaded: 'Đã tải {r} dòng Roster và {f} dòng Fund từ D1',
-      toastLoadFail: 'Không tải được dữ liệu từ D1: {msg}',
-      confirmReloadDirty: 'Bạn có thay đổi chưa lưu. Tải lại từ D1 sẽ bỏ toàn bộ thay đổi đó. Tiếp tục?',
-      errNotLoaded: 'Chưa tải được dữ liệu từ D1 nên tạm khóa chức năng lưu (để tránh ghi đè mất dữ liệu). Hãy bấm “Tải lại từ D1”.',
-      errEmptyRoster: 'Bảng Roster đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
-      errEmptyFund: 'Bảng Fund đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
-      confirmDup: 'Có {n} dòng bị trùng (cùng tên và cùng ban). Vẫn lưu?',
-      warnBlankDropped: 'Đã bỏ qua {n} dòng trống tên.',
-      toastSavedRoster: 'Đã lưu {n} thành viên lên D1.',
-      toastSavedFund: 'Đã lưu {n} dòng quỹ lên D1.',
-      toastSaveFail: 'Lưu thất bại: {msg}',
-      errDeadlineInvalid: 'Hạn đóng {month}: tháng này không có ngày {day}.',
-      errQrInvalid: 'Mã QR không hợp lệ: chỉ nhận URL https://, thẻ <img> (https hoặc base64) hoặc <svg>.',
-      toastNothingSelected: 'Chưa chọn dòng nào.',
-      confirmDeleteSelected: 'Xóa {n} dòng đã chọn khỏi bảng nháp? (Chỉ áp dụng lên D1 sau khi bấm Lưu)',
-      toastBulkApplied: 'Đã cập nhật {n} dòng (chưa lưu).',
-      toastDeleted: 'Đã xóa {n} dòng khỏi bảng nháp (chưa lưu).',
-      importTitleRoster: 'Nhập Roster từ Google Sheet',
-      importTitleFund: 'Nhập Fund từ Google Sheet',
-      importHintRoster: 'Cột theo thứ tự: [STT] · Họ và tên · Ban · Chức vụ · Trạng thái. Dòng tiêu đề sẽ tự được bỏ qua.',
-      importHintFund: 'Cột theo thứ tự: [STT] · Họ và tên · Ban · 8 cột tháng · Ghi chú. Dòng “Hạn đóng quỹ” sẽ cập nhật ngày hạn.',
-      errNeedUrl: 'Hãy dán link Google Sheets trước.',
-      errEmptyImport: 'Chưa có dữ liệu để nạp. Hãy tải từ link hoặc dán dữ liệu vào ô bên dưới.',
-      errNoRowsParsed: 'Không đọc được dòng dữ liệu hợp lệ nào. Hãy kiểm tra lại thứ tự cột.',
-      toastFetchSheetOk: 'Đã tải {n} dòng từ Google Sheet. Bấm “Nạp vào bảng xem trước” để tiếp tục.',
-      toastFetchSheetFail: 'Không tải được Sheet: {msg}',
-      toastImportOk: 'Đã nạp {n} dòng vào bảng nháp (chưa lưu).',
-      toastImportSkippedDup: ' Bỏ qua {n} dòng đã tồn tại.',
-      toastImportUnknownDept: ' {n} dòng có tên ban không nhận diện được nên được đặt thành CONTENT — hãy kiểm tra lại.',
-      toastImportDeadlines: ' Đã cập nhật ngày hạn đóng.',
-      confirmMigrate: 'Thao tác này sẽ GHI ĐÈ toàn bộ Roster và Fund trên D1 bằng dữ liệu từ Google Sheet/Docs gốc.\nCác thay đổi chưa lưu trong trang sẽ bị mất. Tiếp tục?',
-      toastMigrateOk: 'Đã đồng bộ từ Sheet/Docs gốc: {r} nhân sự, {f} dòng quỹ.',
-      toastMigrateFail: 'Đồng bộ thất bại: {msg}',
-      promptReset: 'Thao tác này XÓA TOÀN BỘ dữ liệu {kind} trên D1 và không thể hoàn tác.\nGõ {word} để xác nhận:',
+      toastLoadFail: 'Không tải được danh sách sự kiện từ D1: {msg}',
+      errNotLoaded: 'Chưa tải được dữ liệu sự kiện từ D1 nên tạm khóa lưu. Hãy bấm “Tải lại từ D1”.',
+      errEmptyEvents: 'Danh sách sự kiện đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
+      errInvalidDate: 'Dòng {row}: Ngày sự kiện không hợp lệ (cần định dạng YYYY-MM-DD).',
+      errInvalidTime: 'Dòng {row}: Giờ sự kiện không hợp lệ (cần định dạng HH:MM).',
+      errMissingTitle: 'Dòng {row}: Vui lòng nhập tiêu đề sự kiện.',
+      warnBlankDropped: 'Đã bỏ qua {n} dòng trống.',
+      toastSavedEvents: 'Đã lưu {n} sự kiện lên D1.',
+      toastSaveFail: 'Lưu sự kiện thất bại: {msg}',
+      kindEvents: 'Lịch trình (Schedule)',
+      resetEventsTitle: 'Xóa toàn bộ dữ liệu Lịch trình (Events) trên D1',
+      promptResetEvents: 'Thao tác này XÓA TOÀN BỘ dữ liệu Lịch trình (Events) trên D1 và không thể hoàn tác.\nGõ {word} để xác nhận:',
       toastResetCancelled: 'Đã hủy Reset D1.',
-      toastResetOk: 'Đã xóa sạch bảng {kind} trên D1.',
+      toastResetEventsOk: 'Đã xóa sạch bảng Lịch trình (Events) trên D1.',
       toastResetFail: 'Reset thất bại: {msg}',
-      kindRoster: 'Roster', kindFund: 'Fund',
-      resetD1Title: 'Xóa toàn bộ dữ liệu {kind} trên D1',
-      toastSyncDone: 'Đồng bộ từ Roster: +{added} thêm, {moved} đổi ban, −{removed} xóa. Nhớ bấm “Lưu Fund lên D1”.',
-      toastSyncNoop: 'Fund đã khớp với Roster, không có gì thay đổi.',
-      errSyncEmpty: 'Roster đang trống nên không có gì để đồng bộ.',
-      errNetwork: 'Không kết nối được tới máy chủ. Kiểm tra mạng/adblock; nếu mạng ổn thì có thể do CORS — hãy thêm {origin} vào ALLOWED_ORIGINS của Worker.',
-      retryLoadBtn: 'Thử tải lại',
-      warnUnknownDeptLoaded: ' {n} dòng trong D1 có tên ban lạ và đang hiển thị là CONTENT — hãy kiểm tra lại cột Ban.',
-      toastMigrateBankKept: ' Giữ nguyên thông tin chuyển khoản đã nhập trong Admin.',
-      toastMigrateUnknownDept: ' {n} dòng có tên ban lạ được đặt thành CONTENT.'
+      errNetwork: 'Không kết nối được tới máy chủ. Kiểm tra mạng/adblock hoặc cấu hình CORS của Worker.'
     },
     en: {
-      pageTitle: 'CTEC Administrator',
-      homeTitle: 'Back to CTEC Home',
-      authModalTitle: 'Admin Authentication',
-      authModalDesc: 'Enter ADMIN_TOKEN to unlock data editing and management.',
-      authTokenLabel: 'Admin Token (ADMIN_TOKEN)',
-      authBackBtn: 'Go back',
-      authUnlockBtn: 'Verify & Unlock',
-      lockBtnTitle: 'Change or re-lock admin token',
-      lockBtnLocked: 'Locked',
-      lockBtnUnlocked: 'Authenticated',
-      errAuthRequired: 'Please enter and verify ADMIN_TOKEN before making any changes.',
-      errAuthInvalid: 'Incorrect admin token (ADMIN_TOKEN).',
-      toastAuthSuccess: 'Admin access unlocked.',
-      tabRoster: 'Sheet 1: Roster', tabFund: 'Sheet 2: Club Fund',
-      migrateWorkerBtn: 'Sync original Sheets/Docs', reloadD1: 'Reload from D1', resetD1Btn: 'Reset D1',
-      filterMemberPlaceholder: 'Quick filter by member name...',
-      importSheetBtn: 'Import from Google Sheet', addMemberBtn: 'Add member', saveRosterBtn: 'Save Roster to D1',
-      clearSelectionBtn: 'Clear selection',
-      shiftSelectHint: '(Tip: hold Shift + Click to select a range)',
-      bulkApplyDeptBtn: 'Set department', bulkApplyRoleBtn: 'Set role', bulkApplyStatusBtn: 'Set status',
-      bulkDeleteBtn: 'Delete selected',
-      selectAllTitle: 'Select all visible rows',
-      colNo: 'No.', colFullName: 'Full name', colDeptFull: 'Department', colRoleFull: 'Role',
-      colStatus: 'Status', colDelete: 'Delete', colNote: 'Note',
-      deadlinesTitle: 'Monthly due-day setup (WheelPicker)',
-      deadlineStep1Label: 'Step 1: Select month',
-      deadlineStep2Label: 'Step 2: Select due day',
-      saveMonthBtn: 'Save month',
-      saveDeadlineDayBtn: 'Save due day',
-      dayWheelLockedBadge: 'Locked',
-      dayWheelUnlockedBadge: 'Unlocked',
-      dayWheelLockedPlaceholder: 'Save month first',
+      tabEvents: 'Schedule',
+      eventsEditorTitle: 'Club Schedule & Events Manager (Aug 2026 – Dec 2027)',
+      addEventBtn: 'Add event',
+      saveEventsBtn: 'Save events',
+      colNo: 'No.',
+      colEventDate: 'Day / Month / Year',
+      colEventTime: 'Hour : Minute',
+      colEventTitle: 'Event title',
+      colEventDesc: 'Event description',
+      colDelete: 'Delete',
+      wheelCapDay: 'Day',
+      wheelCapMonth: 'Month',
+      wheelCapYear: 'Year',
+      wheelCapHour: 'Hour',
+      wheelCapMinute: 'Minute',
       wheelScrollHint: 'Scroll or drag',
       wheelDoneBtn: 'Done',
-      deadlineNoDeadlineOption: '0 — No deadline',
-      deadlineDayOption: 'Day {d}',
-      deadlineTableNotSet: 'Not set',
-      deadlineTableDay: 'Day {d}',
-      deadlineStepHintLock: 'Select a month in Step 1 and click “Save month” to unlock the due-day wheel.',
-      deadlineStepHintUnlock: 'Editing due day for {month}. Pick a day in Step 2 and click “Save due day”.',
-      toastDeadlineMonthSaved: 'Month {month} selected. Pick a due day and click “Save due day”.',
-      toastDeadlineDaySaved: 'Updated {month} due day: {val}. Remember to press “Save Fund to D1”.',
-      deadlinesHint: '* Once the due day of a month has passed, <strong class="text-amber-600">UNPAID</strong> is automatically shown as <strong class="text-red-600">DEBT</strong> on the public page.',
-      bankInfoTitle: 'Bank transfer info',
-      bankStkLabel: 'Account number', bankNameLabel: 'Bank', bankHolderLabel: 'Account holder',
-      bankQrLabel: 'QR image URL / 10K QR HTML',
-      fundSearchPlaceholder: 'Search members in the fund table...',
-      fundTipHtml: 'Tip: click a month cell to cycle <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>',
-      pruneMissingLabel: 'Remove people not in Roster',
-      syncFromRosterBtn: 'Sync from Roster',
-      syncFromRosterTitle: 'Sync the member list from the Roster tab into Fund',
-      saveFundBtn: 'Save Fund to D1',
-      bulkApplyAllMonthsBtn: 'Set all 8 months for selected rows',
-      modalBadge: 'Pre-processing before pushing to D1',
-      modalMethod1: 'Method 1: Load from a Google Sheets link (view sharing enabled) or a CSV export link',
-      modalMethod2: 'Method 2: Paste straight from Google Sheets (Ctrl + C in the Sheet, then Ctrl + V here)',
-      modalReplaceCheck: 'Overwrite the current list in the draft table',
-      modalCancelBtn: 'Cancel', modalApplyBtn: 'Load into preview table', modalFetchBtn: 'Load Sheet',
+      eventsNote1: 'Notes:',
+      eventsNote2: 'Use the 5 WheelPickers (Day, Month, Year, Hour, Minute — Vietnam time UTC+7) to set each event time',
+      eventsNote3: 'Events appear on the public Schedule page once saved',
+      eventsNote4: 'The Event Countdown timer counts down to whichever event is selected on the calendar or upcoming list',
 
-      selectedRows: '{n} row(s) selected',
-      rosterMembersCount: '{n} members',
-      rosterMembersCountRows: '{n} members · {rows} rows (multi-department)',
-      loadingRows: 'Loading data from D1...',
-      loadFailedRows: 'Could not load data. Press “Reload from D1” to retry.',
-      emptyRoster: 'No members yet. Press “Add member” or “Import from Google Sheet”.',
-      emptyFund: 'The fund table is empty. Use “Sync from Roster” or “Import from Google Sheet”.',
-      emptySearch: 'No rows match your search.',
-      namePlaceholder: 'Full name...', notePlaceholder: 'Note...',
-      deleteRowTitle: 'Remove this row from the draft',
-      overdueTitle: 'Past due — the public page will show this as DEBT',
-      invalidDayTitle: 'This month has no day {day}',
+      // Dynamic
+      eventsCount: '{n} event(s)',
+      loadingEvents: 'Loading events from D1...',
+      emptyEvents: 'No events yet. Press “Add event” to create a new event entry.',
+      titlePlaceholder: 'Enter event title...',
+      descPlaceholder: 'Details, venue, or notes...',
+      deleteEventTitle: 'Remove this event from draft',
       toastBusy: 'Working, please wait...',
-      toastLoaded: 'Loaded {r} Roster rows and {f} Fund rows from D1',
-      toastLoadFail: 'Could not load data from D1: {msg}',
-      confirmReloadDirty: 'You have unsaved changes. Reloading from D1 will discard them. Continue?',
-      errNotLoaded: 'Data from D1 has not been loaded yet, so saving is locked to avoid overwriting it. Press “Reload from D1”.',
-      errEmptyRoster: 'The Roster table is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
-      errEmptyFund: 'The Fund table is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
-      confirmDup: '{n} row(s) are duplicated (same name and same department). Save anyway?',
-      warnBlankDropped: 'Skipped {n} row(s) with an empty name.',
-      toastSavedRoster: 'Saved {n} members to D1.',
-      toastSavedFund: 'Saved {n} fund rows to D1.',
+      toastLoadFail: 'Could not load events from D1: {msg}',
+      errNotLoaded: 'Events have not been loaded from D1 yet, so saving is locked. Press “Reload from D1”.',
+      errEmptyEvents: 'The Events list is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
+      errInvalidDate: 'Row {row}: Invalid event date (expected YYYY-MM-DD).',
+      errInvalidTime: 'Row {row}: Invalid event time (expected HH:MM).',
+      errMissingTitle: 'Row {row}: Please enter an event title.',
+      warnBlankDropped: 'Skipped {n} empty row(s).',
+      toastSavedEvents: 'Saved {n} event(s) to D1.',
       toastSaveFail: 'Save failed: {msg}',
-      errDeadlineInvalid: 'Due day for {month}: this month has no day {day}.',
-      errQrInvalid: 'Invalid QR value: only https:// URLs, <img> tags (https or base64) or <svg> are accepted.',
-      toastNothingSelected: 'No rows selected.',
-      confirmDeleteSelected: 'Remove {n} selected row(s) from the draft? (D1 only changes after you press Save)',
-      toastBulkApplied: 'Updated {n} row(s) (not saved yet).',
-      toastDeleted: 'Removed {n} row(s) from the draft (not saved yet).',
-      importTitleRoster: 'Import Roster from Google Sheet',
-      importTitleFund: 'Import Fund from Google Sheet',
-      importHintRoster: 'Column order: [No.] · Full name · Department · Role · Status. A header row is skipped automatically.',
-      importHintFund: 'Column order: [No.] · Full name · Department · 8 month columns · Note. A “Fund contribution deadline” row updates the due days.',
-      errNeedUrl: 'Paste a Google Sheets link first.',
-      errEmptyImport: 'Nothing to load yet. Fetch from a link or paste data into the box below.',
-      errNoRowsParsed: 'No valid data rows could be read. Please check the column order.',
-      toastFetchSheetOk: 'Fetched {n} rows from Google Sheet. Press “Load into preview table” to continue.',
-      toastFetchSheetFail: 'Could not fetch the Sheet: {msg}',
-      toastImportOk: 'Loaded {n} row(s) into the draft (not saved yet).',
-      toastImportSkippedDup: ' Skipped {n} existing row(s).',
-      toastImportUnknownDept: ' {n} row(s) had an unrecognised department and were set to CONTENT — please review.',
-      toastImportDeadlines: ' Due days updated.',
-      confirmMigrate: 'This will OVERWRITE the entire Roster and Fund in D1 with the original Google Sheet/Docs data.\nUnsaved changes on this page will be lost. Continue?',
-      toastMigrateOk: 'Synced from the original Sheets/Docs: {r} members, {f} fund rows.',
-      toastMigrateFail: 'Sync failed: {msg}',
-      promptReset: 'This DELETES ALL {kind} data in D1 and cannot be undone.\nType {word} to confirm:',
+      kindEvents: 'Schedule',
+      resetEventsTitle: 'Delete all Schedule / Events data in D1',
+      promptResetEvents: 'This DELETES ALL Schedule / Events data in D1 and cannot be undone.\nType {word} to confirm:',
       toastResetCancelled: 'Reset D1 cancelled.',
-      toastResetOk: 'The {kind} table in D1 has been wiped.',
+      toastResetEventsOk: 'The Schedule / Events table in D1 has been wiped.',
       toastResetFail: 'Reset failed: {msg}',
-      kindRoster: 'Roster', kindFund: 'Fund',
-      resetD1Title: 'Delete all {kind} data in D1',
-      toastSyncDone: 'Synced from Roster: +{added} added, {moved} moved, −{removed} removed. Remember to press “Save Fund to D1”.',
-      toastSyncNoop: 'Fund already matches the Roster — nothing changed.',
-      errSyncEmpty: 'The Roster is empty, so there is nothing to sync.',
-      errNetwork: 'Cannot reach the server. Check your connection/ad blocker; if the network is fine this may be CORS — add {origin} to the Worker\'s ALLOWED_ORIGINS.',
-      retryLoadBtn: 'Try again',
-      warnUnknownDeptLoaded: ' {n} row(s) in D1 have an unrecognised department and show as CONTENT — please review the Department column.',
-      toastMigrateBankKept: ' Bank details already entered in Admin were kept.',
-      toastMigrateUnknownDept: ' {n} row(s) with an unrecognised department were set to CONTENT.'
+      errNetwork: 'Cannot reach the server. Check your connection/ad blocker or Worker CORS configuration.'
     }
   };
 
-  const ROLE_LABELS = {
-    vi: { 'President': 'Chủ tịch', 'Vice President': 'Phó Chủ tịch', 'Head of Department': 'Trưởng ban', 'Deputy Head of Department': 'Phó ban', 'Member': 'Thành viên' },
-    en: { 'President': 'President', 'Vice President': 'Vice President', 'Head of Department': 'Head of Department', 'Deputy Head of Department': 'Deputy Head of Department', 'Member': 'Member' }
-  };
-  const STATUS_LABELS = {
-    vi: { 'Official': 'Chính thức', 'Probationary': 'Thử việc', 'Inactive': 'Tạm nghỉ' },
-    en: { 'Official': 'Official', 'Probationary': 'Probationary', 'Inactive': 'Inactive' }
-  };
-
   function t(key, vars) {
-    const dict = ADMIN_I18N[curLang()] || ADMIN_I18N.vi;
-    let str = dict[key] ?? ADMIN_I18N.vi[key] ?? key;
+    const dict = EVENTS_I18N[curLang()] || EVENTS_I18N.vi;
+    let str = dict[key] ?? EVENTS_I18N.vi[key] ?? key;
     if (vars) str = str.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
     return str;
   }
 
-  function applyAdminStaticI18n() {
-    const dict = ADMIN_I18N[curLang()] || ADMIN_I18N.vi;
-    document.title = dict.pageTitle;
-    const home = $('homeLink');
-    if (home) home.title = dict.homeTitle;
+  function applyEventsStaticI18n() {
+    const dict = EVENTS_I18N[curLang()] || EVENTS_I18N.vi;
 
-    document.querySelectorAll('[data-i18n]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n')];
-      if (typeof v === 'string') el.textContent = v;
-    });
-    document.querySelectorAll('[data-i18n-html]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-html')];
-      if (typeof v === 'string') el.innerHTML = v;
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-placeholder')];
-      if (typeof v === 'string') el.placeholder = v;
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-title')];
-      if (typeof v === 'string') el.title = v;
-    });
-    updateResetButtonTitle();
-    updateRosterStats();
+    const tabSpan = $('tabBtnEvents')?.querySelector('[data-i18n="tabEvents"]');
+    if (tabSpan && dict.tabEvents) tabSpan.textContent = dict.tabEvents;
+
+    const panel = $('panelEvents');
+    if (panel) {
+      panel.querySelectorAll('[data-i18n]').forEach((el) => {
+        const key = el.getAttribute('data-i18n');
+        if (typeof dict[key] === 'string') el.textContent = dict[key];
+      });
+    }
+
+    updateEventsStats();
+    if (eventsState.activeTab === 'events') {
+      const resetBtn = $('resetD1Btn');
+      if (resetBtn) resetBtn.title = t('resetEventsTitle');
+    }
   }
 
   /* ======================================================================
-   * 3. TIỆN ÍCH CHUNG (toast, busy, POST, lỗi, popover wheel helper)
+   * 3. TIỆN ÍCH (Auth check, Toast, Busy, Dirty, Validate, Wheel Options)
    * ==================================================================== */
+  function checkAdminAuth() {
+    if (typeof window.requireAdminAuth === 'function') {
+      return window.requireAdminAuth();
+    }
+    if (window.__ctecAdminAuthenticated && CTEC.getAdminToken()) return true;
+    if (typeof window.openAdminAuthModal === 'function') window.openAdminAuthModal(false);
+    return false;
+  }
+
   const TOAST_STYLES = {
     success: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-circle-check' },
     error: { cls: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-circle-exclamation' },
@@ -378,9 +209,14 @@
   function errMsg(err) {
     const m = String(err?.message || err || '');
     if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(m)) {
-      return t('errNetwork', { origin: window.location.origin || 'origin' });
+      return t('errNetwork');
     }
     return m || 'Unknown error';
+  }
+
+  function setEventsDirty(value = true) {
+    eventsState.dirty = value;
+    $('saveEventsBtn')?.classList.toggle('admin-dirty', value);
   }
 
   function setBtnBusy(btn, busy) {
@@ -397,1597 +233,671 @@
     }
   }
 
-  async function exclusive(btn, fn) {
-    if (state.busy) {
+  async function exclusiveEvents(btn, fn) {
+    if (eventsState.busy) {
       showToast(t('toastBusy'), 'warn', 2000);
       return undefined;
     }
-    state.busy = true;
+    eventsState.busy = true;
     setBtnBusy(btn, true);
     try {
       return await fn();
     } finally {
-      state.busy = false;
+      eventsState.busy = false;
       setBtnBusy(btn, false);
     }
   }
 
-  async function postWorkerJson(path, body) {
-    return CTEC.adminWorkerJson(path, { method: 'POST', body });
+  const daysInYearMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  function parseYmdParts(str) {
+    const m = String(str || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return { year: 2026, month: 11, day: 28 };
+    const year = parseInt(m[1], 10);
+    const month = Math.max(1, Math.min(12, parseInt(m[2], 10)));
+    const maxD = daysInYearMonth(year, month);
+    const day = Math.max(1, Math.min(maxD, parseInt(m[3], 10)));
+    return { year, month, day };
   }
 
-  function setDirty(kind, value = true) {
-    state.dirty[kind] = value;
-    $(kind === 'roster' ? 'saveRosterBtn' : 'saveFundBtn')?.classList.toggle('admin-dirty', value);
+  function formatYmdParts({ year, month, day }) {
+    const maxD = daysInYearMonth(year, month);
+    const safeDay = Math.max(1, Math.min(maxD, day));
+    return `${year}-${pad2(month)}-${pad2(safeDay)}`;
   }
-  const anyDirty = () => state.dirty.roster || state.dirty.fund;
 
-  function injectStyles() {
-    if ($('adminAppStyle')) return;
+  function parseHmParts(str) {
+    const m = String(str || '').trim().match(/^([01]?\d|2[0-3]):([0-5]\d)/);
+    if (!m) return { hour: 0, minute: 0 };
+    return { hour: parseInt(m[1], 10), minute: parseInt(m[2], 10) };
+  }
+
+  function formatHmParts({ hour, minute }) {
+    return `${pad2(hour)}:${pad2(minute)}`;
+  }
+
+  function isValidYmd(str) {
+    const m = String(str || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return false;
+    const y = parseInt(m[1], 10);
+    const mo = parseInt(m[2], 10);
+    const d = parseInt(m[3], 10);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+  }
+
+  function normalizeTimeHm(raw, fallback = '00:00') {
+    const str = String(raw ?? '').trim();
+    if (!str) return fallback;
+    const m = str.match(/^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
+    if (!m) return null;
+    return `${pad2(parseInt(m[1], 10))}:${m[2]}`;
+  }
+
+  function isValidHm(str) {
+    return normalizeTimeHm(str, null) !== null;
+  }
+
+  function makeEventRow(o = {}) {
+    const rawTime = o.time ?? o.event_time;
+    const cleanTime = normalizeTimeHm(rawTime, '00:00') || '00:00';
+    const rawDate = String(o.date ?? o.event_date ?? '').trim();
+    const cleanDate = isValidYmd(rawDate) ? rawDate : '2026-11-28';
+    return {
+      uid: nextEventUid(),
+      date: cleanDate,
+      time: cleanTime,
+      title: String(o.title ?? '').trim(),
+      description: String(o.description ?? '').trim()
+    };
+  }
+
+  function buildDayOptions(year, month) {
+    const maxD = daysInYearMonth(year, month);
+    const opts = [];
+    for (let d = 1; d <= maxD; d++) {
+      opts.push({ value: String(d), label: pad2(d) });
+    }
+    return opts;
+  }
+
+  const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1),
+    label: pad2(i + 1)
+  }));
+
+  const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
+    value: String(i),
+    label: pad2(i)
+  }));
+
+  const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, i) => ({
+    value: String(i),
+    label: pad2(i)
+  }));
+
+  function buildYearOptions(extraYear) {
+    const set = new Set(BASE_YEARS);
+    if (Number.isInteger(extraYear) && extraYear >= 2020 && extraYear <= 2035) {
+      set.add(extraYear);
+    }
+    return [...set].sort((a, b) => a - b).map((y) => ({
+      value: String(y),
+      label: String(y)
+    }));
+  }
+
+  function injectEventsStyles() {
+    if ($('adminEventsStyle')) return;
     const style = document.createElement('style');
-    style.id = 'adminAppStyle';
+    style.id = 'adminEventsStyle';
     style.textContent = `
-      .admin-dirty::after {
-        content: ""; width: 8px; height: 8px; border-radius: 9999px;
-        background: #fbbf24; box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+      html.dark #badgeEventsCount {
+        background-color: #1e293b !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #334155;
       }
-      select.sheet-cell-input { cursor: pointer; }
-      .wheel-popover.ctec-fixed-popover {
-        position: fixed !important;
-        right: auto !important;
-        margin-top: 0 !important;
-        z-index: 60 !important;
+      html.dark #tabBtnEvents.bg-amber-600 #badgeEventsCount {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+        border-color: transparent !important;
+      }
+      .ev-wheel-trigger {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        min-width: 3.35rem;
+      }
+      .ev-wheel-year .ev-wheel-trigger {
+        min-width: 4.25rem;
+      }
+      .ev-wheel-wrap .wheel-popover {
+        min-width: 8.5rem;
       }
     `;
     document.head.appendChild(style);
   }
 
-  // Mở WheelPicker với vị trí cố định theo khung nhìn để không bao giờ bị cắt bởi overflow container
-  function openWheelSmart(wheelId, e) {
-    e?.stopPropagation();
-    const wrap = $(wheelId);
-    if (!wrap) return;
-    const trigger = wrap.querySelector('.wheel-trigger');
-    if (trigger && trigger.disabled) return;
-    const pop = wrap.querySelector('.wheel-popover');
-    if (!pop) return;
-
-    const wasOpen = pop.classList.contains('open');
-    CTEC.closeAllWheels();
-    if (wasOpen) return;
-
-    CTEC.toggleWheel(wheelId);
-    if (trigger && pop.classList.contains('open')) {
-      pop.classList.add('ctec-fixed-popover');
-      const rect = trigger.getBoundingClientRect();
-      const popW = Math.max(pop.offsetWidth || 224, rect.width);
-      const popH = pop.offsetHeight || 190;
-      const left = Math.max(8, Math.min(window.innerWidth - popW - 8, rect.left));
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const top = spaceBelow >= popH + 10 || rect.top < popH + 10
-        ? Math.min(window.innerHeight - popH - 8, rect.bottom + 6)
-        : Math.max(8, rect.top - popH - 6);
-      pop.style.left = `${Math.round(left)}px`;
-      pop.style.top = `${Math.round(top)}px`;
-      pop.style.minWidth = `${Math.round(popW)}px`;
-    }
-  }
-  window.openAdminWheelSmart = openWheelSmart;
-
   /* ======================================================================
-   * 4. CHUẨN HÓA DỮ LIỆU
+   * 4. RENDER BẢNG SỰ KIỆN (5 WHEELPICKERS: NGÀY, THÁNG, NĂM, GIỜ, PHÚT)
    * ==================================================================== */
-  const ROLE_ALIASES = new Map();
-  [
-    ['President', ['president', 'chu tich']],
-    ['Vice President', ['vice president', 'pho chu tich']],
-    ['Head of Department', ['head of department', 'truong ban']],
-    ['Deputy Head of Department', ['deputy head of department', 'pho ban', 'pho truong ban']],
-    ['Member', ['member', 'thanh vien']]
-  ].forEach(([canon, list]) => list.forEach((a) => ROLE_ALIASES.set(a, canon)));
-
-  const STATUS_ALIASES = new Map();
-  [
-    ['Official', ['official', 'chinh thuc']],
-    ['Probationary', ['probationary', 'probation', 'thu viec']],
-    ['Inactive', ['inactive', 'tam nghi']]
-  ].forEach(([canon, list]) => list.forEach((a) => STATUS_ALIASES.set(a, canon)));
-
-  function normalizeRole(raw) {
-    const s = String(raw ?? '').trim();
-    if (!s) return 'Member';
-    return ROLE_ALIASES.get(CTEC.normText(s)) || s;
-  }
-  function normalizeMemberStatus(raw) {
-    const s = String(raw ?? '').trim();
-    if (!s) return 'Official';
-    return STATUS_ALIASES.get(CTEC.normText(s)) || s;
-  }
-  const normFundStatus = (raw) => CTEC.normalizeFundStatus(raw);
-
-  const makeRosterRow = (o = {}) => ({
-    uid: newUid(),
-    name: CTEC.normalizeMemberName(o.name),
-    dept: o.dept || CTEC.DEFAULT_DEPT,
-    role: o.role || 'Member',
-    status: o.status || 'Official'
-  });
-
-  const makeFundRow = (o = {}) => ({
-    uid: newUid(),
-    name: CTEC.normalizeMemberName(o.name),
-    dept: o.dept || CTEC.DEFAULT_DEPT,
-    months: Array.from({ length: MONTH_COUNT }, (_, i) => normFundStatus(o.months?.[i])),
-    note: String(o.note ?? '').trim()
-  });
-
-  const pairKey = (name, dept) => `${CTEC.buildMemberNameKey(name)}|${dept}`;
-
-  /* ======================================================================
-   * 5. OPTION / NHÃN
-   * ==================================================================== */
-  const deptOptions = (L) => CTEC.DEPARTMENTS.map((d) => ({ value: d.value, label: CTEC.getDeptLabel(d.value, L, false) }));
-  const roleOptions = (L) => CTEC.ROLES.map((v) => ({ value: v, label: ROLE_LABELS[L][v] || v }));
-  const statusOptions = (L) => CTEC.MEMBER_STATUSES.map((v) => ({ value: v, label: STATUS_LABELS[L][v] || v }));
-  const monthLabels = (L) => (L === 'en' ? CTEC.FUND_MONTHS_EN : CTEC.FUND_MONTHS_VI);
-
-  function withCustom(options, value) {
-    return options.some((o) => o.value === value) || !value ? options : [...options, { value, label: value }];
-  }
-  function optionsHtml(options, selected) {
-    return options
-      .map((o) => `<option value="${esc(o.value)}"${o.value === selected ? ' selected' : ''}>${esc(o.label)}</option>`)
-      .join('');
-  }
-  function fillSelect(id, options) {
-    const el = $(id);
-    if (!el) return;
-    const prev = el.value;
-    el.innerHTML = optionsHtml(options, prev);
-    if (options.some((o) => o.value === prev)) el.value = prev;
-  }
-  function fillBulkSelects() {
-    const L = curLang();
-    fillSelect('bulkRosterDeptSelect', deptOptions(L));
-    fillSelect('bulkRosterRoleSelect', roleOptions(L));
-    fillSelect('bulkRosterStatusSelect', statusOptions(L));
+  function updateEventsStats() {
+    const count = eventsState.events.length;
+    const badge = $('badgeEventsCount');
+    if (badge) badge.textContent = String(count);
+    const pill = $('eventsStatsPill');
+    if (pill) pill.textContent = t('eventsCount', { n: count });
   }
 
-  const deptColor = (key) => CTEC.DEPARTMENTS.find((d) => d.value === key)?.color || '#94a3b8';
-  const STATUS_TONES = ['text-emerald-700', 'text-amber-700', 'text-slate-500'];
-  function statusTone(status) {
-    const n = CTEC.normText(status);
-    if (n === 'official' || n === 'chinh thuc') return 'text-emerald-700';
-    if (n === 'inactive' || n === 'tam nghi') return 'text-slate-500';
-    return 'text-amber-700';
-  }
-
-  /* ======================================================================
-   * 6. HẠN ĐÓNG QUỸ (khớp logic trang Fund công khai: 00:00 giờ VN, UTC+7)
-   * ==================================================================== */
-  function monthParts(idx) {
-    const [mStr, yStr] = MONTHS_EN[idx].split(' ');
-    return { m: MONTH_INDEX[mStr], y: 2000 + parseInt(yStr, 10) };
-  }
-  const daysInMonth = (idx) => {
-    const { m, y } = monthParts(idx);
-    return new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  };
-  function deadlineUtcMs(idx, day) {
-    if (!day) return null;
-    const { m, y } = monthParts(idx);
-    const d = new Date(Date.UTC(y, m, day));
-    if (d.getUTCMonth() !== m) return null;
-    return Date.UTC(y, m, day) - 7 * 60 * 60 * 1000;
-  }
-  const isPastDue = (idx) => {
-    const ms = deadlineUtcMs(idx, state.deadlines[idx]);
-    return ms !== null && Date.now() >= ms;
-  };
-
-  function buildFundMonthWheelOptions() {
-    return monthLabels(curLang()).map((label, idx) => ({
-      value: String(idx),
-      label
-    }));
-  }
-
-  function buildFundDayWheelOptions(monthIdx) {
-    const maxDay = daysInMonth(monthIdx);
-    const opts = [{ value: '0', label: t('deadlineNoDeadlineOption') }];
-    for (let d = 1; d <= maxDay; d++) {
-      opts.push({ value: String(d), label: t('deadlineDayOption', { d: String(d).padStart(2, '0') }) });
-    }
-    return opts;
-  }
-
-  function syncFundDeadlineControlsUI() {
-    const labels = monthLabels(curLang());
-    const mIdx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
-    const currentMonthLabel = labels[mIdx] || '';
-
-    const monthLabelEl = $('fundDeadlineMonthLabel');
-    if (monthLabelEl) monthLabelEl.textContent = currentMonthLabel;
-
-    const unlocked = state.deadlineMonthLockedIn;
-    const dayTrigger = $('fundDeadlineDayTrigger');
-    const dayLabelEl = $('fundDeadlineDayLabel');
-    const dayIcon = $('fundDeadlineDayIcon');
-    const lockBadge = $('deadlineDayLockBadge');
-    const saveDayBtn = $('saveDeadlineDayBtn');
-    const step2Label = $('deadlineStep2Label');
-    const statusHint = $('deadlineStepStatus');
-    const step2Box = $('fundDeadlineDayStepBox');
-
-    if (dayTrigger) {
-      dayTrigger.disabled = !unlocked;
-      dayTrigger.classList.toggle('opacity-50', !unlocked);
-      dayTrigger.classList.toggle('cursor-not-allowed', !unlocked);
-      dayTrigger.classList.toggle('cursor-pointer', unlocked);
-    }
-    if (saveDayBtn) {
-      saveDayBtn.disabled = !unlocked;
-    }
-    if (step2Label) {
-      step2Label.classList.toggle('text-emerald-600', unlocked);
-      step2Label.classList.toggle('text-slate-500', !unlocked);
-    }
-    if (step2Box) {
-      step2Box.classList.toggle('border-emerald-300', unlocked);
-      step2Box.classList.toggle('border-slate-200', !unlocked);
-    }
-
-    if (lockBadge) {
-      if (unlocked) {
-        lockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
-        lockBadge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i><span>${esc(t('dayWheelUnlockedBadge'))}</span>`;
-      } else {
-        lockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600';
-        lockBadge.innerHTML = `<i class="fa-solid fa-lock text-[9px]"></i><span>${esc(t('dayWheelLockedBadge'))}</span>`;
-      }
-    }
-
-    if (dayIcon) {
-      dayIcon.className = unlocked
-        ? 'fa-solid fa-chevron-down text-[10px] opacity-60'
-        : 'fa-solid fa-lock text-[10px] opacity-60';
-    }
-
-    if (dayLabelEl) {
-      if (!unlocked) {
-        dayLabelEl.textContent = t('dayWheelLockedPlaceholder');
-      } else {
-        const d = state.deadlineDraftDay;
-        dayLabelEl.textContent = d > 0
-          ? t('deadlineDayOption', { d: String(d).padStart(2, '0') })
-          : t('deadlineNoDeadlineOption');
-      }
-    }
-
-    if (statusHint) {
-      statusHint.textContent = unlocked
-        ? t('deadlineStepHintUnlock', { month: currentMonthLabel })
-        : t('deadlineStepHintLock');
-    }
-  }
-
-  function initFundDeadlineWheels() {
-    CTEC.createWheelPicker({
-      id: 'fundDeadlineMonthWheel',
-      listId: 'fundDeadlineMonthList',
-      labelId: 'fundDeadlineMonthLabel',
-      options: buildFundMonthWheelOptions(),
-      onSelect: (val) => {
-        const nextIdx = parseInt(val, 10);
-        if (!Number.isInteger(nextIdx)) return;
-        state.deadlineDraftMonth = nextIdx;
-        // Khi đổi tháng mới ở WheelPicker 1, khóa WheelPicker ngày cho đến khi bấm "Lưu tháng"
-        state.deadlineMonthLockedIn = false;
-        renderDeadlines();
-      }
-    });
-
-    CTEC.createWheelPicker({
-      id: 'fundDeadlineDayWheel',
-      listId: 'fundDeadlineDayList',
-      labelId: 'fundDeadlineDayLabel',
-      options: buildFundDayWheelOptions(0),
-      onSelect: (val) => {
-        const nextDay = parseInt(val, 10);
-        state.deadlineDraftDay = Number.isInteger(nextDay) ? nextDay : 0;
-        syncFundDeadlineControlsUI();
-      }
-    });
-
-    const mWrap = $('fundDeadlineMonthWheel');
-    const mTrigger = $('fundDeadlineMonthTrigger');
-    const dWrap = $('fundDeadlineDayWheel');
-    const dTrigger = $('fundDeadlineDayTrigger');
-
-    mTrigger?.addEventListener('click', (e) => {
-      if (!requireAuthenticated()) return;
-      openWheelSmart('fundDeadlineMonthWheel', e);
-    });
-    dTrigger?.addEventListener('click', (e) => {
-      if (!requireAuthenticated()) return;
-      if (!state.deadlineMonthLockedIn) return;
-      openWheelSmart('fundDeadlineDayWheel', e);
-    });
-
-    [mWrap, dWrap].forEach((wrap) => {
-      const pop = wrap?.querySelector('.wheel-popover');
-      pop?.addEventListener('click', (e) => {
-        if (e.target.closest('[data-wheel-done]')) {
-          CTEC.closeAllWheels();
-          return;
-        }
-        e.stopPropagation();
-      });
-    });
-
-    // Bấm vào ô tháng trên bảng nhỏ để chọn nhanh tháng đó vào Bước 1
-    $('deadlinesSummaryTableWrap')?.addEventListener('click', (e) => {
-      const cell = e.target.closest('[data-summary-month]');
-      if (!cell) return;
-      if (!requireAuthenticated()) return;
-      const idx = parseInt(cell.dataset.summaryMonth, 10);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= MONTH_COUNT) return;
-      state.deadlineDraftMonth = idx;
-      state.deadlineMonthLockedIn = false;
-      CTEC.setWheelValue('fundDeadlineMonthWheel', String(idx));
-      renderDeadlines();
-    });
-  }
-
-  function confirmDeadlineMonth() {
-    if (!requireAuthenticated()) return;
-    CTEC.closeAllWheels();
-    const idx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
-    state.deadlineDraftMonth = idx;
-    state.deadlineMonthLockedIn = true;
-
-    const maxDay = daysInMonth(idx);
-    const existing = state.deadlines[idx] || 0;
-    state.deadlineDraftDay = existing > maxDay ? maxDay : existing;
-
-    CTEC.updateWheelOptions('fundDeadlineDayWheel', buildFundDayWheelOptions(idx), false);
-    CTEC.setWheelValue('fundDeadlineDayWheel', String(state.deadlineDraftDay));
-
-    renderDeadlines();
-    const monthLabel = monthLabels(curLang())[idx];
-    showToast(t('toastDeadlineMonthSaved', { month: monthLabel }), 'info', 3000);
-  }
-
-  function saveDeadlineDay() {
-    if (!requireAuthenticated()) return;
-    if (!state.deadlineMonthLockedIn) return;
-    CTEC.closeAllWheels();
-
-    const idx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
-    const maxDay = daysInMonth(idx);
-    const cleanDay = Math.max(0, Math.min(maxDay, state.deadlineDraftDay || 0));
-
-    state.deadlines[idx] = cleanDay;
-    // Khóa lại WheelPicker ngày sau khi lưu xong hạn nộp của tháng vừa chọn
-    state.deadlineMonthLockedIn = false;
-
-    setDirty('fund', true);
-    renderDeadlines();
-    renderFundEditor();
-
-    const monthLabel = monthLabels(curLang())[idx];
-    const valLabel = cleanDay > 0
-      ? t('deadlineTableDay', { d: String(cleanDay).padStart(2, '0') })
-      : t('deadlineTableNotSet');
-    showToast(t('toastDeadlineDaySaved', { month: monthLabel, val: valLabel }), 'success', 4500);
-  }
-
-  function renderDeadlines() {
-    const head = $('deadlinesSummaryHead');
-    const body = $('deadlinesSummaryBody');
-    const labels = monthLabels(curLang());
-
-    if (head && body) {
-      const table = head.closest('table');
-      if (table && table.parentElement) table.parentElement.id = 'deadlinesSummaryTableWrap';
-
-      head.innerHTML = `<tr class="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">${
-        labels.map((label, i) => {
-          const isSelected = i === state.deadlineDraftMonth;
-          const activeCls = isSelected ? 'bg-indigo-600 text-white' : '';
-          return `<th data-summary-month="${i}" class="py-2 px-2 border-r border-slate-800 last:border-r-0 cursor-pointer hover:bg-indigo-700/80 transition ${activeCls}">${esc(label)}</th>`;
-        }).join('')
-      }</tr>`;
-
-      body.innerHTML = `<tr class="divide-x divide-slate-200">${
-        state.deadlines.map((day, i) => {
-          const isSelected = i === state.deadlineDraftMonth;
-          const cellBg = isSelected ? 'bg-indigo-50/80' : '';
-          const badge = day > 0
-            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">${esc(t('deadlineTableDay', { d: String(day).padStart(2, '0') }))}</span>`
-            : `<span class="text-[11px] font-semibold text-slate-400">${esc(t('deadlineTableNotSet'))}</span>`;
-          return `<td data-summary-month="${i}" class="py-2 px-1.5 cursor-pointer hover:bg-indigo-50/50 transition ${cellBg}">${badge}</td>`;
-        }).join('')
-      }</tr>`;
-    }
-
-    CTEC.updateWheelOptions('fundDeadlineMonthWheel', buildFundMonthWheelOptions(), true);
-    CTEC.setWheelValue('fundDeadlineMonthWheel', String(state.deadlineDraftMonth));
-    if (state.deadlineMonthLockedIn) {
-      CTEC.updateWheelOptions('fundDeadlineDayWheel', buildFundDayWheelOptions(state.deadlineDraftMonth), true);
-      CTEC.setWheelValue('fundDeadlineDayWheel', String(state.deadlineDraftDay));
-    }
-    syncFundDeadlineControlsUI();
-  }
-
-  /* ======================================================================
-   * 7. TẢI DỮ LIỆU TỪ D1
-   * ==================================================================== */
-  const isValidQr = (v) => /^https:\/\/[^\s"'<>]+$/i.test(v) || !!CTEC.sanitizeQrHtml(v);
-
-  function parseTransferHtml(html) {
-    const info = { accountNumber: '', bankName: '', accountName: '', qrHtml10k: '' };
-    if (!html) return info;
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    doc.querySelectorAll('table tr').forEach((tr) => {
-      const cells = tr.querySelectorAll('td, th');
-      if (cells.length < 2) return;
-      const key = CTEC.normText(cells[0].textContent);
-      const val = (cells[1].textContent || '').replace(/\u00a0/g, ' ').trim();
-      const img = cells[1].querySelector('img');
-      if (key.includes('10k') || key.includes('10.000') || key.includes('10 000')) {
-        const cand = val || (img ? img.outerHTML : '');
-        if (cand && isValidQr(cand)) info.qrHtml10k = cand;
-      } else if (key === 'stk' || key.includes('so tai khoan')) {
-        info.accountNumber = val;
-      } else if (key.includes('ten ngan hang') || key === 'ngan hang') {
-        info.bankName = val;
-      } else if (key.includes('ten tai khoan') || key.includes('chu tai khoan')) {
-        info.accountName = val;
-      }
-    });
-    return info;
-  }
-
-  function extractBankInfo(b) {
-    const info = {
-      accountNumber: String(b.accountNumber || b.stk || ''),
-      accountName: String(b.accountName || ''),
-      bankName: String(b.bankName || ''),
-      qrHtml10k: String(b.qrHtml10k || b.qrUrl || '')
-    };
-    if (b.rawHtml && !b.accountNumber && !b.stk && !b.qrHtml10k) {
-      return parseTransferHtml(b.rawHtml);
-    }
-    return info;
-  }
-
-  function fillBankInputs(info) {
-    $('bankStkInput').value = info.accountNumber || '';
-    $('bankNameInput').value = info.bankName || '';
-    $('bankAccountNameInput').value = info.accountName || '';
-    $('bankQrInput').value = info.qrHtml10k || '';
-  }
-
-  function collectBankInfo() {
+  function wheelIds(uid) {
     return {
-      accountNumber: $('bankStkInput').value.trim(),
-      bankName: $('bankNameInput').value.trim(),
-      accountName: $('bankAccountNameInput').value.trim(),
-      qrHtml10k: $('bankQrInput').value.trim()
+      day: `evW_${uid}_day`,
+      month: `evW_${uid}_month`,
+      year: `evW_${uid}_year`,
+      hour: `evW_${uid}_hour`,
+      minute: `evW_${uid}_minute`
     };
   }
 
-  function showTableMessage(messageKey, withRetry = false) {
-    const retry = withRetry
-      ? `<div class="mt-3"><button type="button" data-retry-load class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"><i class="fa-solid fa-rotate-right mr-1.5"></i>${esc(t('retryLoadBtn'))}</button></div>`
-      : '';
-    const row = (cols) => `<tr><td colspan="${cols}" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t(messageKey))}${retry}</td></tr>`;
-    $('rosterEditorBody').innerHTML = row(7);
-    $('fundEditorBody').innerHTML = row(14);
-    if (withRetry) {
-      document.querySelectorAll('[data-retry-load]').forEach((b) => {
-        b.addEventListener('click', () => loadAllAdminData(true));
-      });
-    }
+  function miniWheelHtml(wheelId, caption, initialLabel, extraWrapCls = '') {
+    return `
+      <div class="flex flex-col items-center gap-0.5 ${extraWrapCls}">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${esc(caption)}</span>
+        <div id="${wheelId}" class="wheel-picker-wrap ev-wheel-wrap">
+          <button type="button" data-ev-wheel-trigger="${wheelId}" class="wheel-trigger ev-wheel-trigger">
+            <span id="${wheelId}_lbl">${esc(initialLabel)}</span>
+            <i class="fa-solid fa-chevron-down text-[9px] opacity-60"></i>
+          </button>
+          <div class="wheel-popover">
+            <div class="wheel-drum-viewport">
+              <div class="wheel-center-highlight"></div>
+              <div id="${wheelId}_list" class="wheel-drum-list"></div>
+            </div>
+            <div class="wheel-footer">
+              <span>${esc(t('wheelScrollHint'))}</span>
+              <button type="button" class="wheel-confirm-btn" data-wheel-done>${esc(t('wheelDoneBtn'))}</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
   }
 
-  /* ======================================================================
-   * 6.5 XÁC THỰC ADMIN_TOKEN CHO MỌI THAO TÁC SỬA ĐỔI
-   * ==================================================================== */
-  state.authenticated = false;
+  function initRowWheels(ev) {
+    const ids = wheelIds(ev.uid);
+    const dateParts = parseYmdParts(ev.date);
+    const timeParts = parseHmParts(ev.time);
 
-  function setAdminWorkspaceLocked(locked) {
-    state.authenticated = !locked;
-    window.__ctecAdminAuthenticated = !locked;
-    const ws = $('adminWorkspace');
-    if (ws) {
-      ws.classList.toggle('pointer-events-none', locked);
-      ws.classList.toggle('select-none', locked);
-      ws.classList.toggle('opacity-40', locked);
-    }
-    const lockIcon = $('adminLockIcon');
-    const lockLabel = $('adminLockLabel');
-    const lockBtn = $('adminLockBtn');
-    if (lockIcon) {
-      lockIcon.className = locked
-        ? 'fa-solid fa-lock text-[11px]'
-        : 'fa-solid fa-lock-open text-[11px]';
-    }
-    if (lockLabel) {
-      lockLabel.textContent = t(locked ? 'lockBtnLocked' : 'lockBtnUnlocked');
-    }
-    if (lockBtn) {
-      lockBtn.classList.toggle('text-amber-300', locked);
-      lockBtn.classList.toggle('text-emerald-300', !locked);
-    }
-  }
-
-  function openAdminAuthModal(clearExisting = false) {
-    if (clearExisting) {
-      CTEC.setAdminToken('');
-      setAdminWorkspaceLocked(true);
-    }
-    const modal = $('adminAuthModal');
-    const input = $('adminTokenInput');
-    const errEl = $('adminAuthError');
-    if (errEl) {
-      errEl.textContent = '';
-      errEl.classList.add('hidden');
-    }
-    if (input) input.value = '';
-    if (modal) modal.classList.remove('hidden');
-    setTimeout(() => input?.focus(), 30);
-  }
-
-  function closeAdminAuthModal() {
-    $('adminAuthModal')?.classList.add('hidden');
-  }
-
-  function requireAuthenticated() {
-    if (state.authenticated && CTEC.getAdminToken()) return true;
-    openAdminAuthModal(false);
-    showToast(t('errAuthRequired'), 'warn', 3500);
-    return false;
-  }
-
-  async function verifyStoredOrProvidedToken(tokenCandidate) {
-    const trimmed = String(tokenCandidate || '').trim();
-    if (!trimmed) throw new Error(t('errAuthRequired'));
-    const prev = CTEC.getAdminToken();
-    CTEC.setAdminToken(trimmed);
-    try {
-      const res = await fetch(`${CTEC.API_BASE_URL}/api/admin/verify?_t=${Date.now()}`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${trimmed}` },
-        cache: 'no-store'
-      });
-      if (!res.ok) {
-        CTEC.setAdminToken('');
-        throw new Error(t('errAuthInvalid'));
+    // 1. WheelPicker Ngày
+    CTEC.createWheelPicker({
+      id: ids.day,
+      listId: `${ids.day}_list`,
+      labelId: `${ids.day}_lbl`,
+      options: buildDayOptions(dateParts.year, dateParts.month),
+      onSelect: (val) => {
+        const cur = parseYmdParts(ev.date);
+        cur.day = parseInt(val, 10) || 1;
+        ev.date = formatYmdParts(cur);
+        setEventsDirty(true);
       }
-      const data = await res.json().catch(() => null);
-      if (!data || data.ok === false) {
-        CTEC.setAdminToken('');
-        throw new Error(data?.error || t('errAuthInvalid'));
+    });
+    CTEC.setWheelValue(ids.day, String(dateParts.day));
+
+    // 2. WheelPicker Tháng
+    CTEC.createWheelPicker({
+      id: ids.month,
+      listId: `${ids.month}_list`,
+      labelId: `${ids.month}_lbl`,
+      options: MONTH_OPTIONS,
+      onSelect: (val) => {
+        const cur = parseYmdParts(ev.date);
+        cur.month = parseInt(val, 10) || 1;
+        const maxD = daysInYearMonth(cur.year, cur.month);
+        if (cur.day > maxD) cur.day = maxD;
+        ev.date = formatYmdParts(cur);
+        CTEC.updateWheelOptions(ids.day, buildDayOptions(cur.year, cur.month), false);
+        CTEC.setWheelValue(ids.day, String(cur.day));
+        setEventsDirty(true);
       }
-      setAdminWorkspaceLocked(false);
-      closeAdminAuthModal();
-      return true;
-    } catch (err) {
-      if (prev && prev !== trimmed) CTEC.setAdminToken('');
-      throw err;
+    });
+    CTEC.setWheelValue(ids.month, String(dateParts.month));
+
+    // 3. WheelPicker Năm
+    CTEC.createWheelPicker({
+      id: ids.year,
+      listId: `${ids.year}_list`,
+      labelId: `${ids.year}_lbl`,
+      options: buildYearOptions(dateParts.year),
+      onSelect: (val) => {
+        const cur = parseYmdParts(ev.date);
+        cur.year = parseInt(val, 10) || 2026;
+        const maxD = daysInYearMonth(cur.year, cur.month);
+        if (cur.day > maxD) cur.day = maxD;
+        ev.date = formatYmdParts(cur);
+        CTEC.updateWheelOptions(ids.day, buildDayOptions(cur.year, cur.month), false);
+        CTEC.setWheelValue(ids.day, String(cur.day));
+        setEventsDirty(true);
+      }
+    });
+    CTEC.setWheelValue(ids.year, String(dateParts.year));
+
+    // 4. WheelPicker Giờ
+    CTEC.createWheelPicker({
+      id: ids.hour,
+      listId: `${ids.hour}_list`,
+      labelId: `${ids.hour}_lbl`,
+      options: HOUR_OPTIONS,
+      onSelect: (val) => {
+        const cur = parseHmParts(ev.time);
+        cur.hour = parseInt(val, 10) || 0;
+        ev.time = formatHmParts(cur);
+        setEventsDirty(true);
+      }
+    });
+    CTEC.setWheelValue(ids.hour, String(timeParts.hour));
+
+    // 5. WheelPicker Phút
+    CTEC.createWheelPicker({
+      id: ids.minute,
+      listId: `${ids.minute}_list`,
+      labelId: `${ids.minute}_lbl`,
+      options: MINUTE_OPTIONS,
+      onSelect: (val) => {
+        const cur = parseHmParts(ev.time);
+        cur.minute = parseInt(val, 10) || 0;
+        ev.time = formatHmParts(cur);
+        setEventsDirty(true);
+      }
+    });
+    CTEC.setWheelValue(ids.minute, String(timeParts.minute));
+  }
+
+  function renderEventsEditor() {
+    const body = $('eventsEditorBody');
+    if (!body) return;
+    CTEC.closeAllWheels();
+    updateEventsStats();
+
+    if (!eventsState.events.length) {
+      body.innerHTML =
+        `<tr><td colspan="6" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t('emptyEvents'))}</td></tr>`;
+      return;
+    }
+
+    const titlePh = esc(t('titlePlaceholder'));
+    const descPh = esc(t('descPlaceholder'));
+    const delTitle = esc(t('deleteEventTitle'));
+    const capDay = t('wheelCapDay');
+    const capMonth = t('wheelCapMonth');
+    const capYear = t('wheelCapYear');
+    const capHour = t('wheelCapHour');
+    const capMinute = t('wheelCapMinute');
+
+    body.innerHTML = eventsState.events
+      .map((ev, idx) => {
+        const ids = wheelIds(ev.uid);
+        const d = parseYmdParts(ev.date);
+        const tm = parseHmParts(ev.time);
+        return (
+          `<tr data-uid="${esc(ev.uid)}" class="hover:bg-slate-50/80 transition">` +
+            `<td class="py-2.5 px-3 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${idx + 1}</td>` +
+            `<td class="py-2 px-3 border-r border-slate-100">` +
+              `<div class="inline-flex items-end gap-1.5">` +
+                miniWheelHtml(ids.day, capDay, pad2(d.day)) +
+                `<span class="pb-2 text-xs font-bold text-slate-400">/</span>` +
+                miniWheelHtml(ids.month, capMonth, pad2(d.month)) +
+                `<span class="pb-2 text-xs font-bold text-slate-400">/</span>` +
+                miniWheelHtml(ids.year, capYear, String(d.year), 'ev-wheel-year') +
+              `</div>` +
+            `</td>` +
+            `<td class="py-2 px-3 border-r border-slate-100">` +
+              `<div class="inline-flex items-end gap-1.5">` +
+                miniWheelHtml(ids.hour, capHour, pad2(tm.hour)) +
+                `<span class="pb-2 text-xs font-bold text-slate-400">:</span>` +
+                miniWheelHtml(ids.minute, capMinute, pad2(tm.minute)) +
+              `</div>` +
+            `</td>` +
+            `<td class="py-2 px-3 border-r border-slate-100">` +
+              `<input type="text" data-field="title" value="${esc(ev.title)}" placeholder="${titlePh}" ` +
+                     `class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500">` +
+            `</td>` +
+            `<td class="py-2 px-3 border-r border-slate-100">` +
+              `<input type="text" data-field="description" value="${esc(ev.description)}" placeholder="${descPh}" ` +
+                     `class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">` +
+            `</td>` +
+            `<td class="py-2 px-3 text-center">` +
+              `<button type="button" data-act="delete" title="${delTitle}" ` +
+                      `class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 inline-flex items-center justify-center transition cursor-pointer">` +
+                `<i class="fa-solid fa-trash-can text-xs"></i>` +
+              `</button>` +
+            `</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    for (const ev of eventsState.events) {
+      initRowWheels(ev);
     }
   }
 
-  async function submitAdminAuthForm(e) {
-    e?.preventDefault();
-    const input = $('adminTokenInput');
-    const errEl = $('adminAuthError');
-    const btn = $('adminAuthSubmitBtn');
-    const icon = $('adminAuthSubmitIcon');
-    const token = input?.value || '';
+  function bindEventsEditorListeners() {
+    const body = $('eventsEditorBody');
+    if (!body || body.dataset.bound === '1') return;
+    body.dataset.bound = '1';
 
-    if (errEl) errEl.classList.add('hidden');
-    if (btn) btn.disabled = true;
-    if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+    body.addEventListener('input', (e) => {
+      const input = e.target.closest('input[data-field]');
+      if (!input) return;
+      if (!checkAdminAuth()) return;
+      const tr = input.closest('tr[data-uid]');
+      const row = eventsState.events.find((x) => x.uid === tr?.dataset.uid);
+      if (!row) return;
+      row[input.dataset.field] = input.value;
+      setEventsDirty(true);
+    });
 
-    try {
-      await verifyStoredOrProvidedToken(token);
-      showToast(t('toastAuthSuccess'), 'success', 2500);
-      if (!state.loaded) {
-        await loadAllAdminData(true);
-      }
-    } catch (err) {
-      if (errEl) {
-        errEl.textContent = errMsg(err);
-        errEl.classList.remove('hidden');
-      }
-      input?.focus();
-      input?.select();
-    } finally {
-      if (btn) btn.disabled = false;
-      if (icon) icon.className = 'fa-solid fa-unlock-keyhole';
-    }
-  }
-
-  async function initAdminAuthGate() {
-    setAdminWorkspaceLocked(true);
-    const saved = CTEC.getAdminToken();
-    if (saved) {
-      try {
-        await verifyStoredOrProvidedToken(saved);
-        await loadAllAdminData(true);
+    body.addEventListener('click', (e) => {
+      const trigger = e.target.closest('[data-ev-wheel-trigger]');
+      if (trigger) {
+        if (!checkAdminAuth()) return;
+        const wId = trigger.dataset.evWheelTrigger;
+        if (typeof window.openAdminWheelSmart === 'function') {
+          window.openAdminWheelSmart(wId, e);
+        } else {
+          CTEC.toggleWheel(wId, e);
+        }
         return;
-      } catch (_) {
-        // Token cũ không còn hợp lệ -> mở modal yêu cầu nhập lại
       }
-    }
-    openAdminAuthModal(false);
-  }
 
-  async function loadAllAdminData(skipConfirm) {
-    if (skipConfirm !== true && anyDirty() && !window.confirm(t('confirmReloadDirty'))) return;
-
-    const reloadBtn = $('syncAllIcon')?.closest('button');
-    await exclusive(reloadBtn, async () => {
-      showTableMessage('loadingRows');
-      try {
-        const stamp = Date.now();
-        const [rosterPayload, fundPayload] = await Promise.all([
-          CTEC.fetchWorkerJson(`/api/roster?fresh=${stamp}`),
-          CTEC.fetchWorkerJson(`/api/fund?fresh=${stamp}`)
-        ]);
-
-        state.roster = (rosterPayload.rows || []).map((r) => makeRosterRow({
-          name: r.full_name ?? r.name,
-          dept: CTEC.canonDept(r.department ?? r.dept, CTEC.DEFAULT_DEPT),
-          role: normalizeRole(r.role),
-          status: normalizeMemberStatus(r.status)
-        }));
-
-        state.fund = (fundPayload.rows || []).map((r) => makeFundRow({
-          name: r.full_name ?? r.name,
-          dept: CTEC.canonDept(r.department ?? r.dept, CTEC.DEFAULT_DEPT),
-          months: Array.isArray(r.months) ? r.months : [r.m0, r.m1, r.m2, r.m3, r.m4, r.m5, r.m6, r.m7],
-          note: r.note
-        }));
-
-        state.deadlines = Array.from({ length: MONTH_COUNT }, (_, i) => CTEC.parseDeadlineDay(fundPayload.deadlines?.[i]));
-        state.deadlineMonthLockedIn = false;
-        state.bankInfoRaw = fundPayload.bankInfo && typeof fundPayload.bankInfo === 'object' ? fundPayload.bankInfo : {};
-        fillBankInputs(extractBankInfo(state.bankInfoRaw));
-
-        state.selected.roster.clear();
-        state.selected.fund.clear();
-        state.loaded = true;
-        setDirty('roster', false);
-        setDirty('fund', false);
-        renderAll();
-        const unknownDeptRows = [...(rosterPayload.rows || []), ...(fundPayload.rows || [])]
-          .filter((r) => r && r.department_unknown).length;
-        let loadedMsg = t('toastLoaded', { r: state.roster.length, f: state.fund.length });
-        if (unknownDeptRows) loadedMsg += t('warnUnknownDeptLoaded', { n: unknownDeptRows });
-        showToast(loadedMsg, unknownDeptRows ? 'warn' : 'success', unknownDeptRows ? 9000 : 2500);
-      } catch (err) {
-        console.error('[admin-app] Load D1 failed:', err);
-        if (!state.loaded) showTableMessage('loadFailedRows', true);
-        else renderAll();
-        showToast(t('toastLoadFail', { msg: errMsg(err) }), 'error');
+      if (e.target.closest('[data-wheel-done]')) {
+        CTEC.closeAllWheels();
+        return;
       }
+
+      if (e.target.closest('.wheel-popover')) {
+        e.stopPropagation();
+        return;
+      }
+
+      const delBtn = e.target.closest('button[data-act="delete"]');
+      if (!delBtn) return;
+      if (!checkAdminAuth()) return;
+      const tr = delBtn.closest('tr[data-uid]');
+      const uid = tr?.dataset.uid;
+      if (!uid) return;
+      eventsState.events = eventsState.events.filter((x) => x.uid !== uid);
+      setEventsDirty(true);
+      renderEventsEditor();
     });
+
+    const scrollWrap = body.closest('.overflow-x-auto');
+    scrollWrap?.addEventListener('scroll', () => CTEC.closeAllWheels(), { passive: true });
   }
 
   /* ======================================================================
-   * 8. RENDER
+   * 5. THAO TÁC DỮ LIỆU (Load, Add, Save, Reset D1)
    * ==================================================================== */
-  function getVisible(kind) {
-    const q = CTEC.normText($(kind === 'roster' ? 'rosterSearchInput' : 'fundSearchInput')?.value || '');
-    return state[kind].filter((r) => !q || CTEC.normText(r.name).includes(q));
-  }
-
-  function pruneSelection(kind, visibleRows) {
-    const visible = new Set(visibleRows.map((r) => r.uid));
-    for (const id of [...state.selected[kind]]) if (!visible.has(id)) state.selected[kind].delete(id);
-  }
-
-  function updateBadges() {
-    $('badgeRosterCount').textContent = String(state.roster.length);
-    $('badgeFundCount').textContent = String(state.fund.length);
-  }
-
-  function updateRosterStats() {
-    const pill = $('rosterStatsPill');
-    if (pill) {
-      const named = state.roster.filter((r) => CTEC.normalizeMemberName(r.name));
-      const stats = CTEC.getHeadcountStats(named.map((r) => ({ name: r.name, dept: r.dept })));
-      pill.textContent = stats.rows !== stats.people
-        ? t('rosterMembersCountRows', { n: stats.people, rows: stats.rows })
-        : t('rosterMembersCount', { n: stats.people });
+  async function loadEventsFromD1() {
+    const body = $('eventsEditorBody');
+    if (body && !eventsState.loaded) {
+      body.innerHTML =
+        `<tr><td colspan="6" class="py-10 px-4 text-center text-sm text-slate-400">` +
+        `<i class="fa-solid fa-spinner fa-spin mr-2 text-amber-500"></i>${esc(t('loadingEvents'))}</td></tr>`;
     }
-    updateBadges();
-  }
 
-  function emptyRowHtml(cols, key) {
-    return `<tr><td colspan="${cols}" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t(key))}</td></tr>`;
-  }
-
-  /* ---------- Roster ---------- */
-  function rosterRowHtml(r, pos, opts) {
-    return `
-      <tr class="group hover:bg-slate-50 transition duration-150" data-uid="${r.uid}">
-        <td class="py-2 px-2.5 text-center border-r border-slate-100">
-          <input type="checkbox" data-act="select" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-        </td>
-        <td class="py-2 px-3 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${pos}</td>
-        <td class="sticky-name-col bg-white group-hover:bg-slate-50 py-1.5 px-2 border-r border-slate-200">
-          <input type="text" data-field="name" value="${esc(r.name)}" placeholder="${esc(t('namePlaceholder'))}"
-                 autocomplete="off" spellcheck="false" class="sheet-cell-input font-semibold text-slate-800">
-        </td>
-        <td class="py-1.5 px-2 border-r border-slate-100">
-          <select data-field="dept" class="sheet-cell-input font-semibold text-slate-700" style="border-left:3px solid ${deptColor(r.dept)}">
-            ${optionsHtml(opts.dept, r.dept)}
-          </select>
-        </td>
-        <td class="py-1.5 px-2 border-r border-slate-100">
-          <select data-field="role" class="sheet-cell-input text-slate-700">${optionsHtml(withCustom(opts.role, r.role), r.role)}</select>
-        </td>
-        <td class="py-1.5 px-2 border-r border-slate-100">
-          <select data-field="status" class="sheet-cell-input font-semibold ${statusTone(r.status)}">${optionsHtml(withCustom(opts.status, r.status), r.status)}</select>
-        </td>
-        <td class="py-1.5 px-3 text-center">
-          <button type="button" data-act="delete" title="${esc(t('deleteRowTitle'))}" aria-label="${esc(t('deleteRowTitle'))}"
-                  class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer">
-            <i class="fa-solid fa-trash-can text-xs"></i>
-          </button>
-        </td>
-      </tr>`;
-  }
-
-  function renderRosterEditor() {
-    const body = $('rosterEditorBody');
-    if (!body) return;
-    const L = curLang();
-    const rows = getVisible('roster');
-    pruneSelection('roster', rows);
-
-    if (!rows.length) {
-      body.innerHTML = emptyRowHtml(7, state.roster.length ? 'emptySearch' : 'emptyRoster');
-    } else {
-      const opts = { dept: deptOptions(L), role: roleOptions(L), status: statusOptions(L) };
-      const pos = new Map(state.roster.map((r, i) => [r.uid, i + 1]));
-      body.innerHTML = rows.map((r) => rosterRowHtml(r, pos.get(r.uid), opts)).join('');
+    try {
+      const payload = await CTEC.fetchWorkerJson(`/api/events?fresh=${Date.now()}`);
+      const list = Array.isArray(payload.events)
+        ? payload.events
+        : Array.isArray(payload.rows)
+          ? payload.rows
+          : [];
+      eventsState.events = list.map((item) => makeEventRow(item));
+      eventsState.loaded = true;
+      setEventsDirty(false);
+      renderEventsEditor();
+    } catch (err) {
+      console.error('[admin-events] Load D1 failed:', err);
+      showToast(t('toastLoadFail', { msg: errMsg(err) }), 'error');
+      renderEventsEditor();
     }
-    syncSelectionUI('roster');
-    updateRosterStats();
   }
 
-  /* ---------- Fund ---------- */
-  const MONTH_BTN_BASE = 'status-pill-btn w-full min-w-[70px] px-2 py-1.5 rounded-lg border text-[11px] font-bold inline-flex items-center justify-center gap-1 cursor-pointer hover:brightness-95';
-  const MONTH_BTN_COLORS = {
-    PAID: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    UNPAID: 'bg-amber-50 text-amber-700 border-amber-200',
-    DEBT: 'bg-red-50 text-red-700 border-red-200'
-  };
-
-  function monthBtnParts(status, idx, pastDue) {
-    const overdue = status === 'UNPAID' && pastDue;
-    return {
-      cls: `${MONTH_BTN_BASE} ${MONTH_BTN_COLORS[status] || MONTH_BTN_COLORS.UNPAID}`,
-      title: overdue ? t('overdueTitle') : '',
-      inner: `${esc(status)}${overdue ? ' <i class="fa-solid fa-clock text-[9px] opacity-70"></i>' : ''}`
-    };
-  }
-
-  function monthBtnHtml(status, idx, pastDue) {
-    const p = monthBtnParts(status, idx, pastDue);
-    return `<button type="button" data-act="cycle" data-m="${idx}" class="${p.cls}" title="${esc(p.title)}">${p.inner}</button>`;
-  }
-
-  function paintMonthBtn(btn, status, idx) {
-    const p = monthBtnParts(status, idx, isPastDue(idx));
-    btn.className = p.cls;
-    btn.title = p.title;
-    btn.innerHTML = p.inner;
-  }
-
-  function renderFundHead() {
-    const head = $('fundEditorHead');
-    if (!head) return;
-    const cell = 'py-3 px-3 text-center border-r border-slate-800';
-    head.innerHTML = `
-      <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-        <th class="py-3 px-2.5 text-center w-10 border-r border-slate-800">
-          <input type="checkbox" id="fundSelectAllCheckbox" title="${esc(t('selectAllTitle'))}"
-                 class="w-4 h-4 rounded border-slate-500 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
-        </th>
-        <th class="${cell} w-14">${esc(t('colNo'))}</th>
-        <th class="sticky-name-col bg-slate-900 py-3 px-4 border-r border-slate-700 min-w-[175px] sm:min-w-[210px]">${esc(t('colFullName'))}</th>
-        <th class="py-3 px-4 border-r border-slate-800 min-w-[230px]">${esc(t('colDeptFull'))}</th>
-        ${monthLabels(curLang()).map((m) => `<th class="${cell} min-w-[88px]">${esc(m)}</th>`).join('')}
-        <th class="py-3 px-4 border-r border-slate-800 min-w-[200px]">${esc(t('colNote'))}</th>
-        <th class="py-3 px-3 text-center w-16">${esc(t('colDelete'))}</th>
-      </tr>`;
-    syncSelectionUI('fund');
-  }
-
-  function fundRowHtml(r, pos, deptOpts, pastDue) {
-    const months = r.months
-      .map((st, i) => `<td class="py-1.5 px-1.5 text-center border-r border-slate-100">${monthBtnHtml(st, i, pastDue[i])}</td>`)
-      .join('');
-    return `
-      <tr class="group hover:bg-slate-50 transition duration-150" data-uid="${r.uid}">
-        <td class="py-2 px-2.5 text-center border-r border-slate-100">
-          <input type="checkbox" data-act="select" class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer">
-        </td>
-        <td class="py-2 px-3 text-center text-xs font-semibold text-slate-400 border-r border-slate-100">${pos}</td>
-        <td class="sticky-name-col bg-white group-hover:bg-slate-50 py-1.5 px-2 border-r border-slate-200">
-          <input type="text" data-field="name" value="${esc(r.name)}" placeholder="${esc(t('namePlaceholder'))}"
-                 autocomplete="off" spellcheck="false" class="sheet-cell-input font-semibold text-slate-800">
-        </td>
-        <td class="py-1.5 px-2 border-r border-slate-100">
-          <select data-field="dept" class="sheet-cell-input font-semibold text-slate-700" style="border-left:3px solid ${deptColor(r.dept)}">
-            ${optionsHtml(deptOpts, r.dept)}
-          </select>
-        </td>
-        ${months}
-        <td class="py-1.5 px-2 border-r border-slate-100">
-          <input type="text" data-field="note" value="${esc(r.note)}" placeholder="${esc(t('notePlaceholder'))}"
-                 autocomplete="off" class="sheet-cell-input text-slate-600">
-        </td>
-        <td class="py-1.5 px-3 text-center">
-          <button type="button" data-act="delete" title="${esc(t('deleteRowTitle'))}" aria-label="${esc(t('deleteRowTitle'))}"
-                  class="w-8 h-8 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer">
-            <i class="fa-solid fa-trash-can text-xs"></i>
-          </button>
-        </td>
-      </tr>`;
-  }
-
-  function renderFundEditor() {
-    const body = $('fundEditorBody');
-    if (!body) return;
-    const rows = getVisible('fund');
-    pruneSelection('fund', rows);
-
-    if (!rows.length) {
-      body.innerHTML = emptyRowHtml(14, state.fund.length ? 'emptySearch' : 'emptyFund');
-    } else {
-      const deptOpts = deptOptions(curLang());
-      const pastDue = Array.from({ length: MONTH_COUNT }, (_, i) => isPastDue(i));
-      const pos = new Map(state.fund.map((r, i) => [r.uid, i + 1]));
-      body.innerHTML = rows.map((r) => fundRowHtml(r, pos.get(r.uid), deptOpts, pastDue)).join('');
-    }
-    syncSelectionUI('fund');
-    updateBadges();
-  }
-
-  function renderAll() {
-    fillBulkSelects();
-    renderRosterEditor();
-    renderFundHead();
-    renderFundEditor();
-    renderDeadlines();
-  }
-
-  /* ======================================================================
-   * 9. CHỌN DÒNG & THAO TÁC HÀNG LOẠT
-   * ==================================================================== */
-  const selectionEls = {
-    roster: { body: 'rosterEditorBody', all: 'rosterSelectAllCheckbox', bar: 'rosterBulkBar', label: 'rosterSelectedCountLabel' },
-    fund: { body: 'fundEditorBody', all: 'fundSelectAllCheckbox', bar: 'fundBulkBar', label: 'fundSelectedCountLabel' }
-  };
-
-  function syncSelectionUI(kind) {
-    const ids = selectionEls[kind];
-    const set = state.selected[kind];
-    $(ids.body)?.querySelectorAll('tr[data-uid]').forEach((tr) => {
-      const on = set.has(tr.dataset.uid);
-      tr.classList.toggle('row-selected', on);
-      const cb = tr.querySelector('input[data-act="select"]');
-      if (cb) cb.checked = on;
+  function addEventRow() {
+    if (!checkAdminAuth()) return;
+    const defaultDate = '2026-11-28';
+    const last = eventsState.events[eventsState.events.length - 1];
+    const row = makeEventRow({
+      date: last?.date || defaultDate,
+      time: last?.time || DEFAULT_EVENT_TIME,
+      title: '',
+      description: ''
     });
-    const visible = getVisible(kind);
-    const selVisible = visible.filter((r) => set.has(r.uid)).length;
-    const all = $(ids.all);
-    if (all) {
-      all.checked = visible.length > 0 && selVisible === visible.length;
-      all.indeterminate = selVisible > 0 && selVisible < visible.length;
-    }
-    $(ids.bar)?.classList.toggle('hidden', set.size === 0);
-    const label = $(ids.label);
-    if (label) label.textContent = t('selectedRows', { n: set.size });
+    eventsState.events.push(row);
+    setEventsDirty(true);
+    renderEventsEditor();
+
+    const input = $('eventsEditorBody')?.querySelector(`tr[data-uid="${row.uid}"] input[data-field="title"]`);
+    input?.focus();
   }
 
-  function handleSelectClick(kind, e, uid) {
-    const set = state.selected[kind];
-    const checked = e.target.checked;
-    const visible = getVisible(kind);
-    if (e.shiftKey && state.anchor[kind]) {
-      const a = visible.findIndex((r) => r.uid === state.anchor[kind]);
-      const b = visible.findIndex((r) => r.uid === uid);
-      if (a !== -1 && b !== -1) {
-        for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
-          checked ? set.add(visible[i].uid) : set.delete(visible[i].uid);
-        }
-      }
-    } else {
-      checked ? set.add(uid) : set.delete(uid);
-    }
-    state.anchor[kind] = uid;
-    syncSelectionUI(kind);
-  }
-
-  function toggleSelectAll(kind, checked) {
-    const set = state.selected[kind];
-    getVisible(kind).forEach((r) => (checked ? set.add(r.uid) : set.delete(r.uid)));
-    syncSelectionUI(kind);
-  }
-  const toggleSelectAllRoster = (checked) => toggleSelectAll('roster', checked);
-  const toggleSelectAllFund = (checked) => toggleSelectAll('fund', checked);
-
-  function clearSelection(kind) {
-    state.selected[kind].clear();
-    state.anchor[kind] = null;
-    syncSelectionUI(kind);
-  }
-  const clearRosterSelection = () => clearSelection('roster');
-  const clearFundSelection = () => clearSelection('fund');
-
-  const renderKind = (kind) => (kind === 'roster' ? renderRosterEditor() : renderFundEditor());
-
-  function selectedRows(kind) {
-    const set = state.selected[kind];
-    const rows = state[kind].filter((r) => set.has(r.uid));
-    if (!rows.length) showToast(t('toastNothingSelected'), 'warn', 2500);
-    return rows;
-  }
-
-  function applyBulkRosterField(field, selectId) {
-    if (!requireAuthenticated()) return;
-    const rows = selectedRows('roster');
-    if (!rows.length) return;
-    const value = $(selectId).value;
-    if (!value) return;
-    rows.forEach((r) => { r[field] = value; });
-    setDirty('roster');
-    renderRosterEditor();
-    showToast(t('toastBulkApplied', { n: rows.length }), 'info', 2500);
-  }
-  const applyBulkRosterDept = () => applyBulkRosterField('dept', 'bulkRosterDeptSelect');
-  const applyBulkRosterRole = () => applyBulkRosterField('role', 'bulkRosterRoleSelect');
-  const applyBulkRosterStatus = () => applyBulkRosterField('status', 'bulkRosterStatusSelect');
-
-  function applyBulkFundAllMonths() {
-    if (!requireAuthenticated()) return;
-    const rows = selectedRows('fund');
-    if (!rows.length) return;
-    const value = $('bulkFundStatusSelect').value;
-    rows.forEach((r) => { r.months = new Array(MONTH_COUNT).fill(value); });
-    setDirty('fund');
-    renderFundEditor();
-    showToast(t('toastBulkApplied', { n: rows.length }), 'info', 2500);
-  }
-
-  function deleteSelected(kind) {
-    if (!requireAuthenticated()) return;
-    const rows = selectedRows(kind);
-    if (!rows.length) return;
-    if (!window.confirm(t('confirmDeleteSelected', { n: rows.length }))) return;
-    const ids = new Set(rows.map((r) => r.uid));
-    state[kind] = state[kind].filter((r) => !ids.has(r.uid));
-    state.selected[kind].clear();
-    state.anchor[kind] = null;
-    setDirty(kind);
-    renderKind(kind);
-    showToast(t('toastDeleted', { n: rows.length }), 'info', 2500);
-  }
-  const deleteSelectedRosterRows = () => deleteSelected('roster');
-  const deleteSelectedFundRows = () => deleteSelected('fund');
-
-  function deleteRow(kind, uid) {
-    if (!requireAuthenticated()) return;
-    state[kind] = state[kind].filter((r) => r.uid !== uid);
-    state.selected[kind].delete(uid);
-    setDirty(kind);
-    renderKind(kind);
-  }
-
-  function addRosterRow() {
-    if (!requireAuthenticated()) return;
-    const search = $('rosterSearchInput');
-    if (search && search.value) search.value = '';
-    const last = state.roster[state.roster.length - 1];
-    const row = makeRosterRow({ name: '', dept: last?.dept });
-    state.roster.push(row);
-    setDirty('roster');
-    renderRosterEditor();
-    const input = $('rosterEditorBody').querySelector(`tr[data-uid="${row.uid}"] input[data-field="name"]`);
-    if (input) {
-      input.focus();
-      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-  }
-
-  /* ======================================================================
-   * 10. SỰ KIỆN TRÊN BẢNG (event delegation)
-   * ==================================================================== */
-  function findRow(kind, el) {
-    const tr = el.closest('tr[data-uid]');
-    return tr ? state[kind].find((r) => r.uid === tr.dataset.uid) : null;
-  }
-
-  function handleEnterNav(kind, e) {
-    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
-    const el = e.target;
-    if (!(el instanceof HTMLInputElement) || el.dataset.field !== 'name') return;
-    e.preventDefault();
-    const next = el.closest('tr')?.nextElementSibling?.querySelector('input[data-field="name"]');
-    if (next) {
-      next.focus();
-      next.select();
-    } else if (kind === 'roster') {
-      addRosterRow();
-    }
-  }
-
-  function bindEditorEvents() {
-    /* ----- Roster ----- */
-    const rb = $('rosterEditorBody');
-    rb.addEventListener('input', (e) => {
-      if (!requireAuthenticated()) return;
-      const el = e.target;
-      if (el.tagName !== 'INPUT' || el.dataset.field !== 'name') return;
-      const row = findRow('roster', el);
-      if (!row) return;
-      row.name = el.value;
-      setDirty('roster');
-      updateRosterStats();
-    });
-    rb.addEventListener('change', (e) => {
-      if (!requireAuthenticated()) return;
-      const el = e.target;
-      if (el.tagName !== 'SELECT' || !el.dataset.field) return;
-      const row = findRow('roster', el);
-      if (!row) return;
-      row[el.dataset.field] = el.value;
-      if (el.dataset.field === 'dept') el.style.borderLeftColor = deptColor(el.value);
-      if (el.dataset.field === 'status') {
-        el.classList.remove(...STATUS_TONES);
-        el.classList.add(statusTone(el.value));
-      }
-      setDirty('roster');
-      updateRosterStats();
-    });
-    rb.addEventListener('click', (e) => {
-      const act = e.target.closest('[data-act]');
-      if (!act) return;
-      const row = findRow('roster', act);
-      if (!row) return;
-      if (act.dataset.act === 'select') handleSelectClick('roster', e, row.uid);
-      else if (act.dataset.act === 'delete') deleteRow('roster', row.uid);
-    });
-    rb.addEventListener('keydown', (e) => handleEnterNav('roster', e));
-
-    /* ----- Fund ----- */
-    const fb = $('fundEditorBody');
-    fb.addEventListener('input', (e) => {
-      if (!requireAuthenticated()) return;
-      const el = e.target;
-      if (el.tagName !== 'INPUT' || el.dataset.field !== 'name') return;
-      const row = findRow('fund', el);
-      if (!row) return;
-      row[el.dataset.field] = el.value;
-      setDirty('fund');
-    });
-    fb.addEventListener('change', (e) => {
-      if (!requireAuthenticated()) return;
-      const el = e.target;
-      if (el.tagName !== 'SELECT' || el.dataset.field !== 'dept') return;
-      const row = findRow('fund', el);
-      if (!row) return;
-      row.dept = el.value;
-      el.style.borderLeftColor = deptColor(el.value);
-      setDirty('fund');
-    });
-    fb.addEventListener('click', (e) => {
-      const act = e.target.closest('[data-act]');
-      if (!act) return;
-      const row = findRow('fund', act);
-      if (!row) return;
-      if (act.dataset.act === 'select') {
-        handleSelectClick('fund', e, row.uid);
-      } else if (act.dataset.act === 'delete') {
-        deleteRow('fund', row.uid);
-      } else if (act.dataset.act === 'cycle') {
-        if (!requireAuthenticated()) return;
-        const m = parseInt(act.dataset.m, 10);
-        const next = FUND_STATUSES[(FUND_STATUSES.indexOf(row.months[m]) + 1) % FUND_STATUSES.length];
-        row.months[m] = next;
-        paintMonthBtn(act, next, m);
-        setDirty('fund');
-      }
-    });
-    fb.addEventListener('keydown', (e) => handleEnterNav('fund', e));
-
-    $('fundEditorHead').addEventListener('change', (e) => {
-      if (e.target.id === 'fundSelectAllCheckbox') toggleSelectAllFund(e.target.checked);
-    });
-
-    /* ----- Bank info ----- */
-    ['bankStkInput', 'bankNameInput', 'bankAccountNameInput', 'bankQrInput'].forEach((id) => {
-      $(id)?.addEventListener('input', () => { if (!requireAuthenticated()) return; setDirty('fund'); });
-    });
-  }
-
-  /* ======================================================================
-   * 11. LƯU LÊN D1
-   * ==================================================================== */
-  function collectRosterPayload() {
-    const rows = [];
-    const seen = new Set();
-    let blank = 0;
-    let dup = 0;
-    for (const r of state.roster) {
-      const name = CTEC.normalizeMemberName(r.name);
-      if (!name) { blank++; continue; }
-      const key = pairKey(name, r.dept);
-      if (seen.has(key)) dup++; else seen.add(key);
-      rows.push({
-        full_name: name,
-        department: r.dept,
-        role: String(r.role || '').trim() || 'Member',
-        status: String(r.status || '').trim() || 'Official'
-      });
-    }
-    return { rows, blank, dup };
-  }
-
-  async function saveRosterToD1() {
-    if (!requireAuthenticated()) return;
-    if (!state.loaded) return showToast(t('errNotLoaded'), 'error');
-    const { rows, blank, dup } = collectRosterPayload();
-    if (!rows.length) return showToast(t('errEmptyRoster'), 'error');
-    if (dup > 0 && !window.confirm(t('confirmDup', { n: dup }))) return;
-
-    await exclusive($('saveRosterBtn'), async () => {
-      try {
-        await postWorkerJson('/api/admin/roster/save', { rows });
-        state.roster = state.roster.filter((r) => CTEC.normalizeMemberName(r.name));
-        state.roster.forEach((r) => { r.name = CTEC.normalizeMemberName(r.name); });
-        state.selected.roster.clear();
-        setDirty('roster', false);
-        renderRosterEditor();
-        let msg = t('toastSavedRoster', { n: rows.length });
-        if (blank) msg += ` ${t('warnBlankDropped', { n: blank })}`;
-        showToast(msg, 'success');
-      } catch (err) {
-        console.error('[admin-app] Save roster failed:', err);
-        showToast(t('toastSaveFail', { msg: errMsg(err) }), 'error');
-      }
-    });
-  }
-
-  function collectFundPayload() {
-    const rows = [];
-    const seen = new Set();
-    let blank = 0;
-    let dup = 0;
-    for (const r of state.fund) {
-      const name = CTEC.normalizeMemberName(r.name);
-      if (!name) { blank++; continue; }
-      const key = pairKey(name, r.dept);
-      if (seen.has(key)) dup++; else seen.add(key);
-      rows.push({ full_name: name, department: r.dept, months: r.months.slice(0, MONTH_COUNT), note: String(r.note || '').trim() });
-    }
-    return { rows, blank, dup };
-  }
-
-  async function saveFundToD1() {
-    if (!requireAuthenticated()) return;
-    if (!state.loaded) return showToast(t('errNotLoaded'), 'error');
-
-    for (let i = 0; i < MONTH_COUNT; i++) {
-      const day = state.deadlines[i];
-      if (day > 0 && day > daysInMonth(i)) {
-        return showToast(t('errDeadlineInvalid', { month: monthLabels(curLang())[i], day }), 'error');
-      }
+  async function saveEventsToStorage() {
+    if (!checkAdminAuth()) return;
+    if (!eventsState.loaded) {
+      return showToast(t('errNotLoaded'), 'error');
     }
 
-    const bank = collectBankInfo();
-    if (bank.qrHtml10k && !isValidQr(bank.qrHtml10k)) {
-      $('bankQrInput').focus();
-      return showToast(t('errQrInvalid'), 'error');
-    }
+    const cleanRows = [];
+    let blankDropped = 0;
 
-    const { rows, blank, dup } = collectFundPayload();
-    if (!rows.length) return showToast(t('errEmptyFund'), 'error');
-    if (dup > 0 && !window.confirm(t('confirmDup', { n: dup }))) return;
+    for (let i = 0; i < eventsState.events.length; i++) {
+      const ev = eventsState.events[i];
+      const date = String(ev.date || '').trim();
+      const rawTime = String(ev.time || '').trim();
+      const title = String(ev.title || '').trim();
+      const description = String(ev.description || '').trim();
 
-    const payload = { rows, deadlines: state.deadlines.slice(0, MONTH_COUNT) };
-    const raw = state.bankInfoRaw || {};
-    const hadStructured = !!(raw.accountNumber || raw.stk || raw.bankName || raw.accountName || raw.qrHtml10k || raw.qrUrl);
-    if (Object.values(bank).some(Boolean) || hadStructured) payload.bankInfo = bank;
-
-    await exclusive($('saveFundBtn'), async () => {
-      try {
-        await postWorkerJson('/api/admin/fund/save', payload);
-        if (payload.bankInfo) state.bankInfoRaw = payload.bankInfo;
-        state.fund = state.fund.filter((r) => CTEC.normalizeMemberName(r.name));
-        state.fund.forEach((r) => { r.name = CTEC.normalizeMemberName(r.name); });
-        state.selected.fund.clear();
-        setDirty('fund', false);
-        renderFundEditor();
-        let msg = t('toastSavedFund', { n: rows.length });
-        if (blank) msg += ` ${t('warnBlankDropped', { n: blank })}`;
-        showToast(msg, 'success');
-      } catch (err) {
-        console.error('[admin-app] Save fund failed:', err);
-        showToast(t('toastSaveFail', { msg: errMsg(err) }), 'error');
-      }
-    });
-  }
-
-  /* ======================================================================
-   * 12. ĐỒNG BỘ ROSTER → FUND
-   * ==================================================================== */
-  function syncMembersFromRosterToFund() {
-    if (!requireAuthenticated()) return;
-    const prune = !!$('pruneMissingOnSyncCheckbox')?.checked;
-
-    const rosterPairs = new Map();
-    for (const r of state.roster) {
-      const name = CTEC.normalizeMemberName(r.name);
-      if (!name) continue;
-      const key = pairKey(name, r.dept);
-      if (!rosterPairs.has(key)) rosterPairs.set(key, { name, dept: r.dept });
-    }
-    if (!rosterPairs.size) return showToast(t('errSyncEmpty'), 'warn');
-
-    const fundPairs = new Set(state.fund.map((f) => pairKey(f.name, f.dept)));
-    const orphans = state.fund.filter((f) => !rosterPairs.has(pairKey(f.name, f.dept)));
-    const orphanUsed = new Set();
-    let added = 0;
-    let moved = 0;
-    let removed = 0;
-
-    for (const [key, info] of rosterPairs) {
-      if (fundPairs.has(key)) continue;
-      const nameKey = CTEC.buildMemberNameKey(info.name);
-      const candidate = orphans.find((o) => !orphanUsed.has(o.uid) && CTEC.buildMemberNameKey(o.name) === nameKey);
-      if (candidate) {
-        candidate.dept = info.dept;
-        orphanUsed.add(candidate.uid);
-        moved++;
-      } else {
-        state.fund.push(makeFundRow({ name: info.name, dept: info.dept }));
-        added++;
-      }
-    }
-
-    if (prune) {
-      const dead = new Set(orphans.filter((o) => !orphanUsed.has(o.uid)).map((o) => o.uid));
-      removed = dead.size;
-      state.fund = state.fund.filter((f) => !dead.has(f.uid));
-      dead.forEach((id) => state.selected.fund.delete(id));
-    }
-
-    if (!added && !moved && !removed) return showToast(t('toastSyncNoop'), 'info');
-
-    const search = $('fundSearchInput');
-    if (search && search.value) search.value = '';
-    setDirty('fund');
-    renderFundEditor();
-    showToast(t('toastSyncDone', { added, moved, removed }), 'success', 6000);
-  }
-
-  /* ======================================================================
-   * 13. NHẬP TỪ GOOGLE SHEET
-   * ==================================================================== */
-  const HEADER_NAMES = new Set(['name', 'full name', 'ho va ten', 'ho ten', 'ten']);
-  const isHeaderName = (s) => HEADER_NAMES.has(CTEC.normText(s));
-  const DEADLINE_ROW_RE = /deadline|hạn đóng|kỳ hạn/i;
-
-  function detectHasNoCol(grid) {
-    if (!grid.length) return false;
-    if (['stt', 'no', 'no.', '#'].includes(CTEC.normText(grid[0][0]))) return true;
-    return grid.slice(0, 6).some((r) => /^\d+$/.test(String(r[0] ?? '').trim()));
-  }
-
-  function resolveDept(raw) {
-    const s = String(raw ?? '').trim();
-    const key = s ? CTEC.canonDept(s, null) : null;
-    return { dept: key || CTEC.DEFAULT_DEPT, unknown: !!s && !key };
-  }
-
-  function parseRosterGrid(grid) {
-    const off = detectHasNoCol(grid) ? 1 : 0;
-    const rows = [];
-    let unknownDept = 0;
-    for (const c of grid) {
-      const name = CTEC.normalizeMemberName(c[off]);
-      if (!name || isHeaderName(name)) continue;
-      const d = resolveDept(c[off + 1]);
-      if (d.unknown) unknownDept++;
-      rows.push(makeRosterRow({
-        name,
-        dept: d.dept,
-        role: normalizeRole(c[off + 2]),
-        status: normalizeMemberStatus(c[off + 3])
-      }));
-    }
-    return { rows, unknownDept, deadlines: null };
-  }
-
-  function parseFundGrid(grid) {
-    const off = detectHasNoCol(grid) ? 1 : 0;
-    const rows = [];
-    let unknownDept = 0;
-    let deadlines = null;
-    for (const c of grid) {
-      if (c.slice(0, 3).some((v) => DEADLINE_ROW_RE.test(String(v ?? '').normalize('NFC')))) {
-        deadlines = Array.from({ length: MONTH_COUNT }, (_, m) => CTEC.parseDeadlineDay(c[off + 2 + m]));
+      if (!title && !description) {
+        blankDropped++;
         continue;
       }
-      const name = CTEC.normalizeMemberName(c[off]);
-      if (!name || isHeaderName(name)) continue;
-      const d = resolveDept(c[off + 1]);
-      if (d.unknown) unknownDept++;
-      rows.push(makeFundRow({
-        name,
-        dept: d.dept,
-        months: Array.from({ length: MONTH_COUNT }, (_, m) => c[off + 2 + m]),
-        note: c[off + 2 + MONTH_COUNT]
-      }));
-    }
-    return { rows, unknownDept, deadlines };
-  }
 
-  let lastModalKind = null;
-  function updateImportModalTexts() {
-    const fund = state.importTarget === 'fund';
-    const title = $('sheetImportTitle');
-    const hint = $('sheetImportHint');
-    if (title) title.textContent = t(fund ? 'importTitleFund' : 'importTitleRoster');
-    if (hint) hint.textContent = t(fund ? 'importHintFund' : 'importHintRoster');
-  }
-
-  function openSheetImportModal(kind) {
-    if (!requireAuthenticated()) return;
-    state.importTarget = kind === 'fund' ? 'fund' : 'roster';
-    if (lastModalKind !== state.importTarget) {
-      $('sheetPasteArea').value = '';
-      $('sheetUrlInput').value = '';
-    }
-    lastModalKind = state.importTarget;
-    updateImportModalTexts();
-    $('sheetImportModal').classList.remove('hidden');
-    $('sheetUrlInput').focus();
-  }
-
-  function closeSheetImportModal() {
-    $('sheetImportModal')?.classList.add('hidden');
-  }
-
-  async function fetchFromGoogleSheetUrl() {
-    const url = $('sheetUrlInput').value.trim();
-    if (!url) return showToast(t('errNeedUrl'), 'error', 3000);
-    const btn = $('fetchSheetUrlBtn');
-    const icon = $('fetchSheetUrlIcon');
-    btn.disabled = true;
-    icon?.classList.add('fa-spin');
-    try {
-      const payload = await CTEC.adminWorkerJson(`/api/admin/fetch-sheet?url=${encodeURIComponent(url)}`);
-      const csv = String(payload.csv ?? '');
-      $('sheetPasteArea').value = csv;
-      showToast(t('toastFetchSheetOk', { n: CTEC.parseCsvRows(csv).length }), 'success');
-    } catch (err) {
-      console.error('[admin-app] Fetch sheet failed:', err);
-      showToast(t('toastFetchSheetFail', { msg: errMsg(err) }), 'error');
-    } finally {
-      btn.disabled = false;
-      icon?.classList.remove('fa-spin');
-    }
-  }
-
-  function applySheetImportToDraft() {
-    const grid = CTEC.parseSheetPasteText($('sheetPasteArea').value);
-    if (!grid.length) return showToast(t('errEmptyImport'), 'error');
-
-    const kind = state.importTarget;
-    const parsed = kind === 'fund' ? parseFundGrid(grid) : parseRosterGrid(grid);
-    if (!parsed.rows.length && !parsed.deadlines) return showToast(t('errNoRowsParsed'), 'error');
-
-    const replace = !!$('sheetReplaceMode').checked;
-    let incoming = parsed.rows;
-    let skipped = 0;
-    if (!replace) {
-      const existing = new Set(state[kind].map((r) => pairKey(r.name, r.dept)));
-      incoming = incoming.filter((r) => {
-        const k = pairKey(r.name, r.dept);
-        if (existing.has(k)) { skipped++; return false; }
-        existing.add(k);
-        return true;
-      });
-    }
-
-    if (parsed.rows.length || replace) state[kind] = replace ? incoming : state[kind].concat(incoming);
-    state.selected[kind].clear();
-    state.anchor[kind] = null;
-
-    if (kind === 'fund' && parsed.deadlines) {
-      state.deadlines = parsed.deadlines;
-      state.deadlineMonthLockedIn = false;
-      renderDeadlines();
-    }
-
-    setDirty(kind);
-    const searchId = kind === 'roster' ? 'rosterSearchInput' : 'fundSearchInput';
-    if ($(searchId)) $(searchId).value = '';
-    renderKind(kind);
-    closeSheetImportModal();
-    $('sheetPasteArea').value = '';
-
-    let msg = t('toastImportOk', { n: incoming.length });
-    if (skipped) msg += t('toastImportSkippedDup', { n: skipped });
-    if (kind === 'fund' && parsed.deadlines) msg += t('toastImportDeadlines');
-    if (parsed.unknownDept) msg += t('toastImportUnknownDept', { n: parsed.unknownDept });
-    showToast(msg, parsed.unknownDept ? 'warn' : 'success', parsed.unknownDept ? 8000 : 5000);
-  }
-
-  /* ======================================================================
-   * 14. ĐỒNG BỘ SHEET GỐC & RESET D1
-   * ==================================================================== */
-  async function migrateFromWorkerSheets() {
-    if (!requireAuthenticated()) return;
-    if (!window.confirm(t('confirmMigrate'))) return;
-    await exclusive($('migrateWorkerBtn'), async () => {
-      try {
-        const res = await postWorkerJson('/api/admin/migrate-from-sheet', {});
-        let migrateMsg = t('toastMigrateOk', { r: res.rosterCount ?? 0, f: res.fundCount ?? 0 });
-        if (res.bankInfoKept) migrateMsg += t('toastMigrateBankKept');
-        if (res.unknownDept) migrateMsg += t('toastMigrateUnknownDept', { n: res.unknownDept });
-        showToast(migrateMsg, res.unknownDept ? 'warn' : 'success', res.unknownDept ? 8000 : undefined);
-        setDirty('roster', false);
-        setDirty('fund', false);
-      } catch (err) {
-        console.error('[admin-app] Migrate failed:', err);
-        showToast(t('toastMigrateFail', { msg: errMsg(err) }), 'error');
-        return false;
+      if (!isValidYmd(date)) {
+        return showToast(t('errInvalidDate', { row: i + 1 }), 'error');
       }
-      return true;
-    }).then((ok) => { if (ok) loadAllAdminData(true); });
-  }
 
-  const kindLabel = (kind) => t(kind === 'roster' ? 'kindRoster' : 'kindFund');
+      const cleanTime = normalizeTimeHm(rawTime, '00:00');
+      if (!cleanTime) {
+        return showToast(t('errInvalidTime', { row: i + 1 }), 'error');
+      }
 
-  function updateResetButtonTitle() {
-    const btn = $('resetD1Btn');
-    if (btn) btn.title = t('resetD1Title', { kind: kindLabel(state.tab) });
-  }
+      if (!title) {
+        const titleInput = $('eventsEditorBody')?.querySelector(`tr[data-uid="${ev.uid}"] input[data-field="title"]`);
+        titleInput?.focus();
+        return showToast(t('errMissingTitle', { row: i + 1 }), 'error');
+      }
 
-  async function resetCurrentTabD1() {
-    if (!requireAuthenticated()) return;
-    const kind = state.tab;
-    const word = 'RESET';
-    const answer = window.prompt(t('promptReset', { kind: kindLabel(kind), word }), '');
-    if (answer === null) return;
-    if (answer.trim().toUpperCase() !== word) return showToast(t('toastResetCancelled'), 'info', 2500);
+      cleanRows.push({ date, time: cleanTime, event_time: cleanTime, title, description });
+    }
 
-    await exclusive($('resetD1Btn'), async () => {
+    if (!cleanRows.length) {
+      return showToast(t('errEmptyEvents'), 'error');
+    }
+
+    await exclusiveEvents($('saveEventsBtn'), async () => {
       try {
-        await postWorkerJson(kind === 'roster' ? '/api/admin/roster/save' : '/api/admin/fund/save', { rows: [], allowEmpty: true });
-        state[kind] = [];
-        state.selected[kind].clear();
-        setDirty(kind, false);
-        renderKind(kind);
-        showToast(t('toastResetOk', { kind: kindLabel(kind) }), 'success');
+        await CTEC.adminWorkerJson('/api/admin/events/save', {
+          method: 'POST',
+          body: { rows: cleanRows }
+        });
+
+        cleanRows.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+        eventsState.events = cleanRows.map((r) => makeEventRow(r));
+        setEventsDirty(false);
+        renderEventsEditor();
+
+        let msg = t('toastSavedEvents', { n: cleanRows.length });
+        if (blankDropped) msg += ' ' + t('warnBlankDropped', { n: blankDropped });
+        showToast(msg, 'success');
       } catch (err) {
-        console.error('[admin-app] Reset failed:', err);
-        showToast(t('toastResetFail', { msg: errMsg(err) }), 'error');
+        console.error('[admin-events] Save events failed:', err);
+        showToast(t('toastSaveFail', { msg: errMsg(err) }), 'error');
       }
     });
   }
 
   /* ======================================================================
-   * 15. TAB
+   * 6. TÍCH HỢP VỚI TAB / RELOAD / RESET D1 CỦA admin-app.js
    * ==================================================================== */
-  function switchAdminTab(tab) {
-    CTEC.closeAllWheels();
-    state.tab = tab === 'fund' ? 'fund' : 'roster';
-    $('panelRoster').classList.toggle('hidden', state.tab !== 'roster');
-    $('panelFund').classList.toggle('hidden', state.tab !== 'fund');
+  const TAB_OFF = ['text-slate-600', 'hover:text-slate-900'];
+  const EVENTS_ON = ['bg-amber-600', 'text-white', 'shadow-sm'];
+  const BADGE_ON = ['bg-white/20', 'text-white'];
+  const BADGE_OFF = ['bg-slate-200', 'text-slate-700'];
 
-    Object.entries(TAB_CFG).forEach(([key, cfg]) => {
-      const active = key === state.tab;
-      const btn = $(cfg.btn);
-      const badge = $(cfg.badge);
-      Object.values(TAB_CFG).forEach((c) => btn.classList.remove(...c.on));
-      btn.classList.remove(...TAB_OFF);
-      btn.classList.add(...(active ? cfg.on : TAB_OFF));
+  function setEventsTabVisual(active) {
+    const panel = $('panelEvents');
+    const btn = $('tabBtnEvents');
+    const badge = $('badgeEventsCount');
+    if (panel) panel.classList.toggle('hidden', !active);
+    if (btn) {
+      btn.classList.remove(...EVENTS_ON, ...TAB_OFF);
+      btn.classList.add(...(active ? EVENTS_ON : TAB_OFF));
       btn.setAttribute('aria-selected', String(active));
+    }
+    if (badge) {
       badge.classList.remove(...BADGE_ON, ...BADGE_OFF);
       badge.classList.add(...(active ? BADGE_ON : BADGE_OFF));
-    });
+    }
+  }
 
-    updateResetButtonTitle();
-    try { history.replaceState(null, '', `#${state.tab}`); } catch (_) { /* file:// */ }
+  function integrateWithAdminApp() {
+    const origSwitchTab = window.switchAdminTab;
+    window.switchAdminTab = function patchedSwitchAdminTab(tab) {
+      CTEC.closeAllWheels();
+      if (tab === 'events') {
+        eventsState.activeTab = 'events';
+        ['roster', 'fund'].forEach((k) => {
+          const p = $(k === 'roster' ? 'panelRoster' : 'panelFund');
+          const b = $(k === 'roster' ? 'tabBtnRoster' : 'tabBtnFund');
+          const g = $(k === 'roster' ? 'badgeRosterCount' : 'badgeFundCount');
+          if (p) p.classList.add('hidden');
+          if (b) {
+            b.classList.remove('bg-indigo-600', 'bg-emerald-600', 'text-white', 'shadow-sm');
+            b.classList.add(...TAB_OFF);
+            b.setAttribute('aria-selected', 'false');
+          }
+          if (g) {
+            g.classList.remove(...BADGE_ON);
+            g.classList.add(...BADGE_OFF);
+          }
+        });
+        setEventsTabVisual(true);
+        const resetBtn = $('resetD1Btn');
+        if (resetBtn) resetBtn.title = t('resetEventsTitle');
+        try { history.replaceState(null, '', '#events'); } catch (_) { /* file:// */ }
+        return;
+      }
+
+      eventsState.activeTab = tab === 'fund' ? 'fund' : 'roster';
+      setEventsTabVisual(false);
+      if (typeof origSwitchTab === 'function') {
+        origSwitchTab(tab);
+      }
+    };
+
+    const origLoadAll = window.loadAllAdminData;
+    window.loadAllAdminData = async function patchedLoadAllAdminData(skipConfirm) {
+      const tasks = [loadEventsFromD1()];
+      if (typeof origLoadAll === 'function') {
+        tasks.unshift(origLoadAll(skipConfirm));
+      }
+      await Promise.all(tasks);
+    };
+
+    const origResetD1 = window.resetCurrentTabD1;
+    window.resetCurrentTabD1 = async function patchedResetCurrentTabD1() {
+      if (eventsState.activeTab !== 'events') {
+        if (typeof origResetD1 === 'function') return origResetD1();
+        return;
+      }
+
+      if (!checkAdminAuth()) return;
+
+      const word = 'RESET';
+      const answer = window.prompt(t('promptResetEvents', { word }), '');
+      if (answer === null) return;
+      if (answer.trim().toUpperCase() !== word) {
+        return showToast(t('toastResetCancelled'), 'info', 2500);
+      }
+
+      await exclusiveEvents($('resetD1Btn'), async () => {
+        try {
+          await CTEC.adminWorkerJson('/api/admin/events/save', {
+            method: 'POST',
+            body: { rows: [], allowEmpty: true }
+          });
+          eventsState.events = [];
+          setEventsDirty(false);
+          renderEventsEditor();
+          showToast(t('toastResetEventsOk'), 'success');
+        } catch (err) {
+          console.error('[admin-events] Reset events failed:', err);
+          showToast(t('toastResetFail', { msg: errMsg(err) }), 'error');
+        }
+      });
+    };
   }
 
   /* ======================================================================
-   * 16. KHỞI TẠO
+   * 7. KHỞI TẠO
    * ==================================================================== */
-  function init() {
-    injectStyles();
-    bindEditorEvents();
-    initFundDeadlineWheels();
-    fillBulkSelects();
-    applyAdminStaticI18n();
-    renderFundHead();
-    renderDeadlines();
-    switchAdminTab(location.hash === '#fund' ? 'fund' : 'roster');
+  function initEventsModule() {
+    injectEventsStyles();
+    bindEventsEditorListeners();
+    integrateWithAdminApp();
+    applyEventsStaticI18n();
+
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (eventsState.activeTab === 'events' && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          saveEventsToStorage();
+        }
+      },
+      true
+    );
 
     window.addEventListener('ctec:langchange', () => {
-      applyAdminStaticI18n();
-      updateImportModalTexts();
-      renderAll();
+      applyEventsStaticI18n();
+      renderEventsEditor();
     });
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        state.tab === 'fund' ? saveFundToD1() : saveRosterToD1();
-      } else if (e.key === 'Escape') {
-        CTEC.closeAllWheels();
-        if (!$('sheetImportModal').classList.contains('hidden')) {
-          closeSheetImportModal();
-        }
-      }
-    });
-
-    window.addEventListener('resize', () => CTEC.closeAllWheels());
 
     window.addEventListener('beforeunload', (e) => {
-      if (!anyDirty()) return;
+      if (!eventsState.dirty) return;
       e.preventDefault();
       e.returnValue = '';
     });
 
-    initAdminAuthGate();
+    if (location.hash === '#events') {
+      window.switchAdminTab('events');
+    }
+
+    loadEventsFromD1();
   }
 
   Object.assign(window, {
-    openAdminAuthModal,
-    closeAdminAuthModal,
-    submitAdminAuthForm,
-    requireAdminAuth: requireAuthenticated,
-    switchAdminTab,
-    loadAllAdminData,
-    migrateFromWorkerSheets,
-    resetCurrentTabD1,
-    renderRosterEditor,
-    renderFundEditor,
-    openSheetImportModal,
-    closeSheetImportModal,
-    fetchFromGoogleSheetUrl,
-    applySheetImportToDraft,
-    addRosterRow,
-    saveRosterToD1,
-    toggleSelectAllRoster,
-    clearRosterSelection,
-    applyBulkRosterDept,
-    applyBulkRosterRole,
-    applyBulkRosterStatus,
-    deleteSelectedRosterRows,
-    confirmDeadlineMonth,
-    saveDeadlineDay,
-    saveFundToD1,
-    syncMembersFromRosterToFund,
-    clearFundSelection,
-    applyBulkFundAllMonths,
-    deleteSelectedFundRows
+    addEventRow,
+    saveEventsToStorage,
+    saveEventsToD1: saveEventsToStorage,
+    renderEventsEditor
   });
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEventsModule);
+  } else {
+    initEventsModule();
+  }
 })();
