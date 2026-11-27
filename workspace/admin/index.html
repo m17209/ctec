@@ -139,7 +139,7 @@
       </div>
     </div>
 
-    <!-- DASHBOARD: 2 SHEET NATIVE -->
+    <!-- DASHBOARD: 3 TAB -->
     <main id="adminWorkspace" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div class="bg-white p-3 sm:p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div class="grid grid-cols-3 w-full sm:w-auto sm:inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
@@ -158,7 +158,7 @@
           <button id="tabBtnEvents" type="button" onclick="switchAdminTab('events')"
                   class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 sm:gap-2 text-slate-600 hover:text-slate-900 cursor-pointer">
             <i class="fa-solid fa-calendar-days"></i>
-            <span class="truncate" data-i18n="tabEvents">Sự kiện (Events)</span>
+            <span class="truncate" data-i18n="tabEvents">Lịch trình (Schedule)</span>
             <span id="badgeEventsCount" class="px-2 py-0.5 text-[11px] rounded-full bg-slate-200 text-slate-700 shrink-0">0</span>
           </button>
         </div>
@@ -290,17 +290,100 @@
       <!-- ================= TAB 2: FUND EDITOR ================= -->
       <section id="panelFund" class="hidden space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div class="lg:col-span-7 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-3">
+          <div class="lg:col-span-7 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
+            <div class="space-y-3.5">
+              <div class="flex items-center justify-between gap-2">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                   <i class="fa-regular fa-calendar-days text-indigo-600"></i>
-                  <span data-i18n="deadlinesTitle">Cấu hình ngày hạn đóng hàng tháng (1 - 31, nhập 0 nếu chưa đặt hạn)</span>
+                  <span data-i18n="deadlinesTitle">Cấu hình ngày hạn đóng hàng tháng (WheelPicker)</span>
                 </h3>
               </div>
-              <div id="deadlinesGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3"></div>
+
+              <!-- Bảng nhỏ hiển thị hạn nộp của 8 tháng -->
+              <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                <div class="overflow-x-auto">
+                  <table class="w-full text-center border-collapse text-xs">
+                    <thead id="deadlinesSummaryHead"></thead>
+                    <tbody id="deadlinesSummaryBody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Công cụ chọn Tháng -> Lưu tháng -> Mở khóa chọn Ngày -> Lưu hạn nộp -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <!-- Bước 1: Chọn tháng -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <span class="block text-[11px] font-bold uppercase tracking-wide text-indigo-600" data-i18n="deadlineStep1Label">
+                    Bước 1: Chọn tháng
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <div id="fundDeadlineMonthWheel" class="wheel-picker-wrap flex-1">
+                      <button type="button" id="fundDeadlineMonthTrigger" class="wheel-trigger w-full">
+                        <span id="fundDeadlineMonthLabel">T10/26</span>
+                        <i class="fa-solid fa-chevron-down text-[10px] opacity-60"></i>
+                      </button>
+                      <div class="wheel-popover">
+                        <div class="wheel-drum-viewport">
+                          <div class="wheel-center-highlight"></div>
+                          <div id="fundDeadlineMonthList" class="wheel-drum-list"></div>
+                        </div>
+                        <div class="wheel-footer">
+                          <span data-i18n="wheelScrollHint">Cuộn hoặc kéo</span>
+                          <button type="button" class="wheel-confirm-btn" data-wheel-done data-i18n="wheelDoneBtn">Xong</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button id="confirmDeadlineMonthBtn" type="button" onclick="confirmDeadlineMonth()"
+                            class="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                      <i class="fa-solid fa-check"></i>
+                      <span data-i18n="saveMonthBtn">Lưu tháng</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Bước 2: Chọn ngày (mặc định khóa cho tới khi Lưu tháng) -->
+                <div id="fundDeadlineDayStepBox" class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 transition">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="block text-[11px] font-bold uppercase tracking-wide text-slate-500" id="deadlineStep2Label" data-i18n="deadlineStep2Label">
+                      Bước 2: Chọn ngày hạn nộp
+                    </span>
+                    <span id="deadlineDayLockBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                      <i class="fa-solid fa-lock text-[9px]"></i>
+                      <span data-i18n="dayWheelLockedBadge">Đang khóa</span>
+                    </span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div id="fundDeadlineDayWheel" class="wheel-picker-wrap flex-1">
+                      <button type="button" id="fundDeadlineDayTrigger" disabled class="wheel-trigger w-full opacity-50 cursor-not-allowed">
+                        <span id="fundDeadlineDayLabel">Lưu tháng trước</span>
+                        <i id="fundDeadlineDayIcon" class="fa-solid fa-lock text-[10px] opacity-60"></i>
+                      </button>
+                      <div class="wheel-popover">
+                        <div class="wheel-drum-viewport">
+                          <div class="wheel-center-highlight"></div>
+                          <div id="fundDeadlineDayList" class="wheel-drum-list"></div>
+                        </div>
+                        <div class="wheel-footer">
+                          <span data-i18n="wheelScrollHint">Cuộn hoặc kéo</span>
+                          <button type="button" class="wheel-confirm-btn" data-wheel-done data-i18n="wheelDoneBtn">Xong</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button id="saveDeadlineDayBtn" type="button" disabled onclick="saveDeadlineDay()"
+                            class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                      <i class="fa-solid fa-floppy-disk"></i>
+                      <span data-i18n="saveDeadlineDayBtn">Lưu hạn nộp</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <p id="deadlineStepStatus" class="text-[11px] font-semibold text-indigo-600"></p>
             </div>
-            <p class="mt-4 text-[11px] text-slate-400" data-i18n-html="deadlinesHint">
+
+            <p class="text-[11px] text-slate-400" data-i18n-html="deadlinesHint">
               * Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.
             </p>
           </div>
@@ -419,6 +502,65 @@
           </div>
         </div>
       </section>
+
+      <!-- ================= TAB 3: SCHEDULE / EVENTS EDITOR ================= -->
+      <section id="panelEvents" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <i class="fa-solid fa-calendar-days text-amber-500"></i>
+              <span data-i18n="eventsEditorTitle">Quản lý lịch trình sự kiện CLB (Tháng 8/2026 – Tháng 12/2027)</span>
+            </span>
+            <span id="eventsStatsPill" class="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold whitespace-nowrap">
+              0 sự kiện
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <button type="button" onclick="addEventRow()"
+                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fa-solid fa-plus"></i>
+              <span data-i18n="addEventBtn">Thêm sự kiện</span>
+            </button>
+            <button id="saveEventsBtn" type="button" onclick="saveEventsToStorage()"
+                    class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span data-i18n="saveEventsBtn">Lưu sự kiện</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="overflow-x-auto relative">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                  <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[245px]" data-i18n="colEventDate">Ngày / Tháng / Năm</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[165px]" data-i18n="colEventTime">Giờ : Phút</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[200px]" data-i18n="colEventTitle">Tiêu đề sự kiện</th>
+                  <th class="py-3 px-4 border-r border-slate-800 min-w-[250px]" data-i18n="colEventDesc">Mô tả sự kiện</th>
+                  <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
+                </tr>
+              </thead>
+              <tbody id="eventsEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
+          <div class="flex items-start gap-2">
+            <i class="fa-solid fa-circle-info mt-0.5 text-amber-500"></i>
+            <div>
+              <p class="font-bold mb-1" data-i18n="eventsNote1">Lưu ý:</p>
+              <ul class="list-disc list-inside space-y-0.5 text-amber-700">
+                <li data-i18n="eventsNote2">Dùng 5 WheelPicker (Ngày, Tháng, Năm, Giờ, Phút — múi giờ Việt Nam UTC+7) để chỉnh thời gian cho từng sự kiện</li>
+                <li data-i18n="eventsNote3">Sự kiện sẽ hiển thị trên trang Lịch trình công khai sau khi lưu</li>
+                <li data-i18n="eventsNote4">Đồng hồ Event Countdown sẽ đếm ngược đến sự kiện bạn bấm chọn trên lịch hoặc danh sách sắp tới</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- MODAL NHẬP DỮ LIỆU TỪ GOOGLE SHEET -->
@@ -483,66 +625,6 @@
         </div>
       </div>
     </div>
-
-      <!-- ================= TAB 3: EVENTS EDITOR ================= -->
-      <section id="panelEvents" class="hidden space-y-4">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-3">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <i class="fa-solid fa-calendar-days text-amber-500"></i>
-              <span data-i18n="eventsEditorTitle">Quản lý sự kiện CLB (Tháng 8/2026 – Tháng 12/2027)</span>
-            </span>
-            <span id="eventsStatsPill" class="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold whitespace-nowrap">
-              0 sự kiện
-            </span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-            <button type="button" onclick="addEventRow()"
-                    class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fa-solid fa-plus"></i>
-              <span data-i18n="addEventBtn">Thêm sự kiện</span>
-            </button>
-            <button id="saveEventsBtn" type="button" onclick="saveEventsToStorage()"
-                    class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white text-xs sm:text-sm font-bold shadow-sm transition flex items-center gap-2 cursor-pointer">
-              <i class="fa-solid fa-floppy-disk"></i>
-              <span data-i18n="saveEventsBtn">Lưu sự kiện</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div class="overflow-x-auto relative">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-                  <th class="py-3 px-3 text-center w-14 border-r border-slate-800" data-i18n="colNo">STT</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[160px]" data-i18n="colEventDate">Ngày (YYYY-MM-DD)</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[130px]" data-i18n="colEventTime">Giờ (HH:MM)</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[210px]" data-i18n="colEventTitle">Tiêu đề sự kiện</th>
-                  <th class="py-3 px-4 border-r border-slate-800 min-w-[280px]" data-i18n="colEventDesc">Mô tả sự kiện</th>
-                  <th class="py-3 px-3 text-center w-16" data-i18n="colDelete">Xóa</th>
-                </tr>
-              </thead>
-              <tbody id="eventsEditorBody" class="divide-y divide-slate-100 text-sm"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-          <div class="flex items-start gap-2">
-            <i class="fa-solid fa-circle-info mt-0.5 text-amber-500"></i>
-            <div>
-              <p class="font-bold mb-1" data-i18n="eventsNote1">Lưu ý:</p>
-              <ul class="list-disc list-inside space-y-0.5 text-amber-700">
-                <li data-i18n="eventsNote2">Nhập ngày (YYYY-MM-DD) và giờ cụ thể (HH:MM, múi giờ Việt Nam UTC+7) cho từng sự kiện</li>
-                <li data-i18n="eventsNote3">Sự kiện sẽ hiển thị trên trang Lịch trình công khai sau khi lưu</li>
-                <li data-i18n="eventsNote4">Đồng hồ Event Countdown sẽ đếm ngược đến sự kiện bạn bấm chọn trên lịch hoặc danh sách sắp tới</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
 
     <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
