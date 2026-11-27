@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="vi" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch trình sự kiện - CTEC</title>
+  <script>
+    tailwind = window.tailwind || {};
+    tailwind.config = { darkMode: 'class' };
+    (function () {
+      const m = document.cookie.match(/(?:^|;\s*)ctec_theme=(dark|light)(?:;|$)/);
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if ((m && m[1] === 'dark') || (!m && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+      const l = document.cookie.match(/(?:^|;\s*)ctec_lang=(vi|en)(?:;|$)/);
+      document.documentElement.lang = l ? l[1] : 'vi';
+    })();
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/ctec-core.css">
+  <style>
+    /* ===== Calendar Grid ===== */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+    .cal-header-cell {
+      text-align: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 8px 0;
+      color: var(--ctec-text-muted);
+      border-bottom: 2px solid var(--ctec-border);
+    }
+    .cal-day {
+      position: relative;
+      aspect-ratio: 1 / 1;
