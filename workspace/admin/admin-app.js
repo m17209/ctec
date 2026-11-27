@@ -62,6 +62,17 @@
     vi: {
       pageTitle: 'CTEC Administrator',
       homeTitle: 'Về trang chủ CTEC',
+      authModalTitle: 'Xác thực quyền quản trị',
+      authModalDesc: 'Nhập ADMIN_TOKEN để mở khóa chỉnh sửa dữ liệu.',
+      authTokenLabel: 'Mã quản trị (ADMIN_TOKEN)',
+      authBackBtn: 'Quay lại',
+      authUnlockBtn: 'Xác nhận & Mở khóa',
+      lockBtnTitle: 'Đổi hoặc khóa lại mã quản trị',
+      lockBtnLocked: 'Chưa xác thực',
+      lockBtnUnlocked: 'Đã xác thực',
+      errAuthRequired: 'Vui lòng nhập và xác thực ADMIN_TOKEN trước khi thực hiện thao tác chỉnh sửa.',
+      errAuthInvalid: 'Mã quản trị (ADMIN_TOKEN) không chính xác.',
+      toastAuthSuccess: 'Đã xác thực quyền quản trị.',
       tabRoster: 'Sheet 1: Nhân sự (Roster)', tabFund: 'Sheet 2: Quỹ CLB (Fund)',
       migrateWorkerBtn: 'Đồng bộ Sheet/Docs gốc', reloadD1: 'Tải lại từ D1', resetD1Btn: 'Reset D1',
       filterMemberPlaceholder: 'Lọc nhanh tên thành viên...',
@@ -156,6 +167,17 @@
     en: {
       pageTitle: 'CTEC Administrator',
       homeTitle: 'Back to CTEC Home',
+      authModalTitle: 'Admin Authentication',
+      authModalDesc: 'Enter ADMIN_TOKEN to unlock data editing and management.',
+      authTokenLabel: 'Admin Token (ADMIN_TOKEN)',
+      authBackBtn: 'Go back',
+      authUnlockBtn: 'Verify & Unlock',
+      lockBtnTitle: 'Change or re-lock admin token',
+      lockBtnLocked: 'Locked',
+      lockBtnUnlocked: 'Authenticated',
+      errAuthRequired: 'Please enter and verify ADMIN_TOKEN before making any changes.',
+      errAuthInvalid: 'Incorrect admin token (ADMIN_TOKEN).',
+      toastAuthSuccess: 'Admin access unlocked.',
       tabRoster: 'Sheet 1: Roster', tabFund: 'Sheet 2: Club Fund',
       migrateWorkerBtn: 'Sync original Sheets/Docs', reloadD1: 'Reload from D1', resetD1Btn: 'Reset D1',
       filterMemberPlaceholder: 'Quick filter by member name...',
@@ -569,6 +591,140 @@
     }
   }
 
+  /* ======================================================================
+   * 6.5 XÁC THỰC ADMIN_TOKEN CHO MỌI THAO TÁC SỬA ĐỔI
+   * ==================================================================== */
+  state.authenticated = false;
+
+  function setAdminWorkspaceLocked(locked) {
+    state.authenticated = !locked;
+    window.__ctecAdminAuthenticated = !locked;
+    const ws = $('adminWorkspace');
+    if (ws) {
+      ws.classList.toggle('pointer-events-none', locked);
+      ws.classList.toggle('select-none', locked);
+      ws.classList.toggle('opacity-40', locked);
+    }
+    const lockIcon = $('adminLockIcon');
+    const lockLabel = $('adminLockLabel');
+    const lockBtn = $('adminLockBtn');
+    if (lockIcon) {
+      lockIcon.className = locked
+        ? 'fa-solid fa-lock text-[11px]'
+        : 'fa-solid fa-lock-open text-[11px]';
+    }
+    if (lockLabel) {
+      lockLabel.textContent = t(locked ? 'lockBtnLocked' : 'lockBtnUnlocked');
+    }
+    if (lockBtn) {
+      lockBtn.classList.toggle('text-amber-300', locked);
+      lockBtn.classList.toggle('text-emerald-300', !locked);
+    }
+  }
+
+  function openAdminAuthModal(clearExisting = false) {
+    if (clearExisting) {
+      CTEC.setAdminToken('');
+      setAdminWorkspaceLocked(true);
+    }
+    const modal = $('adminAuthModal');
+    const input = $('adminTokenInput');
+    const errEl = $('adminAuthError');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    }
+    if (input) input.value = '';
+    if (modal) modal.classList.remove('hidden');
+    setTimeout(() => input?.focus(), 30);
+  }
+
+  function closeAdminAuthModal() {
+    $('adminAuthModal')?.classList.add('hidden');
+  }
+
+  function requireAuthenticated() {
+    if (state.authenticated && CTEC.getAdminToken()) return true;
+    openAdminAuthModal(false);
+    showToast(t('errAuthRequired'), 'warn', 3500);
+    return false;
+  }
+
+  async function verifyStoredOrProvidedToken(tokenCandidate) {
+    const trimmed = String(tokenCandidate || '').trim();
+    if (!trimmed) throw new Error(t('errAuthRequired'));
+    const prev = CTEC.getAdminToken();
+    CTEC.setAdminToken(trimmed);
+    try {
+      const res = await fetch(`${CTEC.API_BASE_URL}/api/admin/verify?_t=${Date.now()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${trimmed}` },
+        cache: 'no-store'
+      });
+      if (!res.ok) {
+        CTEC.setAdminToken('');
+        throw new Error(t('errAuthInvalid'));
+      }
+      const data = await res.json().catch(() => null);
+      if (!data || data.ok === false) {
+        CTEC.setAdminToken('');
+        throw new Error(data?.error || t('errAuthInvalid'));
+      }
+      setAdminWorkspaceLocked(false);
+      closeAdminAuthModal();
+      return true;
+    } catch (err) {
+      if (prev && prev !== trimmed) CTEC.setAdminToken('');
+      throw err;
+    }
+  }
+
+  async function submitAdminAuthForm(e) {
+    e?.preventDefault();
+    const input = $('adminTokenInput');
+    const errEl = $('adminAuthError');
+    const btn = $('adminAuthSubmitBtn');
+    const icon = $('adminAuthSubmitIcon');
+    const token = input?.value || '';
+
+    if (errEl) errEl.classList.add('hidden');
+    if (btn) btn.disabled = true;
+    if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+
+    try {
+      await verifyStoredOrProvidedToken(token);
+      showToast(t('toastAuthSuccess'), 'success', 2500);
+      if (!state.loaded) {
+        await loadAllAdminData(true);
+      }
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = errMsg(err);
+        errEl.classList.remove('hidden');
+      }
+      input?.focus();
+      input?.select();
+    } finally {
+      if (btn) btn.disabled = false;
+      if (icon) icon.className = 'fa-solid fa-unlock-keyhole';
+    }
+  }
+
+  async function initAdminAuthGate() {
+    setAdminWorkspaceLocked(true);
+    const saved = CTEC.getAdminToken();
+    if (saved) {
+      try {
+        await verifyStoredOrProvidedToken(saved);
+        await loadAllAdminData(true);
+        return;
+      } catch (_) {
+        // Token cũ không còn hợp lệ -> mở modal yêu cầu nhập lại
+      }
+    }
+    openAdminAuthModal(false);
+  }
+
   async function loadAllAdminData(skipConfirm) {
     if (skipConfirm !== true && anyDirty() && !window.confirm(t('confirmReloadDirty'))) return;
 
@@ -911,6 +1067,7 @@
   }
 
   function applyBulkRosterField(field, selectId) {
+    if (!requireAuthenticated()) return;
     const rows = selectedRows('roster');
     if (!rows.length) return;
     const value = $(selectId).value;
@@ -925,6 +1082,7 @@
   const applyBulkRosterStatus = () => applyBulkRosterField('status', 'bulkRosterStatusSelect');
 
   function applyBulkFundAllMonths() {
+    if (!requireAuthenticated()) return;
     const rows = selectedRows('fund');
     if (!rows.length) return;
     const value = $('bulkFundStatusSelect').value;
@@ -935,6 +1093,7 @@
   }
 
   function deleteSelected(kind) {
+    if (!requireAuthenticated()) return;
     const rows = selectedRows(kind);
     if (!rows.length) return;
     if (!window.confirm(t('confirmDeleteSelected', { n: rows.length }))) return;
@@ -950,6 +1109,7 @@
   const deleteSelectedFundRows = () => deleteSelected('fund');
 
   function deleteRow(kind, uid) {
+    if (!requireAuthenticated()) return;
     state[kind] = state[kind].filter((r) => r.uid !== uid);
     state.selected[kind].delete(uid);
     setDirty(kind);
@@ -957,6 +1117,7 @@
   }
 
   function addRosterRow() {
+    if (!requireAuthenticated()) return;
     const search = $('rosterSearchInput');
     if (search && search.value) search.value = ''; // dòng mới có tên rỗng sẽ bị bộ lọc ẩn đi
     const last = state.roster[state.roster.length - 1];
@@ -998,6 +1159,7 @@
     /* ----- Roster ----- */
     const rb = $('rosterEditorBody');
     rb.addEventListener('input', (e) => {
+      if (!requireAuthenticated()) return;
       const el = e.target;
       if (el.tagName !== 'INPUT' || el.dataset.field !== 'name') return;
       const row = findRow('roster', el);
@@ -1007,6 +1169,7 @@
       updateRosterStats();
     });
     rb.addEventListener('change', (e) => {
+      if (!requireAuthenticated()) return;
       const el = e.target;
       if (el.tagName !== 'SELECT' || !el.dataset.field) return;
       const row = findRow('roster', el);
@@ -1033,6 +1196,7 @@
     /* ----- Fund ----- */
     const fb = $('fundEditorBody');
     fb.addEventListener('input', (e) => {
+      if (!requireAuthenticated()) return;
       const el = e.target;
       if (el.tagName !== 'INPUT' || !el.dataset.field) return;
       const row = findRow('fund', el);
@@ -1041,6 +1205,7 @@
       setDirty('fund');
     });
     fb.addEventListener('change', (e) => {
+      if (!requireAuthenticated()) return;
       const el = e.target;
       if (el.tagName !== 'SELECT' || el.dataset.field !== 'dept') return;
       const row = findRow('fund', el);
@@ -1059,6 +1224,7 @@
       } else if (act.dataset.act === 'delete') {
         deleteRow('fund', row.uid);
       } else if (act.dataset.act === 'cycle') {
+        if (!requireAuthenticated()) return;
         const m = parseInt(act.dataset.m, 10);
         const next = FUND_STATUSES[(FUND_STATUSES.indexOf(row.months[m]) + 1) % FUND_STATUSES.length];
         row.months[m] = next;
@@ -1075,6 +1241,7 @@
     /* ----- Hạn đóng quỹ ----- */
     const grid = $('deadlinesGrid');
     grid.addEventListener('input', (e) => {
+      if (!requireAuthenticated()) return;
       const el = e.target.closest('[data-deadline]');
       if (!el) return;
       const i = parseInt(el.dataset.deadline, 10);
@@ -1091,7 +1258,7 @@
 
     /* ----- Bank info ----- */
     ['bankStkInput', 'bankNameInput', 'bankAccountNameInput', 'bankQrInput'].forEach((id) => {
-      $(id)?.addEventListener('input', () => setDirty('fund'));
+      $(id)?.addEventListener('input', () => { if (!requireAuthenticated()) return; setDirty('fund'); });
     });
   }
 
@@ -1119,6 +1286,7 @@
   }
 
   async function saveRosterToD1() {
+    if (!requireAuthenticated()) return;
     if (!state.loaded) return showToast(t('errNotLoaded'), 'error');
     const { rows, blank, dup } = collectRosterPayload();
     if (!rows.length) return showToast(t('errEmptyRoster'), 'error');
@@ -1159,6 +1327,7 @@
   }
 
   async function saveFundToD1() {
+    if (!requireAuthenticated()) return;
     if (!state.loaded) return showToast(t('errNotLoaded'), 'error');
 
     // Hạn đóng: ngày không tồn tại (vd 30/2) sẽ bị trang công khai bỏ qua âm thầm → chặn ngay tại đây
@@ -1209,6 +1378,7 @@
    * 12. ĐỒNG BỘ ROSTER → FUND
    * ==================================================================== */
   function syncMembersFromRosterToFund() {
+    if (!requireAuthenticated()) return;
     const prune = !!$('pruneMissingOnSyncCheckbox')?.checked;
 
     const rosterPairs = new Map();
@@ -1332,6 +1502,7 @@
   }
 
   function openSheetImportModal(kind) {
+    if (!requireAuthenticated()) return;
     state.importTarget = kind === 'fund' ? 'fund' : 'roster';
     if (lastModalKind !== state.importTarget) {
       $('sheetPasteArea').value = '';
@@ -1416,6 +1587,7 @@
    * 14. ĐỒNG BỘ SHEET GỐC & RESET D1
    * ==================================================================== */
   async function migrateFromWorkerSheets() {
+    if (!requireAuthenticated()) return;
     if (!window.confirm(t('confirmMigrate'))) return;
     await exclusive($('migrateWorkerBtn'), async () => {
       try {
@@ -1443,6 +1615,7 @@
   }
 
   async function resetCurrentTabD1() {
+    if (!requireAuthenticated()) return;
     const kind = state.tab;
     const word = 'RESET';
     const answer = window.prompt(t('promptReset', { kind: kindLabel(kind), word }), '');
@@ -1522,11 +1695,15 @@
       e.returnValue = '';
     });
 
-    loadAllAdminData(true);
+    initAdminAuthGate();
   }
 
   // Các hàm được gọi trực tiếp từ thuộc tính onclick/oninput/onchange trong index.html
   Object.assign(window, {
+    openAdminAuthModal,
+    closeAdminAuthModal,
+    submitAdminAuthForm,
+    requireAdminAuth: requireAuthenticated,
     switchAdminTab,
     loadAllAdminData,
     migrateFromWorkerSheets,
