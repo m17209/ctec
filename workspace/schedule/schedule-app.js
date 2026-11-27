@@ -517,6 +517,14 @@
     gridEl.innerHTML = cellsHtml.join('');
   }
 
+  function syncEventDescScrollbars() {
+    const boxes = document.querySelectorAll('#eventDetailBody .ctec-event-desc-scroll');
+    boxes.forEach((box) => {
+      const isOverflowing = box.scrollHeight > box.clientHeight + 2;
+      box.classList.toggle('is-scrollable', isOverflowing);
+    });
+  }
+
   function renderEventDetail() {
     const badgeEl = $('selectedDateBadge');
     const bodyEl = $('eventDetailBody');
@@ -544,7 +552,7 @@
     const headerHtml =
       `<div class="flex items-center justify-between gap-2 mb-3">` +
         `<span class="text-xs font-semibold text-slate-500">${esc(formatDisplayDate(selectedDate))}</span>` +
-        `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">` +
+        `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 shrink-0">` +
           `${esc(t('eventsOnDayCount', { n: dayEvents.length }))}` +
         `</span>` +
       `</div>`;
@@ -552,18 +560,20 @@
     const cardsHtml = dayEvents
       .map((ev) => {
         const desc = ev.description
-          ? `<p class="mt-2 text-xs sm:text-sm ctec-event-card-desc leading-relaxed whitespace-pre-line">${esc(ev.description)}</p>`
+          ? `<div class="mt-2 text-xs sm:text-sm ctec-event-card-desc ctec-event-desc-scroll" tabindex="0" role="region" aria-label="${esc(ev.title)}">${esc(ev.description)}</div>`
           : `<p class="mt-1.5 text-xs italic text-slate-400">${esc(t('noDescription'))}</p>`;
         return (
-          `<article class="ctec-event-card p-4 rounded-xl">` +
-            `<h4 class="text-sm sm:text-base font-bold ctec-event-card-title leading-snug">${esc(ev.title)}</h4>` +
+          `<article class="ctec-event-card p-3.5 sm:p-4 rounded-xl min-w-0 overflow-hidden">` +
+            `<h4 class="text-sm sm:text-base font-bold ctec-event-card-title leading-snug break-words">${esc(ev.title)}</h4>` +
             desc +
           `</article>`
         );
       })
       .join('');
 
-    bodyEl.innerHTML = `${headerHtml}<div class="space-y-3">${cardsHtml}</div>`;
+    bodyEl.innerHTML = `${headerHtml}<div class="space-y-3 min-w-0">${cardsHtml}</div>`;
+    syncEventDescScrollbars();
+    requestAnimationFrame(syncEventDescScrollbars);
   }
 
   function renderUpcomingList() {
@@ -588,7 +598,7 @@
         return (
           `<button type="button" data-jump-date="${esc(ev.date)}" ` +
                   `class="ctec-event-card${selectedCls} w-full text-left p-3 rounded-xl flex items-start justify-between gap-3 cursor-pointer">` +
-            `<div class="min-w-0">` +
+            `<div class="min-w-0 flex-1">` +
               `<div class="text-xs sm:text-sm font-bold ctec-event-card-title truncate">${esc(ev.title)}</div>` +
               (ev.description
                 ? `<div class="text-xs ctec-event-card-desc truncate mt-0.5">${esc(ev.description)}</div>`
@@ -679,6 +689,8 @@
       jumpToDate(btn.dataset.jumpDate);
       renderUpcomingList();
     });
+
+    window.addEventListener('resize', syncEventDescScrollbars);
 
     window.addEventListener('ctec:langchange', (e) => {
       applyScheduleStaticI18n(e.detail.lang);
