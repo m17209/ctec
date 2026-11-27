@@ -30,6 +30,7 @@
       grid-template-columns: repeat(7, 1fr);
       gap: 6px;
     }
+
     .cal-header-cell {
       text-align: center;
       font-size: 0.7rem;
@@ -40,6 +41,321 @@
       color: var(--ctec-text-muted);
       border-bottom: 2px solid var(--ctec-border);
     }
+
     .cal-day {
       position: relative;
       aspect-ratio: 1 / 1;
+      min-height: 44px;
+      border-radius: 0.75rem;
+      border: 1px solid var(--ctec-border);
+      background-color: var(--ctec-surface);
+      color: var(--ctec-text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 4px;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.14s ease, border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .cal-day:hover:not(.is-outside) {
+      border-color: #f59e0b;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px -4px rgba(245, 158, 11, 0.25);
+    }
+
+    .cal-day.is-outside {
+      opacity: 0.34;
+      background-color: var(--ctec-surface-muted);
+      cursor: default;
+    }
+
+    .cal-day.is-today:not(.is-selected) {
+      border-color: #6366f1;
+      box-shadow: inset 0 0 0 1.5px rgba(99, 102, 241, 0.45);
+    }
+
+    .cal-day.has-event:not(.is-selected):not(.is-outside) {
+      background-color: rgba(245, 158, 11, 0.09);
+      border-color: rgba(245, 158, 11, 0.48);
+    }
+
+    html.dark .cal-day.has-event:not(.is-selected):not(.is-outside) {
+      background-color: rgba(245, 158, 11, 0.16);
+      border-color: rgba(251, 191, 36, 0.45);
+    }
+
+    .cal-day.is-selected {
+      background: linear-gradient(135deg, #0b1324 0%, #1e1b4b 100%) !important;
+      border-color: #4f46e5 !important;
+      color: #ffffff !important;
+      box-shadow: 0 8px 18px -6px rgba(30, 27, 75, 0.55);
+    }
+
+    html.dark .cal-day.is-selected {
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+      border-color: #fbbf24 !important;
+      color: #ffffff !important;
+    }
+
+    .cal-day-num {
+      font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .cal-event-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      height: 6px;
+    }
+
+    .cal-event-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 9999px;
+      background-color: #f59e0b;
+    }
+
+    .cal-day.is-selected .cal-event-dot {
+      background-color: #fde68a;
+    }
+
+    @media (max-width: 480px) {
+      .cal-grid {
+        gap: 4px;
+      }
+      .cal-day {
+        border-radius: 0.55rem;
+        min-height: 38px;
+      }
+      .cal-day-num {
+        font-size: 0.78rem;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+  <header class="ctec-header shadow-md">
+    <div class="ctec-header-inner max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <a id="homeLink" href="../index.html" class="ctec-brand-tab" title="Về trang chủ CTEC" aria-label="CTEC Workspace - Event Schedule">
+        <span class="ctec-brand-logo">
+          <img src="../assets/logoctec.png" alt="Logo CTEC" class="w-full h-full object-contain" loading="lazy">
+        </span>
+        <span class="ctec-brand-text-wrap">
+          <span class="ctec-brand-title text-sm sm:text-base font-bold tracking-tight text-white leading-tight">CTEC Workspace</span>
+          <span class="text-[10px] font-medium text-amber-300 tracking-wide leading-tight">Event Schedule</span>
+        </span>
+      </a>
+
+      <div class="ctec-nav-group flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button id="reloadBtn" type="button" onclick="refreshEventsData()"
+                class="ctec-nav-btn px-2.5 sm:px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed text-slate-200 hover:text-white text-xs font-semibold rounded-lg border border-slate-700/80 shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                data-i18n-title="syncTitle" title="Đồng bộ lịch sự kiện mới nhất">
+          <i id="reloadIcon" class="fa-solid fa-rotate-right text-[11px]"></i>
+          <span class="ctec-btn-label-full" data-i18n="refreshFull">Làm mới dữ liệu</span>
+          <span class="ctec-btn-label-short" data-i18n="refreshShort">ĐỒNG BỘ</span>
+        </button>
+        <a href="../../setting/index.html" class="ctec-settings-link" title="Cài đặt / Settings" aria-label="Cài đặt / Settings">
+          <i class="fa-solid fa-gear"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="ctec-page-shell flex-grow flex flex-col">
+    <!-- Hero Section với bottom fade khớp --page-bg -->
+    <section class="page-hero pt-8 pb-10 sm:pt-10 sm:pb-12">
+      <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-3xl">
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 mb-3">
+            <i class="fa-solid fa-calendar-days text-amber-600"></i>
+            <span data-i18n="heroBadge">Lịch trình sự kiện</span>
+          </span>
+          <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900" data-i18n="heroTitle">
+            Lịch trình hoạt động CTEC
+          </h1>
+          <p class="mt-2.5 text-sm sm:text-base text-slate-600 leading-relaxed" data-i18n="heroDesc">
+            Theo dõi các sự kiện, hoạt động và mốc thời gian quan trọng của câu lạc bộ từ tháng 8/2026 đến tháng 12/2027.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-6">
+      <!-- Event Countdown Card -->
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div class="space-y-1.5 min-w-0">
+            <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+              <i class="fa-solid fa-hourglass-half"></i>
+              <span data-i18n="countdownLabel">Event Countdown</span>
+            </div>
+            <h2 id="countdownEventTitle" class="text-lg sm:text-2xl font-extrabold text-slate-900 truncate">
+              Đang tải sự kiện sắp tới...
+            </h2>
+            <p id="countdownEventMeta" class="text-xs sm:text-sm text-slate-500 flex flex-wrap items-center gap-2"></p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
+            <div id="countdownBoxes" class="grid grid-cols-4 gap-2 sm:gap-2.5">
+              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdDays" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitDays">Ngày</div>
+              </div>
+              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdHours" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitHours">Giờ</div>
+              </div>
+              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdMinutes" class="font-display text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitMinutes">Phút</div>
+              </div>
+              <div class="min-w-[62px] sm:min-w-[72px] px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <div id="cdSeconds" class="font-display text-xl sm:text-2xl font-extrabold text-indigo-600 leading-tight">--</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-0.5" data-i18n="unitSeconds">Giây</div>
+              </div>
+            </div>
+
+            <button id="jumpNearestBtn" type="button"
+                    class="hidden px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition items-center gap-1.5 cursor-pointer shrink-0">
+              <i class="fa-solid fa-location-crosshairs"></i>
+              <span data-i18n="jumpToEventBtn">Xem trên lịch</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trạng thái tải / lỗi -->
+      <div id="loadingState" class="bg-white rounded-2xl border border-slate-200 py-10 text-center text-slate-500">
+        <i class="fa-solid fa-spinner fa-spin text-2xl text-amber-500 mb-2"></i>
+        <p class="text-sm font-medium" data-i18n="loadingText">Đang đồng bộ lịch sự kiện qua hệ thống CTEC...</p>
+      </div>
+
+      <div id="errorState" class="hidden bg-white rounded-2xl border border-red-200 py-8 px-4 text-center text-red-600">
+        <i class="fa-solid fa-triangle-exclamation text-2xl mb-1.5"></i>
+        <p class="text-sm font-bold" data-i18n="errorTitle">Không thể tải dữ liệu sự kiện!</p>
+        <p class="text-xs text-slate-500 mt-1" data-i18n="errorDesc">Vui lòng thử lại sau ít phút hoặc kiểm tra kết nối mạng.</p>
+      </div>
+
+      <!-- Lưới Lịch & Chi tiết sự kiện -->
+      <div id="scheduleWorkspace" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Cột trái: Calendar Grid -->
+        <section class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-2">
+              <button id="prevMonthBtn" type="button" aria-label="Previous month"
+                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+              </button>
+
+              <!-- Wheel Picker Tháng / Năm -->
+              <div class="wheel-picker-wrap" id="monthYearWheelPicker">
+                <button type="button" class="wheel-trigger min-w-[165px] sm:min-w-[185px]" onclick="CTEC.toggleWheel('monthYearWheelPicker', event)">
+                  <span id="monthYearWheelLabel">Tháng 11 / 2026</span>
+                  <i class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+                </button>
+                <div class="wheel-popover" style="left: 0; right: auto;" onclick="event.stopPropagation()">
+                  <div class="wheel-drum-viewport">
+                    <div class="wheel-center-highlight"></div>
+                    <div class="wheel-drum-list" id="monthYearDrumList"></div>
+                  </div>
+                  <div class="wheel-footer">
+                    <span data-i18n="wheelHint">Cuộn hoặc kéo để chọn</span>
+                    <button type="button" class="wheel-confirm-btn" onclick="CTEC.closeAllWheels()" data-i18n="wheelOk">OK</button>
+                  </div>
+                </div>
+              </div>
+
+              <button id="nextMonthBtn" type="button" aria-label="Next month"
+                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+              </button>
+            </div>
+
+            <button id="todayBtn" type="button"
+                    class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition cursor-pointer"
+                    data-i18n="todayBtn">
+              Hôm nay
+            </button>
+          </div>
+
+          <!-- Tiêu đề thứ trong tuần -->
+          <div id="calWeekdays" class="cal-grid mb-1.5"></div>
+
+          <!-- Ô ngày -->
+          <div id="calDaysGrid" class="cal-grid"></div>
+
+          <!-- Chú thích -->
+          <div class="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-sm border-2 border-indigo-500 inline-block"></span>
+              <span data-i18n="legendToday">Hôm nay</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-sm bg-amber-500/25 border border-amber-500 inline-block"></span>
+              <span data-i18n="legendHasEvent">Có sự kiện</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-3 h-3 rounded-sm bg-slate-900 dark:bg-amber-600 inline-block"></span>
+              <span data-i18n="legendSelected">Đang chọn</span>
+            </span>
+          </div>
+        </section>
+
+        <!-- Cột phải: Chi tiết ngày đang chọn + Danh sách sự kiện sắp tới -->
+        <aside class="lg:col-span-5 space-y-6">
+          <!-- Chi tiết sự kiện ngày đã chọn -->
+          <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <i class="fa-solid fa-calendar-check text-amber-500"></i>
+                <span data-i18n="eventDetailLabel">Chi tiết sự kiện</span>
+              </h3>
+              <span id="selectedDateBadge" class="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-bold font-mono">
+                --
+              </span>
+            </div>
+
+            <div id="eventDetailBody" class="mt-4">
+              <p class="text-sm text-slate-400 py-6 text-center" data-i18n="selectDayHint">
+                Chọn một ngày trên lịch để xem chi tiết sự kiện
+              </p>
+            </div>
+          </section>
+
+          <!-- Danh sách sự kiện sắp tới -->
+          <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-2 pb-3.5 border-b border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <i class="fa-solid fa-list-ul text-indigo-600"></i>
+                <span data-i18n="upcomingListTitle">Sự kiện sắp tới</span>
+              </h3>
+              <span id="upcomingCountBadge" class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold">
+                0
+              </span>
+            </div>
+
+            <div id="upcomingListBody" class="mt-3.5 space-y-2.5 max-h-[340px] overflow-y-auto pr-0.5"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="mt-auto py-6 border-t border-slate-200 bg-white text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p class="font-medium text-slate-700" data-i18n="footerText">Lịch trình hoạt động chính thức CTEC | Thực hiện bởi Nhat Minh</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="../assets/ctec-core.js"></script>
+  <script src="./schedule-app.js"></script>
+</body>
+</html>
