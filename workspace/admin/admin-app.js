@@ -1,309 +1,4 @@
-/* ============================================================================
- * CTEC Administrator — admin-app.js
- * ----------------------------------------------------------------------------
- * Trình soạn thảo 2 "sheet" (Roster + Fund) chạy trên bản NHÁP trong trình duyệt,
- * sau đó mới ghi lên Cloudflare Worker / D1 khi bấm Lưu.
- *
- * Phụ thuộc : ../assets/ctec-core.js  (window.CTEC)
- * Worker API: GET  /api/roster, /api/fund
- *             GET  /api/admin/fetch-sheet?url=
- *             POST /api/admin/roster/save, /api/admin/fund/save
- *             POST /api/admin/migrate-from-sheet
- * ========================================================================== */
-(() => {
-  'use strict';
-
-  if (!window.CTEC) {
-    console.error('[admin-app] Thiếu window.CTEC — hãy nạp ../assets/ctec-core.js trước admin-app.js');
-    return;
-  }
-  const CTEC = window.CTEC;
-
-  /* ======================================================================
-   * 1. HẰNG SỐ & TRẠNG THÁI
-   * ==================================================================== */
-  const MONTHS_EN = CTEC.FUND_MONTHS_EN;
-  const MONTH_COUNT = MONTHS_EN.length;
-  const MONTH_INDEX = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
-  const FUND_STATUSES = ['UNPAID', 'PAID', 'DEBT']; // thứ tự xoay vòng khi bấm ô tháng
-
-  const TAB_CFG = {
-    roster: { btn: 'tabBtnRoster', badge: 'badgeRosterCount', on: ['bg-indigo-600', 'text-white', 'shadow-sm'] },
-    fund: { btn: 'tabBtnFund', badge: 'badgeFundCount', on: ['bg-emerald-600', 'text-white', 'shadow-sm'] }
-  };
-  const TAB_OFF = ['text-slate-600', 'hover:text-slate-900'];
-  const BADGE_ON = ['bg-white/20', 'text-white'];
-  const BADGE_OFF = ['bg-slate-200', 'text-slate-700'];
-
-  const state = {
-    tab: 'roster',
-    roster: [],                                   // [{uid,name,dept,role,status}]
-    fund: [],                                     // [{uid,name,dept,months[8],note}]
-    deadlines: new Array(MONTH_COUNT).fill(0),
-    bankInfoRaw: {},                              // bankInfo gốc từ D1 (để không ghi đè mất rawHtml)
-    selected: { roster: new Set(), fund: new Set() },
-    anchor: { roster: null, fund: null },         // dòng mốc cho Shift + Click
-    dirty: { roster: false, fund: false },
-    loaded: false,                                // đã tải D1 thành công ít nhất 1 lần
-    busy: false,
-    importTarget: 'roster'
-  };
-
-  let uidSeq = 0;
-  const newUid = () => `u${++uidSeq}`;
-  const $ = (id) => document.getElementById(id);
-  const esc = CTEC.escapeHtml;
-  const curLang = () => CTEC.getSavedLang();
-
-  /* ======================================================================
-   * 2. I18N (vi / en)
-   * ==================================================================== */
-  const ADMIN_I18N = {
-    vi: {
-      pageTitle: 'CTEC Administrator',
-      homeTitle: 'Về trang chủ CTEC',
-      tabRoster: 'Sheet 1: Nhân sự (Roster)', tabFund: 'Sheet 2: Quỹ CLB (Fund)',
-      migrateWorkerBtn: 'Đồng bộ Sheet/Docs gốc', reloadD1: 'Tải lại từ D1', resetD1Btn: 'Reset D1',
-      filterMemberPlaceholder: 'Lọc nhanh tên thành viên...',
-      importSheetBtn: 'Nhập từ Google Sheet', addMemberBtn: 'Thêm thành viên', saveRosterBtn: 'Lưu Roster lên D1',
-      clearSelectionBtn: 'Bỏ chọn',
-      shiftSelectHint: '(Mẹo: Giữ Shift + Click để chọn nhanh một khoảng)',
-      bulkApplyDeptBtn: 'Đổi ban', bulkApplyRoleBtn: 'Đổi chức vụ', bulkApplyStatusBtn: 'Đổi trạng thái',
-      bulkDeleteBtn: 'Xóa đã chọn',
-      selectAllTitle: 'Chọn tất cả dòng đang hiển thị',
-      colNo: 'STT', colFullName: 'Họ và tên', colDeptFull: 'Ban (Department)', colRoleFull: 'Chức vụ (Role)',
-      colStatus: 'Trạng thái', colDelete: 'Xóa', colNote: 'Ghi chú',
-      deadlinesTitle: 'Cấu hình ngày hạn đóng hàng tháng (1 - 31, nhập 0 nếu chưa đặt hạn)',
-      deadlinesHint: '* Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.',
-      bankInfoTitle: 'Thông tin chuyển khoản (Bank Info)',
-      bankStkLabel: 'Số tài khoản (STK)', bankNameLabel: 'Ngân hàng', bankHolderLabel: 'Tên chủ tài khoản',
-      bankQrLabel: 'URL ảnh QR / Mã HTML QR 10K',
-      fundSearchPlaceholder: 'Tìm thành viên trong bảng quỹ...',
-      fundTipHtml: 'Mẹo: Bấm vào ô tháng để xoay vòng <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>',
-      pruneMissingLabel: 'Xóa người không có trong Roster',
-      syncFromRosterBtn: 'Đồng bộ từ Roster',
-      syncFromRosterTitle: 'Đồng bộ danh sách thành viên từ tab Roster sang Fund',
-      saveFundBtn: 'Lưu Fund lên D1',
-      bulkApplyAllMonthsBtn: 'Đặt 8 tháng cho dòng chọn',
-      modalBadge: 'Tiền xử lý trước khi đẩy D1',
-      modalMethod1: 'Cách 1: Tải từ Link Google Sheets (đã bật chia sẻ xem) hoặc link xuất CSV',
-      modalMethod2: 'Cách 2: Dán trực tiếp từ Google Sheets (Ctrl + C trên Sheet rồi Ctrl + V vào đây)',
-      modalReplaceCheck: 'Ghi đè danh sách hiện tại trong bảng nháp',
-      modalCancelBtn: 'Hủy', modalApplyBtn: 'Nạp vào bảng xem trước', modalFetchBtn: 'Tải Sheet',
-
-      // Động
-      selectedRows: 'Đã chọn {n} dòng',
-      rosterMembersCount: '{n} thành viên',
-      rosterMembersCountRows: '{n} thành viên · {rows} dòng (có kiêm nhiệm)',
-      loadingRows: 'Đang tải dữ liệu từ D1...',
-      loadFailedRows: 'Không tải được dữ liệu. Bấm “Tải lại từ D1” để thử lại.',
-      emptyRoster: 'Chưa có thành viên nào. Bấm “Thêm thành viên” hoặc “Nhập từ Google Sheet”.',
-      emptyFund: 'Bảng quỹ đang trống. Dùng “Đồng bộ từ Roster” hoặc “Nhập từ Google Sheet”.',
-      emptySearch: 'Không có dòng nào khớp với từ khóa.',
-      namePlaceholder: 'Họ và tên...', notePlaceholder: 'Ghi chú...',
-      deleteRowTitle: 'Xóa dòng này khỏi bảng nháp',
-      overdueTitle: 'Đã quá hạn đóng — trang công khai sẽ hiển thị là DEBT',
-      invalidDayTitle: 'Tháng này không có ngày {day}',
-      toastBusy: 'Đang xử lý, vui lòng đợi...',
-      toastLoaded: 'Đã tải {r} dòng Roster và {f} dòng Fund từ D1',
-      toastLoadFail: 'Không tải được dữ liệu từ D1: {msg}',
-      confirmReloadDirty: 'Bạn có thay đổi chưa lưu. Tải lại từ D1 sẽ bỏ toàn bộ thay đổi đó. Tiếp tục?',
-      errNotLoaded: 'Chưa tải được dữ liệu từ D1 nên tạm khóa chức năng lưu (để tránh ghi đè mất dữ liệu). Hãy bấm “Tải lại từ D1”.',
-      errEmptyRoster: 'Bảng Roster đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
-      errEmptyFund: 'Bảng Fund đang trống — hệ thống từ chối ghi đè D1 bằng dữ liệu rỗng. Muốn xóa sạch hãy dùng nút Reset D1.',
-      confirmDup: 'Có {n} dòng bị trùng (cùng tên và cùng ban). Vẫn lưu?',
-      warnBlankDropped: 'Đã bỏ qua {n} dòng trống tên.',
-      toastSavedRoster: 'Đã lưu {n} thành viên lên D1.',
-      toastSavedFund: 'Đã lưu {n} dòng quỹ lên D1.',
-      toastSaveFail: 'Lưu thất bại: {msg}',
-      errDeadlineInvalid: 'Hạn đóng {month}: tháng này không có ngày {day}.',
-      errQrInvalid: 'Mã QR không hợp lệ: chỉ nhận URL https://, thẻ <img> (https hoặc base64) hoặc <svg>.',
-      toastNothingSelected: 'Chưa chọn dòng nào.',
-      confirmDeleteSelected: 'Xóa {n} dòng đã chọn khỏi bảng nháp? (Chỉ áp dụng lên D1 sau khi bấm Lưu)',
-      toastBulkApplied: 'Đã cập nhật {n} dòng (chưa lưu).',
-      toastDeleted: 'Đã xóa {n} dòng khỏi bảng nháp (chưa lưu).',
-      importTitleRoster: 'Nhập Roster từ Google Sheet',
-      importTitleFund: 'Nhập Fund từ Google Sheet',
-      importHintRoster: 'Cột theo thứ tự: [STT] · Họ và tên · Ban · Chức vụ · Trạng thái. Dòng tiêu đề sẽ tự được bỏ qua.',
-      importHintFund: 'Cột theo thứ tự: [STT] · Họ và tên · Ban · 8 cột tháng · Ghi chú. Dòng “Hạn đóng quỹ” sẽ cập nhật ngày hạn.',
-      errNeedUrl: 'Hãy dán link Google Sheets trước.',
-      errEmptyImport: 'Chưa có dữ liệu để nạp. Hãy tải từ link hoặc dán dữ liệu vào ô bên dưới.',
-      errNoRowsParsed: 'Không đọc được dòng dữ liệu hợp lệ nào. Hãy kiểm tra lại thứ tự cột.',
-      toastFetchSheetOk: 'Đã tải {n} dòng từ Google Sheet. Bấm “Nạp vào bảng xem trước” để tiếp tục.',
-      toastFetchSheetFail: 'Không tải được Sheet: {msg}',
-      toastImportOk: 'Đã nạp {n} dòng vào bảng nháp (chưa lưu).',
-      toastImportSkippedDup: ' Bỏ qua {n} dòng đã tồn tại.',
-      toastImportUnknownDept: ' {n} dòng có tên ban không nhận diện được nên được đặt thành CONTENT — hãy kiểm tra lại.',
-      toastImportDeadlines: ' Đã cập nhật ngày hạn đóng.',
-      confirmMigrate: 'Thao tác này sẽ GHI ĐÈ toàn bộ Roster và Fund trên D1 bằng dữ liệu từ Google Sheet/Docs gốc.\nCác thay đổi chưa lưu trong trang sẽ bị mất. Tiếp tục?',
-      toastMigrateOk: 'Đã đồng bộ từ Sheet/Docs gốc: {r} nhân sự, {f} dòng quỹ.',
-      toastMigrateFail: 'Đồng bộ thất bại: {msg}',
-      promptReset: 'Thao tác này XÓA TOÀN BỘ dữ liệu {kind} trên D1 và không thể hoàn tác.\nGõ {word} để xác nhận:',
-      toastResetCancelled: 'Đã hủy Reset D1.',
-      toastResetOk: 'Đã xóa sạch bảng {kind} trên D1.',
-      toastResetFail: 'Reset thất bại: {msg}',
-      kindRoster: 'Roster', kindFund: 'Fund',
-      resetD1Title: 'Xóa toàn bộ dữ liệu {kind} trên D1',
-      toastSyncDone: 'Đồng bộ từ Roster: +{added} thêm, {moved} đổi ban, −{removed} xóa. Nhớ bấm “Lưu Fund lên D1”.',
-      toastSyncNoop: 'Fund đã khớp với Roster, không có gì thay đổi.',
-      errSyncEmpty: 'Roster đang trống nên không có gì để đồng bộ.',
-      errNetwork: 'Không kết nối được tới máy chủ. Kiểm tra mạng/adblock; nếu mạng ổn thì có thể do CORS — hãy thêm {origin} vào ALLOWED_ORIGINS của Worker.',
-      retryLoadBtn: 'Thử tải lại',
-      warnUnknownDeptLoaded: ' {n} dòng trong D1 có tên ban lạ và đang hiển thị là CONTENT — hãy kiểm tra lại cột Ban.',
-      toastMigrateBankKept: ' Giữ nguyên thông tin chuyển khoản đã nhập trong Admin.',
-      toastMigrateUnknownDept: ' {n} dòng có tên ban lạ được đặt thành CONTENT.'
-    },
-    en: {
-      pageTitle: 'CTEC Administrator',
-      homeTitle: 'Back to CTEC Home',
-      tabRoster: 'Sheet 1: Roster', tabFund: 'Sheet 2: Club Fund',
-      migrateWorkerBtn: 'Sync original Sheets/Docs', reloadD1: 'Reload from D1', resetD1Btn: 'Reset D1',
-      filterMemberPlaceholder: 'Quick filter by member name...',
-      importSheetBtn: 'Import from Google Sheet', addMemberBtn: 'Add member', saveRosterBtn: 'Save Roster to D1',
-      clearSelectionBtn: 'Clear selection',
-      shiftSelectHint: '(Tip: hold Shift + Click to select a range)',
-      bulkApplyDeptBtn: 'Set department', bulkApplyRoleBtn: 'Set role', bulkApplyStatusBtn: 'Set status',
-      bulkDeleteBtn: 'Delete selected',
-      selectAllTitle: 'Select all visible rows',
-      colNo: 'No.', colFullName: 'Full name', colDeptFull: 'Department', colRoleFull: 'Role',
-      colStatus: 'Status', colDelete: 'Delete', colNote: 'Note',
-      deadlinesTitle: 'Monthly due-day setup (1 - 31, enter 0 for no deadline)',
-      deadlinesHint: '* Once the due day of a month has passed, <strong class="text-amber-600">UNPAID</strong> is automatically shown as <strong class="text-red-600">DEBT</strong> on the public page.',
-      bankInfoTitle: 'Bank transfer info',
-      bankStkLabel: 'Account number', bankNameLabel: 'Bank', bankHolderLabel: 'Account holder',
-      bankQrLabel: 'QR image URL / 10K QR HTML',
-      fundSearchPlaceholder: 'Search members in the fund table...',
-      fundTipHtml: 'Tip: click a month cell to cycle <strong class="text-amber-600">UNPAID</strong> → <strong class="text-emerald-600">PAID</strong> → <strong class="text-red-600">DEBT</strong>',
-      pruneMissingLabel: 'Remove people not in Roster',
-      syncFromRosterBtn: 'Sync from Roster',
-      syncFromRosterTitle: 'Sync the member list from the Roster tab into Fund',
-      saveFundBtn: 'Save Fund to D1',
-      bulkApplyAllMonthsBtn: 'Set all 8 months for selected rows',
-      modalBadge: 'Pre-processing before pushing to D1',
-      modalMethod1: 'Method 1: Load from a Google Sheets link (view sharing enabled) or a CSV export link',
-      modalMethod2: 'Method 2: Paste straight from Google Sheets (Ctrl + C in the Sheet, then Ctrl + V here)',
-      modalReplaceCheck: 'Overwrite the current list in the draft table',
-      modalCancelBtn: 'Cancel', modalApplyBtn: 'Load into preview table', modalFetchBtn: 'Load Sheet',
-
-      selectedRows: '{n} row(s) selected',
-      rosterMembersCount: '{n} members',
-      rosterMembersCountRows: '{n} members · {rows} rows (multi-department)',
-      loadingRows: 'Loading data from D1...',
-      loadFailedRows: 'Could not load data. Press “Reload from D1” to retry.',
-      emptyRoster: 'No members yet. Press “Add member” or “Import from Google Sheet”.',
-      emptyFund: 'The fund table is empty. Use “Sync from Roster” or “Import from Google Sheet”.',
-      emptySearch: 'No rows match your search.',
-      namePlaceholder: 'Full name...', notePlaceholder: 'Note...',
-      deleteRowTitle: 'Remove this row from the draft',
-      overdueTitle: 'Past due — the public page will show this as DEBT',
-      invalidDayTitle: 'This month has no day {day}',
-      toastBusy: 'Working, please wait...',
-      toastLoaded: 'Loaded {r} Roster rows and {f} Fund rows from D1',
-      toastLoadFail: 'Could not load data from D1: {msg}',
-      confirmReloadDirty: 'You have unsaved changes. Reloading from D1 will discard them. Continue?',
-      errNotLoaded: 'Data from D1 has not been loaded yet, so saving is locked to avoid overwriting it. Press “Reload from D1”.',
-      errEmptyRoster: 'The Roster table is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
-      errEmptyFund: 'The Fund table is empty — the server refuses to overwrite D1 with empty data. Use Reset D1 to wipe it on purpose.',
-      confirmDup: '{n} row(s) are duplicated (same name and same department). Save anyway?',
-      warnBlankDropped: 'Skipped {n} row(s) with an empty name.',
-      toastSavedRoster: 'Saved {n} members to D1.',
-      toastSavedFund: 'Saved {n} fund rows to D1.',
-      toastSaveFail: 'Save failed: {msg}',
-      errDeadlineInvalid: 'Due day for {month}: this month has no day {day}.',
-      errQrInvalid: 'Invalid QR value: only https:// URLs, <img> tags (https or base64) or <svg> are accepted.',
-      toastNothingSelected: 'No rows selected.',
-      confirmDeleteSelected: 'Remove {n} selected row(s) from the draft? (D1 only changes after you press Save)',
-      toastBulkApplied: 'Updated {n} row(s) (not saved yet).',
-      toastDeleted: 'Removed {n} row(s) from the draft (not saved yet).',
-      importTitleRoster: 'Import Roster from Google Sheet',
-      importTitleFund: 'Import Fund from Google Sheet',
-      importHintRoster: 'Column order: [No.] · Full name · Department · Role · Status. A header row is skipped automatically.',
-      importHintFund: 'Column order: [No.] · Full name · Department · 8 month columns · Note. A “Fund contribution deadline” row updates the due days.',
-      errNeedUrl: 'Paste a Google Sheets link first.',
-      errEmptyImport: 'Nothing to load yet. Fetch from a link or paste data into the box below.',
-      errNoRowsParsed: 'No valid data rows could be read. Please check the column order.',
-      toastFetchSheetOk: 'Fetched {n} rows from Google Sheet. Press “Load into preview table” to continue.',
-      toastFetchSheetFail: 'Could not fetch the Sheet: {msg}',
-      toastImportOk: 'Loaded {n} row(s) into the draft (not saved yet).',
-      toastImportSkippedDup: ' Skipped {n} existing row(s).',
-      toastImportUnknownDept: ' {n} row(s) had an unrecognised department and were set to CONTENT — please review.',
-      toastImportDeadlines: ' Due days updated.',
-      confirmMigrate: 'This will OVERWRITE the entire Roster and Fund in D1 with the original Google Sheet/Docs data.\nUnsaved changes on this page will be lost. Continue?',
-      toastMigrateOk: 'Synced from the original Sheets/Docs: {r} members, {f} fund rows.',
-      toastMigrateFail: 'Sync failed: {msg}',
-      promptReset: 'This DELETES ALL {kind} data in D1 and cannot be undone.\nType {word} to confirm:',
-      toastResetCancelled: 'Reset D1 cancelled.',
-      toastResetOk: 'The {kind} table in D1 has been wiped.',
-      toastResetFail: 'Reset failed: {msg}',
-      kindRoster: 'Roster', kindFund: 'Fund',
-      resetD1Title: 'Delete all {kind} data in D1',
-      toastSyncDone: 'Synced from Roster: +{added} added, {moved} moved, −{removed} removed. Remember to press “Save Fund to D1”.',
-      toastSyncNoop: 'Fund already matches the Roster — nothing changed.',
-      errSyncEmpty: 'The Roster is empty, so there is nothing to sync.',
-      errNetwork: 'Cannot reach the server. Check your connection/ad blocker; if the network is fine this may be CORS — add {origin} to the Worker\'s ALLOWED_ORIGINS.',
-      retryLoadBtn: 'Try again',
-      warnUnknownDeptLoaded: ' {n} row(s) in D1 have an unrecognised department and show as CONTENT — please review the Department column.',
-      toastMigrateBankKept: ' Bank details already entered in Admin were kept.',
-      toastMigrateUnknownDept: ' {n} row(s) with an unrecognised department were set to CONTENT.'
-    }
-  };
-
-  const ROLE_LABELS = {
-    vi: { 'President': 'Chủ tịch', 'Vice President': 'Phó Chủ tịch', 'Head of Department': 'Trưởng ban', 'Deputy Head of Department': 'Phó ban', 'Member': 'Thành viên' },
-    en: { 'President': 'President', 'Vice President': 'Vice President', 'Head of Department': 'Head of Department', 'Deputy Head of Department': 'Deputy Head of Department', 'Member': 'Member' }
-  };
-  const STATUS_LABELS = {
-    vi: { 'Official': 'Chính thức', 'Probationary': 'Thử việc', 'Inactive': 'Tạm nghỉ' },
-    en: { 'Official': 'Official', 'Probationary': 'Probationary', 'Inactive': 'Inactive' }
-  };
-
-  function t(key, vars) {
-    const dict = ADMIN_I18N[curLang()] || ADMIN_I18N.vi;
-    let str = dict[key] ?? ADMIN_I18N.vi[key] ?? key;
-    if (vars) str = str.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
-    return str;
-  }
-
-  function applyAdminStaticI18n() {
-    const dict = ADMIN_I18N[curLang()] || ADMIN_I18N.vi;
-    document.title = dict.pageTitle;
-    const home = $('homeLink');
-    if (home) home.title = dict.homeTitle;
-
-    document.querySelectorAll('[data-i18n]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n')];
-      if (typeof v === 'string') el.textContent = v;
-    });
-    // Chuỗi HTML tĩnh do chính file này định nghĩa (đáng tin) — không lấy từ dữ liệu người dùng.
-    document.querySelectorAll('[data-i18n-html]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-html')];
-      if (typeof v === 'string') el.innerHTML = v;
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-placeholder')];
-      if (typeof v === 'string') el.placeholder = v;
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach((el) => {
-      const v = dict[el.getAttribute('data-i18n-title')];
-      if (typeof v === 'string') el.title = v;
-    });
-    updateResetButtonTitle();
-    updateRosterStats();
-  }
-
-  /* ======================================================================
-   * 3. TIỆN ÍCH CHUNG (toast, busy, POST, lỗi)
-   * ==================================================================== */
-  const TOAST_STYLES = {
-    success: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-circle-check' },
-    error: { cls: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-circle-exclamation' },
-    warn: { cls: 'bg-amber-50 text-amber-800 border-amber-200', icon: 'fa-triangle-exclamation' },
-    info: { cls: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: 'fa-circle-info' }
-  };
-  const ALL_TOAST_CLASSES = Object.values(TOAST_STYLES).flatMap((s) => s.cls.split(' '));
-  let toastTimer = null;
-
-  function showToast(message, type = 'success', ms) {
+cess', ms) {
     const el = $('toastBanner');
     if (!el) return;
     const style = TOAST_STYLES[type] || TOAST_STYLES.info;
@@ -474,8 +169,15 @@
   }
 
   /* ======================================================================
-   * 6. HẠN ĐÓNG QUỸ (khớp logic trang Fund công khai: 00:00 giờ VN, UTC+7)
+   * 6. HẠN ĐÓNG QUỸ & LỊCH ĐƠN (khớp logic trang Fund công khai: 00:00 giờ VN, UTC+7)
    * ==================================================================== */
+  const WEEKDAYS_VI = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const WEEKDAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const FULL_WEEKDAYS_VI = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  const FULL_WEEKDAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const FULL_MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const SHORT_MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   function monthParts(idx) {
     const [mStr, yStr] = MONTHS_EN[idx].split(' ');
     return { m: MONTH_INDEX[mStr], y: 2000 + parseInt(yStr, 10) };
@@ -493,8 +195,29 @@
   }
   const isPastDue = (idx) => {
     const ms = deadlineUtcMs(idx, state.deadlines[idx]);
-    return ms !== null && Date.now() >= ms;
+    return ms !== null && CTEC.getServerNowMs() >= ms;
   };
+  function todayVnParts() {
+    const vn = new Date(CTEC.getServerNowMs() + 7 * 60 * 60 * 1000);
+    return { y: vn.getUTCFullYear(), m: vn.getUTCMonth(), d: vn.getUTCDate() };
+  }
+  function formatCalendarTitle(idx, L) {
+    const { m, y } = monthParts(idx);
+    return L === 'en' ? `${FULL_MONTHS_EN[m]} ${y}` : `Tháng ${m + 1}, ${y}`;
+  }
+  function formatShortDueDate(idx, day, L) {
+    if (!day) return t('deadlineNotSet');
+    const { m } = monthParts(idx);
+    return L === 'en' ? `${SHORT_MONTHS_EN[m]} ${day}` : `${String(day).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}`;
+  }
+  function formatFullDueDate(idx, day, L) {
+    const { m, y } = monthParts(idx);
+    const dow = new Date(Date.UTC(y, m, day)).getUTCDay();
+    if (L === 'en') {
+      return `${FULL_WEEKDAYS_EN[dow]}, ${SHORT_MONTHS_EN[m]} ${day}, ${y}`;
+    }
+    return `${FULL_WEEKDAYS_VI[dow]}, ${String(day).padStart(2, '0')}/${String(m + 1).padStart(2, '0')}/${y}`;
+  }
 
   /* ======================================================================
    * 7. TẢI DỮ LIỆU TỪ D1
@@ -598,7 +321,10 @@
           note: r.note
         }));
 
-        state.deadlines = Array.from({ length: MONTH_COUNT }, (_, i) => CTEC.parseDeadlineDay(fundPayload.deadlines?.[i]));
+        state.deadlines = Array.from({ length: MONTH_COUNT }, (_, i) => {
+          const day = CTEC.parseDeadlineDay(fundPayload.deadlines?.[i]);
+          return day > 0 && day <= daysInMonth(i) ? day : 0;
+        });
         state.bankInfoRaw = fundPayload.bankInfo && typeof fundPayload.bankInfo === 'object' ? fundPayload.bankInfo : {};
         fillBankInputs(extractBankInfo(state.bankInfoRaw));
 
@@ -806,27 +532,180 @@
     updateBadges();
   }
 
-  function renderDeadlines() {
-    const grid = $('deadlinesGrid');
-    if (!grid) return;
-    grid.innerHTML = monthLabels(curLang()).map((label, i) => `
-      <label class="block">
-        <span class="block text-[11px] font-bold text-slate-500 mb-1">${esc(label)}</span>
-        <input type="number" min="0" max="31" step="1" inputmode="numeric" data-deadline="${i}" value="${state.deadlines[i]}"
-               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </label>`).join('');
-    for (let i = 0; i < MONTH_COUNT; i++) markDeadlineValidity(i);
+  /* ---------- Single Calendar Deadline Configurator ---------- */
+  function renderDeadlineCalendar() {
+    const host = $('deadlineConfigurator');
+    if (!host) return;
+
+    const L = curLang();
+    const idx = Math.max(0, Math.min(MONTH_COUNT - 1, state.calMonthIdx));
+    state.calMonthIdx = idx;
+
+    const labels = monthLabels(L);
+    const { m, y } = monthParts(idx);
+    const totalDays = daysInMonth(idx);
+    const firstDowMon = (new Date(Date.UTC(y, m, 1)).getUTCDay() + 6) % 7; // 0 = Mon .. 6 = Sun
+    const selectedDay = state.deadlines[idx] || 0;
+    const overdue = isPastDue(idx);
+    const today = todayVnParts();
+    const isCurrentCalMonth = today.y === y && today.m === m;
+    const weekdays = L === 'en' ? WEEKDAYS_EN : WEEKDAYS_VI;
+
+    const monthPillsHtml = labels.map((label, i) => {
+      const active = i === idx;
+      const dayVal = state.deadlines[i] || 0;
+      const pillOverdue = isPastDue(i);
+      const shortText = formatShortDueDate(i, dayVal, L);
+
+      let badgeCls = 'bg-slate-200/80 text-slate-500';
+      if (active) {
+        badgeCls = 'bg-white/20 text-white';
+      } else if (dayVal > 0 && pillOverdue) {
+        badgeCls = 'bg-red-50 text-red-700 border border-red-200';
+      } else if (dayVal > 0) {
+        badgeCls = 'bg-indigo-50 text-indigo-700 border border-indigo-200';
+      }
+
+      return `
+        <button type="button" data-cal-month="${i}" aria-pressed="${active}"
+                class="fund-month-pill${active ? ' is-active' : ''}">
+          <span class="truncate">${esc(label)}</span>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${badgeCls}">${esc(shortText)}</span>
+        </button>`;
+    }).join('');
+
+    const cells = [];
+    for (let lead = 0; lead < firstDowMon; lead++) {
+      cells.push('<span class="h-9" aria-hidden="true"></span>');
+    }
+    for (let d = 1; d <= totalDays; d++) {
+      const col = (firstDowMon + d - 1) % 7;
+      const isWeekend = col === 6;
+      const isToday = isCurrentCalMonth && today.d === d;
+      const isSelected = selectedDay === d;
+      const cls = [
+        'fund-cal-day',
+        isWeekend ? 'is-weekend' : '',
+        isToday ? 'is-today' : '',
+        isSelected ? 'is-selected' : ''
+      ].filter(Boolean).join(' ');
+      const titleAttr = isToday ? ` title="${esc(t('todayLabel'))}"` : '';
+      cells.push(
+        `<button type="button" data-cal-day="${d}" aria-pressed="${isSelected}" class="${cls}"${titleAttr}>${d}</button>`
+      );
+    }
+
+    const statusBadgeHtml = selectedDay > 0
+      ? (overdue
+          ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 shrink-0">${esc(t('deadlineBadgeOverdue'))}</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">${esc(t('deadlineBadgeActive'))}</span>`)
+      : '';
+
+    const statusText = selectedDay > 0
+      ? t('deadlineStatusSet', { date: formatFullDueDate(idx, selectedDay, L) })
+      : t('deadlineStatusUnset');
+
+    host.innerHTML = `
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-stretch">
+        <!-- Cột chọn nhanh 8 tháng (10/2026 - 05/2027) -->
+        <div class="sm:col-span-5 grid grid-cols-2 sm:grid-cols-1 gap-1.5">
+          ${monthPillsHtml}
+        </div>
+
+        <!-- Lịch đơn hiển thị tháng đang chọn -->
+        <div class="sm:col-span-7 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 flex flex-col justify-between">
+          <div>
+            <!-- Thanh chuyển đổi tháng -->
+            <div class="flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-slate-200">
+              <button type="button" data-cal-prev ${idx === 0 ? 'disabled' : ''}
+                      title="${esc(t('prevMonthTitle'))}" aria-label="${esc(t('prevMonthTitle'))}"
+                      class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-700 flex items-center justify-center transition cursor-pointer shrink-0">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+              </button>
+
+              <div class="text-center min-w-0">
+                <div class="text-sm font-extrabold text-slate-800 tracking-tight truncate">
+                  ${esc(formatCalendarTitle(idx, L))}
+                </div>
+                <div class="text-[10px] font-semibold text-slate-400">
+                  ${idx + 1} / ${MONTH_COUNT}
+                </div>
+              </div>
+
+              <button type="button" data-cal-next ${idx === MONTH_COUNT - 1 ? 'disabled' : ''}
+                      title="${esc(t('nextMonthTitle'))}" aria-label="${esc(t('nextMonthTitle'))}"
+                      class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none text-slate-700 flex items-center justify-center transition cursor-pointer shrink-0">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+              </button>
+            </div>
+
+            <!-- Tiêu đề thứ trong tuần -->
+            <div class="grid grid-cols-7 gap-1 text-center mb-1">
+              ${weekdays.map((w, wi) => `<span class="text-[11px] font-bold uppercase ${wi === 6 ? 'text-rose-500' : 'text-slate-400'}">${esc(w)}</span>`).join('')}
+            </div>
+
+            <!-- Lưới ngày trong tháng -->
+            <div class="grid grid-cols-7 gap-1">
+              ${cells.join('')}
+            </div>
+          </div>
+
+          <!-- Thanh trạng thái & nút Hủy đặt ngày hạn -->
+          <div class="mt-3 pt-2.5 border-t border-slate-200 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2 min-h-[1.375rem]">
+              <span class="text-xs font-bold ${selectedDay > 0 ? 'text-slate-800' : 'text-slate-400'} truncate">
+                ${esc(statusText)}
+              </span>
+              ${statusBadgeHtml}
+            </div>
+
+            <button type="button" data-cal-clear ${selectedDay === 0 ? 'disabled' : ''}
+                    class="w-full py-1.5 px-3 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 disabled:opacity-45 disabled:pointer-events-none text-red-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fa-regular fa-calendar-xmark"></i>
+              <span>${esc(t('clearDeadlineBtn'))}</span>
+            </button>
+          </div>
+        </div>
+      </div>`;
   }
 
-  function markDeadlineValidity(i) {
-    const el = $('deadlinesGrid')?.querySelector(`[data-deadline="${i}"]`);
-    if (!el) return;
-    const day = state.deadlines[i];
-    const bad = day > 0 && day > daysInMonth(i);
-    el.classList.toggle('border-red-400', bad);
-    el.classList.toggle('ring-2', bad);
-    el.classList.toggle('ring-red-300', bad);
-    el.title = bad ? t('invalidDayTitle', { day }) : '';
+  function setCalendarMonth(nextIdx) {
+    const clamped = Math.max(0, Math.min(MONTH_COUNT - 1, nextIdx));
+    if (clamped === state.calMonthIdx) return;
+    state.calMonthIdx = clamped;
+    renderDeadlineCalendar();
+  }
+
+  function selectDeadlineDay(day) {
+    const idx = state.calMonthIdx;
+    const maxDay = daysInMonth(idx);
+    if (!Number.isInteger(day) || day < 1 || day > maxDay) return;
+
+    // Bấm lại đúng ngày đang chọn sẽ hủy đặt ngày hạn (tiện thao tác nhanh)
+    if (state.deadlines[idx] === day) {
+      clearCurrentMonthDeadline();
+      return;
+    }
+
+    state.deadlines[idx] = day;
+    setDirty('fund');
+    renderDeadlineCalendar();
+    renderFundEditor();
+    const L = curLang();
+    showToast(t('toastDeadlineSet', {
+      month: monthLabels(L)[idx],
+      date: formatFullDueDate(idx, day, L)
+    }), 'info', 2500);
+  }
+
+  function clearCurrentMonthDeadline() {
+    const idx = state.calMonthIdx;
+    if (!state.deadlines[idx]) return;
+    state.deadlines[idx] = 0;
+    setDirty('fund');
+    renderDeadlineCalendar();
+    renderFundEditor();
+    showToast(t('toastDeadlineCleared', { month: monthLabels(curLang())[idx] }), 'info', 2500);
   }
 
   function renderAll() {
@@ -834,7 +713,7 @@
     renderRosterEditor();
     renderFundHead();
     renderFundEditor();
-    renderDeadlines();
+    renderDeadlineCalendar();
   }
 
   /* ======================================================================
@@ -972,7 +851,7 @@
   }
 
   /* ======================================================================
-   * 10. SỰ KIỆN TRÊN BẢNG (event delegation)
+   * 10. SỰ KIỆN TRÊN BẢNG & LỊCH (event delegation)
    * ==================================================================== */
   function findRow(kind, el) {
     const tr = el.closest('tr[data-uid]');
@@ -1072,21 +951,35 @@
       if (e.target.id === 'fundSelectAllCheckbox') toggleSelectAllFund(e.target.checked);
     });
 
-    /* ----- Hạn đóng quỹ ----- */
-    const grid = $('deadlinesGrid');
-    grid.addEventListener('input', (e) => {
-      const el = e.target.closest('[data-deadline]');
-      if (!el) return;
-      const i = parseInt(el.dataset.deadline, 10);
-      const n = parseInt(el.value, 10);
-      state.deadlines[i] = Number.isInteger(n) ? Math.min(31, Math.max(0, n)) : 0;
-      markDeadlineValidity(i);
-      setDirty('fund');
-      renderFundEditor(); // cập nhật dấu đồng hồ "quá hạn" trên các ô UNPAID
-    });
-    grid.addEventListener('change', (e) => {
-      const el = e.target.closest('[data-deadline]');
-      if (el) el.value = String(state.deadlines[parseInt(el.dataset.deadline, 10)]);
+    /* ----- Lịch cấu hình hạn đóng quỹ ----- */
+    const calHost = $('deadlineConfigurator');
+    calHost?.addEventListener('click', (e) => {
+      const prevBtn = e.target.closest('[data-cal-prev]');
+      if (prevBtn) {
+        setCalendarMonth(state.calMonthIdx - 1);
+        return;
+      }
+      const nextBtn = e.target.closest('[data-cal-next]');
+      if (nextBtn) {
+        setCalendarMonth(state.calMonthIdx + 1);
+        return;
+      }
+      const monthBtn = e.target.closest('[data-cal-month]');
+      if (monthBtn) {
+        const idx = parseInt(monthBtn.dataset.calMonth, 10);
+        if (Number.isInteger(idx)) setCalendarMonth(idx);
+        return;
+      }
+      const dayBtn = e.target.closest('[data-cal-day]');
+      if (dayBtn) {
+        const day = parseInt(dayBtn.dataset.calDay, 10);
+        if (Number.isInteger(day)) selectDeadlineDay(day);
+        return;
+      }
+      const clearBtn = e.target.closest('[data-cal-clear]');
+      if (clearBtn) {
+        clearCurrentMonthDeadline();
+      }
     });
 
     /* ----- Bank info ----- */
@@ -1165,7 +1058,8 @@
     for (let i = 0; i < MONTH_COUNT; i++) {
       const day = state.deadlines[i];
       if (day > 0 && day > daysInMonth(i)) {
-        $('deadlinesGrid')?.querySelector(`[data-deadline="${i}"]`)?.focus();
+        state.calMonthIdx = i;
+        renderDeadlineCalendar();
         return showToast(t('errDeadlineInvalid', { month: monthLabels(curLang())[i], day }), 'error');
       }
     }
@@ -1305,7 +1199,10 @@
     let deadlines = null;
     for (const c of grid) {
       if (c.slice(0, 3).some((v) => DEADLINE_ROW_RE.test(String(v ?? '').normalize('NFC')))) {
-        deadlines = Array.from({ length: MONTH_COUNT }, (_, m) => CTEC.parseDeadlineDay(c[off + 2 + m]));
+        deadlines = Array.from({ length: MONTH_COUNT }, (_, m) => {
+          const day = CTEC.parseDeadlineDay(c[off + 2 + m]);
+          return day > 0 && day <= daysInMonth(m) ? day : 0;
+        });
         continue;
       }
       const name = CTEC.normalizeMemberName(c[off]);
@@ -1395,7 +1292,7 @@
 
     if (kind === 'fund' && parsed.deadlines) {
       state.deadlines = parsed.deadlines;
-      renderDeadlines();
+      renderDeadlineCalendar();
     }
 
     setDirty(kind);
@@ -1498,7 +1395,7 @@
     fillBulkSelects();
     applyAdminStaticI18n();
     renderFundHead();
-    renderDeadlines();
+    renderDeadlineCalendar();
     switchAdminTab(location.hash === '#fund' ? 'fund' : 'roster');
 
     window.addEventListener('ctec:langchange', () => {
