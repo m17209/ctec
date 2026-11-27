@@ -552,11 +552,11 @@
     const cardsHtml = dayEvents
       .map((ev) => {
         const desc = ev.description
-          ? `<p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">${esc(ev.description)}</p>`
+          ? `<p class="mt-2 text-xs sm:text-sm ctec-event-card-desc leading-relaxed whitespace-pre-line">${esc(ev.description)}</p>`
           : `<p class="mt-1.5 text-xs italic text-slate-400">${esc(t('noDescription'))}</p>`;
         return (
-          `<article class="p-4 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800/80 dark:border-slate-700/80">` +
-            `<h4 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${esc(ev.title)}</h4>` +
+          `<article class="ctec-event-card p-4 rounded-xl">` +
+            `<h4 class="text-sm sm:text-base font-bold ctec-event-card-title leading-snug">${esc(ev.title)}</h4>` +
             desc +
           `</article>`
         );
@@ -584,19 +584,17 @@
     listEl.innerHTML = upcoming
       .map((ev) => {
         const isSelected = ev.date === selectedDate;
-        const activeCls = isSelected
-          ? 'border-indigo-400 bg-indigo-50 dark:!border-indigo-400/80 dark:!bg-indigo-950/75 ring-1 ring-indigo-400/25'
-          : 'border-slate-200 bg-slate-50 hover:border-amber-400 dark:!border-slate-700/80 dark:!bg-slate-800/80 dark:hover:!border-amber-400/80 dark:hover:!bg-slate-800';
+        const selectedCls = isSelected ? ' is-selected' : '';
         return (
           `<button type="button" data-jump-date="${esc(ev.date)}" ` +
-                  `class="w-full text-left p-3 rounded-xl border ${activeCls} transition flex items-start justify-between gap-3 cursor-pointer">` +
+                  `class="ctec-event-card${selectedCls} w-full text-left p-3 rounded-xl flex items-start justify-between gap-3 cursor-pointer">` +
             `<div class="min-w-0">` +
-              `<div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">${esc(ev.title)}</div>` +
+              `<div class="text-xs sm:text-sm font-bold ctec-event-card-title truncate">${esc(ev.title)}</div>` +
               (ev.description
-                ? `<div class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">${esc(ev.description)}</div>`
+                ? `<div class="text-xs ctec-event-card-desc truncate mt-0.5">${esc(ev.description)}</div>`
                 : '') +
             `</div>` +
-            `<span class="px-2 py-0.5 rounded-md bg-white dark:!bg-slate-900 border border-slate-200 dark:!border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:!text-slate-200 shrink-0">` +
+            `<span class="ctec-event-date-pill px-2 py-0.5 rounded-md text-[11px] font-mono font-bold shrink-0">` +
               `${esc(ev.date)}` +
             `</span>` +
           `</button>`
