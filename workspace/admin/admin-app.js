@@ -40,6 +40,9 @@
     roster: [],                                   // [{uid,name,dept,role,status}]
     fund: [],                                     // [{uid,name,dept,months[8],note}]
     deadlines: new Array(MONTH_COUNT).fill(0),
+    deadlineDraftMonth: 0,                        // tháng đang chọn ở WheelPicker 1
+    deadlineMonthLockedIn: false,                 // true sau khi bấm "Lưu tháng" -> mở khóa WheelPicker ngày
+    deadlineDraftDay: 0,                          // ngày đang chọn ở WheelPicker 2
     bankInfoRaw: {},                              // bankInfo gốc từ D1 (để không ghi đè mất rawHtml)
     selected: { roster: new Set(), fund: new Set() },
     anchor: { roster: null, fund: null },         // dòng mốc cho Shift + Click
@@ -84,7 +87,24 @@
       selectAllTitle: 'Chọn tất cả dòng đang hiển thị',
       colNo: 'STT', colFullName: 'Họ và tên', colDeptFull: 'Ban (Department)', colRoleFull: 'Chức vụ (Role)',
       colStatus: 'Trạng thái', colDelete: 'Xóa', colNote: 'Ghi chú',
-      deadlinesTitle: 'Cấu hình ngày hạn đóng hàng tháng (1 - 31, nhập 0 nếu chưa đặt hạn)',
+      deadlinesTitle: 'Cấu hình ngày hạn đóng hàng tháng (WheelPicker)',
+      deadlineStep1Label: 'Bước 1: Chọn tháng',
+      deadlineStep2Label: 'Bước 2: Chọn ngày hạn nộp',
+      saveMonthBtn: 'Lưu tháng',
+      saveDeadlineDayBtn: 'Lưu hạn nộp',
+      dayWheelLockedBadge: 'Đang khóa',
+      dayWheelUnlockedBadge: 'Đã mở khóa',
+      dayWheelLockedPlaceholder: 'Lưu tháng trước',
+      wheelScrollHint: 'Cuộn hoặc kéo',
+      wheelDoneBtn: 'Xong',
+      deadlineNoDeadlineOption: '0 — Không đặt hạn',
+      deadlineDayOption: 'Ngày {d}',
+      deadlineTableNotSet: 'Chưa đặt',
+      deadlineTableDay: 'Ngày {d}',
+      deadlineStepHintLock: 'Hãy chọn tháng ở Bước 1 và bấm “Lưu tháng” để mở khóa chọn ngày hạn nộp.',
+      deadlineStepHintUnlock: 'Đang chỉnh hạn nộp cho {month}. Chọn ngày ở Bước 2 rồi bấm “Lưu hạn nộp”.',
+      toastDeadlineMonthSaved: 'Đã chốt tháng {month}. Hãy chọn ngày hạn nộp và bấm “Lưu hạn nộp”.',
+      toastDeadlineDaySaved: 'Đã cập nhật hạn nộp {month}: {val}. Nhớ bấm “Lưu Fund lên D1”.',
       deadlinesHint: '* Khi qua ngày hạn đóng của tháng tương ứng, trạng thái <strong class="text-amber-600">UNPAID</strong> sẽ tự động hiển thị thành <strong class="text-red-600">DEBT</strong> trên trang công khai.',
       bankInfoTitle: 'Thông tin chuyển khoản (Bank Info)',
       bankStkLabel: 'Số tài khoản (STK)', bankNameLabel: 'Ngân hàng', bankHolderLabel: 'Tên chủ tài khoản',
@@ -189,7 +209,24 @@
       selectAllTitle: 'Select all visible rows',
       colNo: 'No.', colFullName: 'Full name', colDeptFull: 'Department', colRoleFull: 'Role',
       colStatus: 'Status', colDelete: 'Delete', colNote: 'Note',
-      deadlinesTitle: 'Monthly due-day setup (1 - 31, enter 0 for no deadline)',
+      deadlinesTitle: 'Monthly due-day setup (WheelPicker)',
+      deadlineStep1Label: 'Step 1: Select month',
+      deadlineStep2Label: 'Step 2: Select due day',
+      saveMonthBtn: 'Save month',
+      saveDeadlineDayBtn: 'Save due day',
+      dayWheelLockedBadge: 'Locked',
+      dayWheelUnlockedBadge: 'Unlocked',
+      dayWheelLockedPlaceholder: 'Save month first',
+      wheelScrollHint: 'Scroll or drag',
+      wheelDoneBtn: 'Done',
+      deadlineNoDeadlineOption: '0 — No deadline',
+      deadlineDayOption: 'Day {d}',
+      deadlineTableNotSet: 'Not set',
+      deadlineTableDay: 'Day {d}',
+      deadlineStepHintLock: 'Select a month in Step 1 and click “Save month” to unlock the due-day wheel.',
+      deadlineStepHintUnlock: 'Editing due day for {month}. Pick a day in Step 2 and click “Save due day”.',
+      toastDeadlineMonthSaved: 'Month {month} selected. Pick a due day and click “Save due day”.',
+      toastDeadlineDaySaved: 'Updated {month} due day: {val}. Remember to press “Save Fund to D1”.',
       deadlinesHint: '* Once the due day of a month has passed, <strong class="text-amber-600">UNPAID</strong> is automatically shown as <strong class="text-red-600">DEBT</strong> on the public page.',
       bankInfoTitle: 'Bank transfer info',
       bankStkLabel: 'Account number', bankNameLabel: 'Bank', bankHolderLabel: 'Account holder',
@@ -296,7 +333,6 @@
       const v = dict[el.getAttribute('data-i18n')];
       if (typeof v === 'string') el.textContent = v;
     });
-    // Chuỗi HTML tĩnh do chính file này định nghĩa (đáng tin) — không lấy từ dữ liệu người dùng.
     document.querySelectorAll('[data-i18n-html]').forEach((el) => {
       const v = dict[el.getAttribute('data-i18n-html')];
       if (typeof v === 'string') el.innerHTML = v;
@@ -314,7 +350,7 @@
   }
 
   /* ======================================================================
-   * 3. TIỆN ÍCH CHUNG (toast, busy, POST, lỗi)
+   * 3. TIỆN ÍCH CHUNG (toast, busy, POST, lỗi, popover wheel helper)
    * ==================================================================== */
   const TOAST_STYLES = {
     success: { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-circle-check' },
@@ -361,7 +397,6 @@
     }
   }
 
-  // Chỉ cho 1 thao tác mạng chạy tại một thời điểm (tránh vừa lưu vừa reset...)
   async function exclusive(btn, fn) {
     if (state.busy) {
       showToast(t('toastBusy'), 'warn', 2000);
@@ -377,8 +412,6 @@
     }
   }
 
-  // Các endpoint /api/admin/* yêu cầu mã quản trị (ADMIN_TOKEN). CTEC.adminWorkerJson tự hỏi mã
-  // ở lần đầu (lưu trong sessionStorage của tab) và hỏi lại nếu Worker trả 401.
   async function postWorkerJson(path, body) {
     return CTEC.adminWorkerJson(path, { method: 'POST', body });
   }
@@ -398,11 +431,48 @@
         content: ""; width: 8px; height: 8px; border-radius: 9999px;
         background: #fbbf24; box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
       }
-      .sheet-cell-input[type="number"] { -moz-appearance: textfield; }
       select.sheet-cell-input { cursor: pointer; }
+      .wheel-popover.ctec-fixed-popover {
+        position: fixed !important;
+        right: auto !important;
+        margin-top: 0 !important;
+        z-index: 60 !important;
+      }
     `;
     document.head.appendChild(style);
   }
+
+  // Mở WheelPicker với vị trí cố định theo khung nhìn để không bao giờ bị cắt bởi overflow container
+  function openWheelSmart(wheelId, e) {
+    e?.stopPropagation();
+    const wrap = $(wheelId);
+    if (!wrap) return;
+    const trigger = wrap.querySelector('.wheel-trigger');
+    if (trigger && trigger.disabled) return;
+    const pop = wrap.querySelector('.wheel-popover');
+    if (!pop) return;
+
+    const wasOpen = pop.classList.contains('open');
+    CTEC.closeAllWheels();
+    if (wasOpen) return;
+
+    CTEC.toggleWheel(wheelId);
+    if (trigger && pop.classList.contains('open')) {
+      pop.classList.add('ctec-fixed-popover');
+      const rect = trigger.getBoundingClientRect();
+      const popW = Math.max(pop.offsetWidth || 224, rect.width);
+      const popH = pop.offsetHeight || 190;
+      const left = Math.max(8, Math.min(window.innerWidth - popW - 8, rect.left));
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = spaceBelow >= popH + 10 || rect.top < popH + 10
+        ? Math.min(window.innerHeight - popH - 8, rect.bottom + 6)
+        : Math.max(8, rect.top - popH - 6);
+      pop.style.left = `${Math.round(left)}px`;
+      pop.style.top = `${Math.round(top)}px`;
+      pop.style.minWidth = `${Math.round(popW)}px`;
+    }
+  }
+  window.openAdminWheelSmart = openWheelSmart;
 
   /* ======================================================================
    * 4. CHUẨN HÓA DỮ LIỆU
@@ -423,7 +493,6 @@
     ['Inactive', ['inactive', 'tam nghi']]
   ].forEach(([canon, list]) => list.forEach((a) => STATUS_ALIASES.set(a, canon)));
 
-  // Chỉ map các giá trị tương đương hoàn toàn; giá trị lạ được giữ nguyên để không làm đổi nội dung hiển thị công khai.
   function normalizeRole(raw) {
     const s = String(raw ?? '').trim();
     if (!s) return 'Member';
@@ -434,7 +503,6 @@
     if (!s) return 'Official';
     return STATUS_ALIASES.get(CTEC.normText(s)) || s;
   }
-  // Dùng chung một quy tắc với Worker (normalizeFundCell) và trang Fund — xem CTEC.normalizeFundStatus
   const normFundStatus = (raw) => CTEC.normalizeFundStatus(raw);
 
   const makeRosterRow = (o = {}) => ({
@@ -463,7 +531,6 @@
   const statusOptions = (L) => CTEC.MEMBER_STATUSES.map((v) => ({ value: v, label: STATUS_LABELS[L][v] || v }));
   const monthLabels = (L) => (L === 'en' ? CTEC.FUND_MONTHS_EN : CTEC.FUND_MONTHS_VI);
 
-  // Giữ lại giá trị lạ (không nằm trong danh sách chuẩn) để không mất dữ liệu khi lưu
   function withCustom(options, value) {
     return options.some((o) => o.value === value) || !value ? options : [...options, { value, label: value }];
   }
@@ -510,7 +577,7 @@
     if (!day) return null;
     const { m, y } = monthParts(idx);
     const d = new Date(Date.UTC(y, m, day));
-    if (d.getUTCMonth() !== m) return null; // ngày không tồn tại (vd 30/2)
+    if (d.getUTCMonth() !== m) return null;
     return Date.UTC(y, m, day) - 7 * 60 * 60 * 1000;
   }
   const isPastDue = (idx) => {
@@ -518,12 +585,246 @@
     return ms !== null && Date.now() >= ms;
   };
 
+  function buildFundMonthWheelOptions() {
+    return monthLabels(curLang()).map((label, idx) => ({
+      value: String(idx),
+      label
+    }));
+  }
+
+  function buildFundDayWheelOptions(monthIdx) {
+    const maxDay = daysInMonth(monthIdx);
+    const opts = [{ value: '0', label: t('deadlineNoDeadlineOption') }];
+    for (let d = 1; d <= maxDay; d++) {
+      opts.push({ value: String(d), label: t('deadlineDayOption', { d: String(d).padStart(2, '0') }) });
+    }
+    return opts;
+  }
+
+  function syncFundDeadlineControlsUI() {
+    const labels = monthLabels(curLang());
+    const mIdx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
+    const currentMonthLabel = labels[mIdx] || '';
+
+    const monthLabelEl = $('fundDeadlineMonthLabel');
+    if (monthLabelEl) monthLabelEl.textContent = currentMonthLabel;
+
+    const unlocked = state.deadlineMonthLockedIn;
+    const dayTrigger = $('fundDeadlineDayTrigger');
+    const dayLabelEl = $('fundDeadlineDayLabel');
+    const dayIcon = $('fundDeadlineDayIcon');
+    const lockBadge = $('deadlineDayLockBadge');
+    const saveDayBtn = $('saveDeadlineDayBtn');
+    const step2Label = $('deadlineStep2Label');
+    const statusHint = $('deadlineStepStatus');
+    const step2Box = $('fundDeadlineDayStepBox');
+
+    if (dayTrigger) {
+      dayTrigger.disabled = !unlocked;
+      dayTrigger.classList.toggle('opacity-50', !unlocked);
+      dayTrigger.classList.toggle('cursor-not-allowed', !unlocked);
+      dayTrigger.classList.toggle('cursor-pointer', unlocked);
+    }
+    if (saveDayBtn) {
+      saveDayBtn.disabled = !unlocked;
+    }
+    if (step2Label) {
+      step2Label.classList.toggle('text-emerald-600', unlocked);
+      step2Label.classList.toggle('text-slate-500', !unlocked);
+    }
+    if (step2Box) {
+      step2Box.classList.toggle('border-emerald-300', unlocked);
+      step2Box.classList.toggle('border-slate-200', !unlocked);
+    }
+
+    if (lockBadge) {
+      if (unlocked) {
+        lockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+        lockBadge.innerHTML = `<i class="fa-solid fa-lock-open text-[9px]"></i><span>${esc(t('dayWheelUnlockedBadge'))}</span>`;
+      } else {
+        lockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600';
+        lockBadge.innerHTML = `<i class="fa-solid fa-lock text-[9px]"></i><span>${esc(t('dayWheelLockedBadge'))}</span>`;
+      }
+    }
+
+    if (dayIcon) {
+      dayIcon.className = unlocked
+        ? 'fa-solid fa-chevron-down text-[10px] opacity-60'
+        : 'fa-solid fa-lock text-[10px] opacity-60';
+    }
+
+    if (dayLabelEl) {
+      if (!unlocked) {
+        dayLabelEl.textContent = t('dayWheelLockedPlaceholder');
+      } else {
+        const d = state.deadlineDraftDay;
+        dayLabelEl.textContent = d > 0
+          ? t('deadlineDayOption', { d: String(d).padStart(2, '0') })
+          : t('deadlineNoDeadlineOption');
+      }
+    }
+
+    if (statusHint) {
+      statusHint.textContent = unlocked
+        ? t('deadlineStepHintUnlock', { month: currentMonthLabel })
+        : t('deadlineStepHintLock');
+    }
+  }
+
+  function initFundDeadlineWheels() {
+    CTEC.createWheelPicker({
+      id: 'fundDeadlineMonthWheel',
+      listId: 'fundDeadlineMonthList',
+      labelId: 'fundDeadlineMonthLabel',
+      options: buildFundMonthWheelOptions(),
+      onSelect: (val) => {
+        const nextIdx = parseInt(val, 10);
+        if (!Number.isInteger(nextIdx)) return;
+        state.deadlineDraftMonth = nextIdx;
+        // Khi đổi tháng mới ở WheelPicker 1, khóa WheelPicker ngày cho đến khi bấm "Lưu tháng"
+        state.deadlineMonthLockedIn = false;
+        renderDeadlines();
+      }
+    });
+
+    CTEC.createWheelPicker({
+      id: 'fundDeadlineDayWheel',
+      listId: 'fundDeadlineDayList',
+      labelId: 'fundDeadlineDayLabel',
+      options: buildFundDayWheelOptions(0),
+      onSelect: (val) => {
+        const nextDay = parseInt(val, 10);
+        state.deadlineDraftDay = Number.isInteger(nextDay) ? nextDay : 0;
+        syncFundDeadlineControlsUI();
+      }
+    });
+
+    const mWrap = $('fundDeadlineMonthWheel');
+    const mTrigger = $('fundDeadlineMonthTrigger');
+    const dWrap = $('fundDeadlineDayWheel');
+    const dTrigger = $('fundDeadlineDayTrigger');
+
+    mTrigger?.addEventListener('click', (e) => {
+      if (!requireAuthenticated()) return;
+      openWheelSmart('fundDeadlineMonthWheel', e);
+    });
+    dTrigger?.addEventListener('click', (e) => {
+      if (!requireAuthenticated()) return;
+      if (!state.deadlineMonthLockedIn) return;
+      openWheelSmart('fundDeadlineDayWheel', e);
+    });
+
+    [mWrap, dWrap].forEach((wrap) => {
+      const pop = wrap?.querySelector('.wheel-popover');
+      pop?.addEventListener('click', (e) => {
+        if (e.target.closest('[data-wheel-done]')) {
+          CTEC.closeAllWheels();
+          return;
+        }
+        e.stopPropagation();
+      });
+    });
+
+    // Bấm vào ô tháng trên bảng nhỏ để chọn nhanh tháng đó vào Bước 1
+    $('deadlinesSummaryTableWrap')?.addEventListener('click', (e) => {
+      const cell = e.target.closest('[data-summary-month]');
+      if (!cell) return;
+      if (!requireAuthenticated()) return;
+      const idx = parseInt(cell.dataset.summaryMonth, 10);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= MONTH_COUNT) return;
+      state.deadlineDraftMonth = idx;
+      state.deadlineMonthLockedIn = false;
+      CTEC.setWheelValue('fundDeadlineMonthWheel', String(idx));
+      renderDeadlines();
+    });
+  }
+
+  function confirmDeadlineMonth() {
+    if (!requireAuthenticated()) return;
+    CTEC.closeAllWheels();
+    const idx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
+    state.deadlineDraftMonth = idx;
+    state.deadlineMonthLockedIn = true;
+
+    const maxDay = daysInMonth(idx);
+    const existing = state.deadlines[idx] || 0;
+    state.deadlineDraftDay = existing > maxDay ? maxDay : existing;
+
+    CTEC.updateWheelOptions('fundDeadlineDayWheel', buildFundDayWheelOptions(idx), false);
+    CTEC.setWheelValue('fundDeadlineDayWheel', String(state.deadlineDraftDay));
+
+    renderDeadlines();
+    const monthLabel = monthLabels(curLang())[idx];
+    showToast(t('toastDeadlineMonthSaved', { month: monthLabel }), 'info', 3000);
+  }
+
+  function saveDeadlineDay() {
+    if (!requireAuthenticated()) return;
+    if (!state.deadlineMonthLockedIn) return;
+    CTEC.closeAllWheels();
+
+    const idx = Math.max(0, Math.min(MONTH_COUNT - 1, state.deadlineDraftMonth));
+    const maxDay = daysInMonth(idx);
+    const cleanDay = Math.max(0, Math.min(maxDay, state.deadlineDraftDay || 0));
+
+    state.deadlines[idx] = cleanDay;
+    // Khóa lại WheelPicker ngày sau khi lưu xong hạn nộp của tháng vừa chọn
+    state.deadlineMonthLockedIn = false;
+
+    setDirty('fund', true);
+    renderDeadlines();
+    renderFundEditor();
+
+    const monthLabel = monthLabels(curLang())[idx];
+    const valLabel = cleanDay > 0
+      ? t('deadlineTableDay', { d: String(cleanDay).padStart(2, '0') })
+      : t('deadlineTableNotSet');
+    showToast(t('toastDeadlineDaySaved', { month: monthLabel, val: valLabel }), 'success', 4500);
+  }
+
+  function renderDeadlines() {
+    const head = $('deadlinesSummaryHead');
+    const body = $('deadlinesSummaryBody');
+    const labels = monthLabels(curLang());
+
+    if (head && body) {
+      const table = head.closest('table');
+      if (table && table.parentElement) table.parentElement.id = 'deadlinesSummaryTableWrap';
+
+      head.innerHTML = `<tr class="bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">${
+        labels.map((label, i) => {
+          const isSelected = i === state.deadlineDraftMonth;
+          const activeCls = isSelected ? 'bg-indigo-600 text-white' : '';
+          return `<th data-summary-month="${i}" class="py-2 px-2 border-r border-slate-800 last:border-r-0 cursor-pointer hover:bg-indigo-700/80 transition ${activeCls}">${esc(label)}</th>`;
+        }).join('')
+      }</tr>`;
+
+      body.innerHTML = `<tr class="divide-x divide-slate-200">${
+        state.deadlines.map((day, i) => {
+          const isSelected = i === state.deadlineDraftMonth;
+          const cellBg = isSelected ? 'bg-indigo-50/80' : '';
+          const badge = day > 0
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">${esc(t('deadlineTableDay', { d: String(day).padStart(2, '0') }))}</span>`
+            : `<span class="text-[11px] font-semibold text-slate-400">${esc(t('deadlineTableNotSet'))}</span>`;
+          return `<td data-summary-month="${i}" class="py-2 px-1.5 cursor-pointer hover:bg-indigo-50/50 transition ${cellBg}">${badge}</td>`;
+        }).join('')
+      }</tr>`;
+    }
+
+    CTEC.updateWheelOptions('fundDeadlineMonthWheel', buildFundMonthWheelOptions(), true);
+    CTEC.setWheelValue('fundDeadlineMonthWheel', String(state.deadlineDraftMonth));
+    if (state.deadlineMonthLockedIn) {
+      CTEC.updateWheelOptions('fundDeadlineDayWheel', buildFundDayWheelOptions(state.deadlineDraftMonth), true);
+      CTEC.setWheelValue('fundDeadlineDayWheel', String(state.deadlineDraftDay));
+    }
+    syncFundDeadlineControlsUI();
+  }
+
   /* ======================================================================
    * 7. TẢI DỮ LIỆU TỪ D1
    * ==================================================================== */
   const isValidQr = (v) => /^https:\/\/[^\s"'<>]+$/i.test(v) || !!CTEC.sanitizeQrHtml(v);
 
-  // Đọc bảng "Thông tin chuyển khoản" trong Google Doc (rawHtml) — giống parseTransferHtml của trang Fund
   function parseTransferHtml(html) {
     const info = { accountNumber: '', bankName: '', accountName: '', qrHtml10k: '' };
     if (!html) return info;
@@ -732,8 +1033,6 @@
     await exclusive(reloadBtn, async () => {
       showTableMessage('loadingRows');
       try {
-        // `fresh` báo Worker bỏ qua cache edge và đọc thẳng D1 (không tạo thêm entry cache).
-        // Trình soạn thảo mà dùng bản cache 60s rồi bấm Lưu thì có thể ghi đè mất chỉnh sửa vừa rồi.
         const stamp = Date.now();
         const [rosterPayload, fundPayload] = await Promise.all([
           CTEC.fetchWorkerJson(`/api/roster?fresh=${stamp}`),
@@ -755,6 +1054,7 @@
         }));
 
         state.deadlines = Array.from({ length: MONTH_COUNT }, (_, i) => CTEC.parseDeadlineDay(fundPayload.deadlines?.[i]));
+        state.deadlineMonthLockedIn = false;
         state.bankInfoRaw = fundPayload.bankInfo && typeof fundPayload.bankInfo === 'object' ? fundPayload.bankInfo : {};
         fillBankInputs(extractBankInfo(state.bankInfoRaw));
 
@@ -962,29 +1262,6 @@
     updateBadges();
   }
 
-  function renderDeadlines() {
-    const grid = $('deadlinesGrid');
-    if (!grid) return;
-    grid.innerHTML = monthLabels(curLang()).map((label, i) => `
-      <label class="block">
-        <span class="block text-[11px] font-bold text-slate-500 mb-1">${esc(label)}</span>
-        <input type="number" min="0" max="31" step="1" inputmode="numeric" data-deadline="${i}" value="${state.deadlines[i]}"
-               class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </label>`).join('');
-    for (let i = 0; i < MONTH_COUNT; i++) markDeadlineValidity(i);
-  }
-
-  function markDeadlineValidity(i) {
-    const el = $('deadlinesGrid')?.querySelector(`[data-deadline="${i}"]`);
-    if (!el) return;
-    const day = state.deadlines[i];
-    const bad = day > 0 && day > daysInMonth(i);
-    el.classList.toggle('border-red-400', bad);
-    el.classList.toggle('ring-2', bad);
-    el.classList.toggle('ring-red-300', bad);
-    el.title = bad ? t('invalidDayTitle', { day }) : '';
-  }
-
   function renderAll() {
     fillBulkSelects();
     renderRosterEditor();
@@ -1119,7 +1396,7 @@
   function addRosterRow() {
     if (!requireAuthenticated()) return;
     const search = $('rosterSearchInput');
-    if (search && search.value) search.value = ''; // dòng mới có tên rỗng sẽ bị bộ lọc ẩn đi
+    if (search && search.value) search.value = '';
     const last = state.roster[state.roster.length - 1];
     const row = makeRosterRow({ name: '', dept: last?.dept });
     state.roster.push(row);
@@ -1141,7 +1418,6 @@
   }
 
   function handleEnterNav(kind, e) {
-    // Bỏ qua Enter dùng để chốt chữ khi đang gõ Telex/VNI
     if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
     const el = e.target;
     if (!(el instanceof HTMLInputElement) || el.dataset.field !== 'name') return;
@@ -1198,7 +1474,7 @@
     fb.addEventListener('input', (e) => {
       if (!requireAuthenticated()) return;
       const el = e.target;
-      if (el.tagName !== 'INPUT' || !el.dataset.field) return;
+      if (el.tagName !== 'INPUT' || el.dataset.field !== 'name') return;
       const row = findRow('fund', el);
       if (!row) return;
       row[el.dataset.field] = el.value;
@@ -1236,24 +1512,6 @@
 
     $('fundEditorHead').addEventListener('change', (e) => {
       if (e.target.id === 'fundSelectAllCheckbox') toggleSelectAllFund(e.target.checked);
-    });
-
-    /* ----- Hạn đóng quỹ ----- */
-    const grid = $('deadlinesGrid');
-    grid.addEventListener('input', (e) => {
-      if (!requireAuthenticated()) return;
-      const el = e.target.closest('[data-deadline]');
-      if (!el) return;
-      const i = parseInt(el.dataset.deadline, 10);
-      const n = parseInt(el.value, 10);
-      state.deadlines[i] = Number.isInteger(n) ? Math.min(31, Math.max(0, n)) : 0;
-      markDeadlineValidity(i);
-      setDirty('fund');
-      renderFundEditor(); // cập nhật dấu đồng hồ "quá hạn" trên các ô UNPAID
-    });
-    grid.addEventListener('change', (e) => {
-      const el = e.target.closest('[data-deadline]');
-      if (el) el.value = String(state.deadlines[parseInt(el.dataset.deadline, 10)]);
     });
 
     /* ----- Bank info ----- */
@@ -1295,7 +1553,6 @@
     await exclusive($('saveRosterBtn'), async () => {
       try {
         await postWorkerJson('/api/admin/roster/save', { rows });
-        // Đồng bộ bản nháp với những gì đã lưu: bỏ dòng trống, chuẩn hóa khoảng trắng
         state.roster = state.roster.filter((r) => CTEC.normalizeMemberName(r.name));
         state.roster.forEach((r) => { r.name = CTEC.normalizeMemberName(r.name); });
         state.selected.roster.clear();
@@ -1330,11 +1587,9 @@
     if (!requireAuthenticated()) return;
     if (!state.loaded) return showToast(t('errNotLoaded'), 'error');
 
-    // Hạn đóng: ngày không tồn tại (vd 30/2) sẽ bị trang công khai bỏ qua âm thầm → chặn ngay tại đây
     for (let i = 0; i < MONTH_COUNT; i++) {
       const day = state.deadlines[i];
       if (day > 0 && day > daysInMonth(i)) {
-        $('deadlinesGrid')?.querySelector(`[data-deadline="${i}"]`)?.focus();
         return showToast(t('errDeadlineInvalid', { month: monthLabels(curLang())[i], day }), 'error');
       }
     }
@@ -1350,7 +1605,6 @@
     if (dup > 0 && !window.confirm(t('confirmDup', { n: dup }))) return;
 
     const payload = { rows, deadlines: state.deadlines.slice(0, MONTH_COUNT) };
-    // Nếu D1 chỉ có rawHtml (chưa tách được trường nào) và người dùng chưa nhập gì → không gửi bankInfo để khỏi ghi đè rỗng
     const raw = state.bankInfoRaw || {};
     const hadStructured = !!(raw.accountNumber || raw.stk || raw.bankName || raw.accountName || raw.qrHtml10k || raw.qrUrl);
     if (Object.values(bank).some(Boolean) || hadStructured) payload.bankInfo = bank;
@@ -1399,7 +1653,6 @@
 
     for (const [key, info] of rosterPairs) {
       if (fundPairs.has(key)) continue;
-      // Cùng tên nhưng khác ban → coi là chuyển ban: giữ nguyên lịch sử đóng quỹ thay vì tạo dòng mới
       const nameKey = CTEC.buildMemberNameKey(info.name);
       const candidate = orphans.find((o) => !orphanUsed.has(o.uid) && CTEC.buildMemberNameKey(o.name) === nameKey);
       if (candidate) {
@@ -1435,8 +1688,6 @@
   const isHeaderName = (s) => HEADER_NAMES.has(CTEC.normText(s));
   const DEADLINE_ROW_RE = /deadline|hạn đóng|kỳ hạn/i;
 
-  // Có cột STT hay không: tiêu đề "STT/No/#" hoặc một trong vài dòng đầu có ô đầu toàn chữ số
-  // (tên người không bao giờ chỉ gồm chữ số nên cách này chắc hơn so với chỉ nhìn dòng thứ 2)
   function detectHasNoCol(grid) {
     if (!grid.length) return false;
     if (['stt', 'no', 'no.', '#'].includes(CTEC.normText(grid[0][0]))) return true;
@@ -1566,6 +1817,7 @@
 
     if (kind === 'fund' && parsed.deadlines) {
       state.deadlines = parsed.deadlines;
+      state.deadlineMonthLockedIn = false;
       renderDeadlines();
     }
 
@@ -1624,7 +1876,6 @@
 
     await exclusive($('resetD1Btn'), async () => {
       try {
-        // allowEmpty là "cờ an toàn" của Worker: thiếu nó thì Worker từ chối xóa bảng bằng mảng rỗng
         await postWorkerJson(kind === 'roster' ? '/api/admin/roster/save' : '/api/admin/fund/save', { rows: [], allowEmpty: true });
         state[kind] = [];
         state.selected[kind].clear();
@@ -1642,6 +1893,7 @@
    * 15. TAB
    * ==================================================================== */
   function switchAdminTab(tab) {
+    CTEC.closeAllWheels();
     state.tab = tab === 'fund' ? 'fund' : 'roster';
     $('panelRoster').classList.toggle('hidden', state.tab !== 'roster');
     $('panelFund').classList.toggle('hidden', state.tab !== 'fund');
@@ -1668,6 +1920,7 @@
   function init() {
     injectStyles();
     bindEditorEvents();
+    initFundDeadlineWheels();
     fillBulkSelects();
     applyAdminStaticI18n();
     renderFundHead();
@@ -1684,10 +1937,15 @@
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         state.tab === 'fund' ? saveFundToD1() : saveRosterToD1();
-      } else if (e.key === 'Escape' && !$('sheetImportModal').classList.contains('hidden')) {
-        closeSheetImportModal();
+      } else if (e.key === 'Escape') {
+        CTEC.closeAllWheels();
+        if (!$('sheetImportModal').classList.contains('hidden')) {
+          closeSheetImportModal();
+        }
       }
     });
+
+    window.addEventListener('resize', () => CTEC.closeAllWheels());
 
     window.addEventListener('beforeunload', (e) => {
       if (!anyDirty()) return;
@@ -1698,7 +1956,6 @@
     initAdminAuthGate();
   }
 
-  // Các hàm được gọi trực tiếp từ thuộc tính onclick/oninput/onchange trong index.html
   Object.assign(window, {
     openAdminAuthModal,
     closeAdminAuthModal,
@@ -1722,6 +1979,8 @@
     applyBulkRosterRole,
     applyBulkRosterStatus,
     deleteSelectedRosterRows,
+    confirmDeadlineMonth,
+    saveDeadlineDay,
     saveFundToD1,
     syncMembersFromRosterToFund,
     clearFundSelection,
