@@ -59,7 +59,7 @@ const ROSTER_I18N = {
     chartTitle: "Personnel Distribution & Dept Stats",
     headcountLabel: "Headcount",
     memberUnit: "members",
-    deptExecShort: "Excutive Board",
+    deptExecShort: "Executive Board",
     deptDesignShort: "Design",
     deptContentShort: "Content",
     deptPrShort: "Public Relations",
