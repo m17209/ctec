@@ -387,7 +387,7 @@
         if (metaEl) {
           metaEl.innerHTML =
             `<span>${esc(formatDisplayDate(nextEv.date))}</span>` +
-            `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">${esc(t('happeningTodayBadge'))}</span>`;
+            `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30">${esc(t('happeningTodayBadge'))}</span>`;
         }
         if (cdDays) cdDays.textContent = '00';
         if (cdHours) cdHours.textContent = '00';
@@ -544,7 +544,7 @@
     const headerHtml =
       `<div class="flex items-center justify-between gap-2 mb-3">` +
         `<span class="text-xs font-semibold text-slate-500">${esc(formatDisplayDate(selectedDate))}</span>` +
-        `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">` +
+        `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">` +
           `${esc(t('eventsOnDayCount', { n: dayEvents.length }))}` +
         `</span>` +
       `</div>`;
@@ -555,7 +555,7 @@
           ? `<p class="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">${esc(ev.description)}</p>`
           : `<p class="mt-1.5 text-xs italic text-slate-400">${esc(t('noDescription'))}</p>`;
         return (
-          `<article class="p-4 rounded-xl bg-slate-50 border border-slate-200">` +
+          `<article class="p-4 rounded-xl bg-slate-50 border border-slate-200 dark:bg-slate-800/80 dark:border-slate-700/80">` +
             `<h4 class="text-sm sm:text-base font-bold text-slate-900 leading-snug">${esc(ev.title)}</h4>` +
             desc +
           `</article>`
@@ -585,18 +585,18 @@
       .map((ev) => {
         const isSelected = ev.date === selectedDate;
         const activeCls = isSelected
-          ? 'border-indigo-400 bg-indigo-50/70'
-          : 'border-slate-200 bg-slate-50/70 hover:border-amber-400';
+          ? 'border-indigo-400 bg-indigo-50 dark:!border-indigo-400/80 dark:!bg-indigo-950/75 ring-1 ring-indigo-400/25'
+          : 'border-slate-200 bg-slate-50 hover:border-amber-400 dark:!border-slate-700/80 dark:!bg-slate-800/80 dark:hover:!border-amber-400/80 dark:hover:!bg-slate-800';
         return (
           `<button type="button" data-jump-date="${esc(ev.date)}" ` +
                   `class="w-full text-left p-3 rounded-xl border ${activeCls} transition flex items-start justify-between gap-3 cursor-pointer">` +
             `<div class="min-w-0">` +
-              `<div class="text-xs sm:text-sm font-bold text-slate-900 truncate">${esc(ev.title)}</div>` +
+              `<div class="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">${esc(ev.title)}</div>` +
               (ev.description
-                ? `<div class="text-xs text-slate-500 truncate mt-0.5">${esc(ev.description)}</div>`
+                ? `<div class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">${esc(ev.description)}</div>`
                 : '') +
             `</div>` +
-            `<span class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[11px] font-mono font-bold text-slate-700 shrink-0">` +
+            `<span class="px-2 py-0.5 rounded-md bg-white dark:!bg-slate-900 border border-slate-200 dark:!border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:!text-slate-200 shrink-0">` +
               `${esc(ev.date)}` +
             `</span>` +
           `</button>`
