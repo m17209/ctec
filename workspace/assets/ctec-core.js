@@ -33,6 +33,27 @@ window.CTEC = (() => {
     document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/; SameSite=Lax${secure}`;
   }
 
+  /* ================= ĐỒNG BỘ GIỮA CÁC TAB ================= */
+  // Đổi ngôn ngữ/giao diện ở trang Cài đặt sẽ áp dụng ngay cho mọi tab CTEC đang mở
+  let settingsChannel = null;
+  try {
+    if (typeof BroadcastChannel === 'function') {
+      settingsChannel = new BroadcastChannel('ctec-settings');
+      settingsChannel.onmessage = (ev) => {
+        const data = ev && ev.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.lang) applyLang(data.lang, false);
+        if (data.theme) applyTheme(data.theme, false);
+      };
+    }
+  } catch (_) {
+    settingsChannel = null;
+  }
+
+  function broadcastSettings(payload) {
+    try { settingsChannel?.postMessage(payload); } catch (_) { /* bỏ qua */ }
+  }
+
   /* ================= NGÔN NGỮ (VI / EN) ================= */
   function getSavedLang() {
     const saved = getCookie(LANG_COOKIE_NAME);
@@ -60,6 +81,8 @@ window.CTEC = (() => {
     }
     syncLangButtons(normalized);
     window.dispatchEvent(new CustomEvent('ctec:langchange', { detail: { lang: normalized } }));
+    window.dispatchEvent(new CustomEvent('ctec:settingschange', { detail: { lang: normalized } }));
+    if (persist) broadcastSettings({ lang: normalized });
     return normalized;
   }
 
@@ -110,6 +133,8 @@ window.CTEC = (() => {
     }
     syncThemeButtons(normalized);
     window.dispatchEvent(new CustomEvent('ctec:themechange', { detail: { theme: normalized } }));
+    window.dispatchEvent(new CustomEvent('ctec:settingschange', { detail: { theme: normalized } }));
+    if (persist) broadcastSettings({ theme: normalized });
     return normalized;
   }
 
@@ -196,9 +221,9 @@ window.CTEC = (() => {
     {
       value: "EXCUTIVE BOARD",
       vi: "Ban Chủ nhiệm",
-      en: "Excutive Board",
+      en: "Executive Board",
       viShort: "Ban Chủ nhiệm",
-      enShort: "Excutive Board",
+      enShort: "Executive Board",
       color: "#6366f1",
       aliases: ["ban chu nhiem", "chu nhiem", "bcn", "excutive board", "executive board", "excutive board department", "executive board department"]
     },
@@ -388,6 +413,24 @@ window.CTEC = (() => {
   const countUniquePeople = (rows) => getHeadcountStats(rows).people;
   const countMembersWithLeadOverlap = countUniquePeople;
 
+  // Chuẩn hóa trạng thái đóng quỹ — NGUỒN DUY NHẤT cho Admin, trang Fund và Worker
+  // (Worker có bản sao y hệt: normalizeFundCell). Trả về 'PAID' | 'DEBT' | 'UNPAID'.
+  //   PAID   : "paid", "settled", "đã đóng", "đã nộp"
+  //   DEBT   : "debt", "overdue", "quá hạn", "nợ" (đứng riêng / "nợ ...")
+  //   UNPAID : mọi giá trị còn lại — kể cả "chưa đóng", "không nợ", "hết nợ"
+  const normalizeFundStatus = (raw) => {
+    const n = normText(raw);
+    if (!n) return 'UNPAID';
+    if (/\b(khong|het|chua|not)\s+(con\s+)?(no|debt|overdue)\b/.test(n) || /\bno debt\b/.test(n)) {
+      return 'UNPAID';
+    }
+    if (n === 'paid' || n.includes('settled') || n.includes('da dong') || n.includes('da nop')) return 'PAID';
+    if (n.includes('debt') || n.includes('overdue') || n.includes('qua han') || n === 'no' || n.startsWith('no ')) {
+      return 'DEBT';
+    }
+    return 'UNPAID';
+  };
+
   const parseDeadlineDay = (rawVal) => {
     if (typeof rawVal === "number" && Number.isInteger(rawVal)) {
       return rawVal >= 1 && rawVal <= 31 ? rawVal : 0;
@@ -478,19 +521,110 @@ window.CTEC = (() => {
     return `<span class="ctec-dept-badge inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${cls}">${escapeHtml(text)}</span>`;
   };
 
-  /* ================= FETCH JSON QUA CLOUDFLARE WORKER ================= */
+  /* ================= ĐỒNG HỒ MÁY CHỦ ================= */
+  // Worker trả header X-Server-Time (ms) trên mọi phản hồi; ta giữ độ lệch so với đồng hồ máy người xem
+  // để trạng thái DEBT (quá hạn) không sai khi máy người xem lệch giờ.
+  let serverClockOffsetMs = null;
+
+  function noteServerTime(res, sentAt, receivedAt) {
+    const raw = res && res.headers ? res.headers.get('X-Server-Time') : null;
+    const serverMs = Number(raw);
+    if (!raw || !Number.isFinite(serverMs) || serverMs <= 0) return;
+    serverClockOffsetMs = serverMs - (sentAt + receivedAt) / 2;
+  }
+
+  // Giờ hiện tại theo máy chủ (ms). Chưa có dữ liệu từ Worker → dùng đồng hồ máy người xem.
+  function getServerNowMs() {
+    return Date.now() + (serverClockOffsetMs ?? 0);
+  }
+
+  /* ================= TOKEN QUẢN TRỊ (/api/admin/*) ================= */
+  const ADMIN_TOKEN_KEY = 'ctec_admin_token';
+
+  function getAdminToken() {
+    try { return sessionStorage.getItem(ADMIN_TOKEN_KEY) || ''; } catch (_) { return ''; }
+  }
+
+  function setAdminToken(token) {
+    try {
+      if (token) sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+      else sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    } catch (_) { /* sessionStorage bị chặn: chỉ dùng cho lần gọi hiện tại */ }
+  }
+
+  const ADMIN_AUTH_TEXT = {
+    vi: {
+      prompt: 'Nhập mã quản trị (ADMIN_TOKEN) để thực hiện thao tác này:',
+      retry: 'Mã quản trị không đúng. Nhập lại:',
+      cancelled: 'Cần mã quản trị để thực hiện thao tác này.'
+    },
+    en: {
+      prompt: 'Enter the admin token (ADMIN_TOKEN) to continue:',
+      retry: 'Incorrect admin token. Enter it again:',
+      cancelled: 'An admin token is required for this action.'
+    }
+  };
+
+  function askAdminToken(isRetry) {
+    const tx = ADMIN_AUTH_TEXT[getSavedLang()] || ADMIN_AUTH_TEXT.vi;
+    const answer = window.prompt(isRetry ? tx.retry : tx.prompt, '');
+    if (answer === null) throw new Error(tx.cancelled);
+    const token = answer.trim();
+    if (!token) throw new Error(tx.cancelled);
+    setAdminToken(token);
+    return token;
+  }
+
+  /* ================= GỌI WORKER ================= */
+  // options: { method, body, admin }
+  //   admin = true  → gửi Authorization: Bearer <token>; thiếu/sai token thì hỏi lại 1 lần
+  async function workerRequest(endpoint, options = {}) {
+    const { method = 'GET', body, admin = false } = options;
+    const isGet = method === 'GET';
+    const sep = endpoint.includes('?') ? '&' : '?';
+    const target = `${API_BASE_URL}${endpoint}${isGet ? `${sep}_t=${Date.now()}` : ''}`;
+
+    let token = admin ? (getAdminToken() || askAdminToken(false)) : '';
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const headers = {};
+      if (body !== undefined) headers['Content-Type'] = 'application/json';
+      if (admin) headers.Authorization = `Bearer ${token}`;
+
+      const sentAt = Date.now();
+      const res = await fetch(target, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        cache: 'no-store'
+      });
+      noteServerTime(res, sentAt, Date.now());
+
+      if (admin && res.status === 401 && attempt === 0) {
+        setAdminToken('');
+        token = askAdminToken(true);
+        continue;
+      }
+
+      let payload = null;
+      try { payload = await res.json(); } catch (_) { /* body không phải JSON */ }
+
+      if (admin && res.status === 401) setAdminToken('');
+      if (!res.ok) throw new Error(payload?.error || `HTTP ${res.status}`);
+      if (!payload || payload.ok === false) throw new Error(payload?.error || 'Worker returned ok: false');
+      return payload;
+    }
+    throw new Error('Unauthorized');
+  }
+
+  // Đọc JSON công khai (không cần token)
   async function fetchWorkerJson(endpoint) {
-    const sep = endpoint.includes("?") ? "&" : "?";
-    const res = await fetch(`${API_BASE_URL}${endpoint}${sep}_t=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => null);
-      throw new Error(errJson?.error || `HTTP ${res.status}`);
-    }
-    const payload = await res.json();
-    if (payload && payload.ok === false) {
-      throw new Error(payload.error || "Worker returned ok: false");
-    }
-    return payload;
+    return workerRequest(endpoint, { method: 'GET' });
+  }
+
+  // Gọi endpoint quản trị (GET hoặc POST) có token
+  async function adminWorkerJson(endpoint, options = {}) {
+    return workerRequest(endpoint, { ...options, admin: true });
   }
 
   /* ================= WHEEL PICKER ================= */
@@ -910,9 +1044,14 @@ window.CTEC = (() => {
     countMembersWithLeadOverlap,
     countUniquePeople,
     parseDeadlineDay,
+    normalizeFundStatus,
     sanitizeQrHtml,
     renderDeptBadge,
+    getServerNowMs,
+    getAdminToken,
+    setAdminToken,
     fetchWorkerJson,
+    adminWorkerJson,
     createWheelPicker,
     toggleWheel,
     closeAllWheels,
@@ -925,3 +1064,15 @@ window.CTEC = (() => {
     listeners
   };
 })();
+
+/* ================= API CÀI ĐẶT TOÀN HỆ THỐNG =================
+ * Trang Cài đặt (setting/setting-app.js) dùng window.CTECSettings.
+ * Đây chỉ là lớp mỏng bọc CTEC.* để mọi trang dùng chung một nguồn cookie/sự kiện.
+ *   ctec:settingschange  → detail: { lang?, theme? }   (cả khi đổi từ tab khác)
+ */
+window.CTECSettings = {
+  getLang: () => window.CTEC.getSavedLang(),
+  setLang: (lang) => window.CTEC.applyLang(lang, true),
+  getTheme: () => window.CTEC.getSavedTheme(),
+  setTheme: (theme) => window.CTEC.applyTheme(theme, true)
+};
