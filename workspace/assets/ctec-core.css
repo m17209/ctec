@@ -17,6 +17,12 @@
   --ctec-border: #e2e8f0;
   --ctec-text: #0f172a;
   --ctec-text-muted: #64748b;
+  --ctec-text-secondary: #475569;
+  --ctec-surface-subtle: #f1f5f9;
+  --ctec-accent: #4f46e5;
+  --ctec-accent-soft: rgba(79, 70, 229, 0.12);
+  --ctec-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --ctec-wheel-mask: linear-gradient(180deg, #f1f5f9 0%, rgba(241, 245, 249, 0) 32%, rgba(241, 245, 249, 0) 68%, #f1f5f9 100%);
 }
 
 @media (min-width: 640px) {
@@ -43,6 +49,12 @@ html.dark {
   --ctec-border: #334155;
   --ctec-text: #f1f5f9;
   --ctec-text-muted: #94a3b8;
+  --ctec-text-secondary: #94a3b8;
+  --ctec-surface-subtle: #1e293b;
+  --ctec-accent: #818cf8;
+  --ctec-accent-soft: rgba(129, 140, 248, 0.18);
+  --ctec-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --ctec-wheel-mask: linear-gradient(180deg, #1e293b 0%, rgba(30, 41, 59, 0) 32%, rgba(30, 41, 59, 0) 68%, #1e293b 100%);
 }
 
 html,
@@ -115,7 +127,19 @@ h1, h2, h3, .ctec-brand-title, .font-display {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Kích thước logo KHÔNG phụ thuộc Tailwind CDN: nếu CDN bị chặn (adblock/mạng), ảnh vẫn không phình to
+   và không đè lên các nút khác của thanh điều hướng. */
+.ctec-brand-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 @media (min-width: 640px) {
@@ -538,4 +562,37 @@ html.dark #badgeRosterCount {
   background-color: #1e293b !important;
   color: #e2e8f0 !important;
   border: 1px solid #334155;
+}
+
+/* Nút bánh răng → trang Cài đặt (thay cho nút Sáng/Tối & VI/EN trên các trang) */
+.ctec-settings-link {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  background: rgba(30, 41, 59, 0.9);
+  color: #e2e8f0;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ctec-settings-link:hover,
+.ctec-settings-link:focus-visible,
+.ctec-settings-link[aria-current="page"] {
+  background: #334155;
+  color: #fcd34d;
+}
+
+.ctec-settings-link i {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ctec-settings-link:hover i,
+.ctec-settings-link:focus-visible i {
+  transform: rotate(60deg);
 }
