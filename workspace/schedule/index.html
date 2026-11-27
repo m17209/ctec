@@ -174,7 +174,7 @@
     <section class="page-hero pt-8 pb-10 sm:pt-10 sm:pb-12">
       <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="max-w-3xl">
-          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 mb-3">
+          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 mb-3">
             <i class="fa-solid fa-calendar-days text-amber-600"></i>
             <span data-i18n="heroBadge">Lịch trình sự kiện</span>
           </span>
@@ -193,7 +193,7 @@
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div class="space-y-1.5 min-w-0">
-            <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+            <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 px-2.5 py-1 rounded-md">
               <i class="fa-solid fa-hourglass-half"></i>
               <span data-i18n="countdownLabel">Event Countdown</span>
             </div>
@@ -251,7 +251,7 @@
           <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div class="flex items-center gap-2">
               <button id="prevMonthBtn" type="button" aria-label="Previous month"
-                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
+                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 dark:hover:!bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
                 <i class="fa-solid fa-chevron-left text-xs"></i>
               </button>
 
@@ -274,13 +274,13 @@
               </div>
 
               <button id="nextMonthBtn" type="button" aria-label="Next month"
-                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
+                      class="w-9 h-9 rounded-lg bg-slate-50 hover:bg-slate-100 dark:hover:!bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed border border-slate-200 text-slate-700 flex items-center justify-center transition cursor-pointer">
                 <i class="fa-solid fa-chevron-right text-xs"></i>
               </button>
             </div>
 
             <button id="todayBtn" type="button"
-                    class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition cursor-pointer"
+                    class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:!bg-indigo-500/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 text-xs font-bold transition cursor-pointer"
                     data-i18n="todayBtn">
               Hôm nay
             </button>
@@ -337,7 +337,7 @@
                 <i class="fa-solid fa-list-ul text-indigo-600"></i>
                 <span data-i18n="upcomingListTitle">Sự kiện sắp tới</span>
               </h3>
-              <span id="upcomingCountBadge" class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold">
+              <span id="upcomingCountBadge" class="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 text-[11px] font-bold">
                 0
               </span>
             </div>
