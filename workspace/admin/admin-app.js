@@ -149,7 +149,11 @@
       toastSyncDone: 'Đồng bộ từ Roster: +{added} thêm, {moved} đổi ban, −{removed} xóa. Nhớ bấm “Lưu Fund lên D1”.',
       toastSyncNoop: 'Fund đã khớp với Roster, không có gì thay đổi.',
       errSyncEmpty: 'Roster đang trống nên không có gì để đồng bộ.',
-      errNetwork: 'Không kết nối được tới máy chủ. Kiểm tra mạng rồi thử lại.'
+      errNetwork: 'Không kết nối được tới máy chủ. Kiểm tra mạng/adblock; nếu mạng ổn thì có thể do CORS — hãy thêm {origin} vào ALLOWED_ORIGINS của Worker.',
+      retryLoadBtn: 'Thử tải lại',
+      warnUnknownDeptLoaded: ' {n} dòng trong D1 có tên ban lạ và đang hiển thị là CONTENT — hãy kiểm tra lại cột Ban.',
+      toastMigrateBankKept: ' Giữ nguyên thông tin chuyển khoản đã nhập trong Admin.',
+      toastMigrateUnknownDept: ' {n} dòng có tên ban lạ được đặt thành CONTENT.'
     },
     en: {
       pageTitle: 'CTEC Administrator',
@@ -240,7 +244,11 @@
       toastSyncDone: 'Synced from Roster: +{added} added, {moved} moved, −{removed} removed. Remember to press “Save Fund to D1”.',
       toastSyncNoop: 'Fund already matches the Roster — nothing changed.',
       errSyncEmpty: 'The Roster is empty, so there is nothing to sync.',
-      errNetwork: 'Cannot reach the server. Check your connection and try again.'
+      errNetwork: 'Cannot reach the server. Check your connection/ad blocker; if the network is fine this may be CORS — add {origin} to the Worker\'s ALLOWED_ORIGINS.',
+      retryLoadBtn: 'Try again',
+      warnUnknownDeptLoaded: ' {n} row(s) in D1 have an unrecognised department and show as CONTENT — please review the Department column.',
+      toastMigrateBankKept: ' Bank details already entered in Admin were kept.',
+      toastMigrateUnknownDept: ' {n} row(s) with an unrecognised department were set to CONTENT.'
     }
   };
 
@@ -315,7 +323,9 @@
 
   function errMsg(err) {
     const m = String(err?.message || err || '');
-    if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(m)) return t('errNetwork');
+    if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(m)) {
+      return t('errNetwork', { origin: window.location.origin || 'origin' });
+    }
     return m || 'Unknown error';
   }
 
@@ -349,19 +359,10 @@
     }
   }
 
+  // Các endpoint /api/admin/* yêu cầu mã quản trị (ADMIN_TOKEN). CTEC.adminWorkerJson tự hỏi mã
+  // ở lần đầu (lưu trong sessionStorage của tab) và hỏi lại nếu Worker trả 401.
   async function postWorkerJson(path, body) {
-    const res = await fetch(`${CTEC.API_BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      cache: 'no-store'
-    });
-    let payload = null;
-    try { payload = await res.json(); } catch (_) { /* body không phải JSON */ }
-    if (!res.ok || !payload || payload.ok === false) {
-      throw new Error(payload?.error || `HTTP ${res.status}`);
-    }
-    return payload;
+    return CTEC.adminWorkerJson(path, { method: 'POST', body });
   }
 
   function setDirty(kind, value = true) {
@@ -415,13 +416,8 @@
     if (!s) return 'Official';
     return STATUS_ALIASES.get(CTEC.normText(s)) || s;
   }
-  // Phản chiếu normalizeFundCell của Worker
-  function normFundStatus(raw) {
-    const n = CTEC.normText(raw);
-    if (n === 'paid' || n.includes('settled') || n.includes('da dong') || n.includes('da nop')) return 'PAID';
-    if (n.includes('debt') || n.includes('overdue') || n.includes('qua han') || n === 'no' || n.startsWith('no ')) return 'DEBT';
-    return 'UNPAID';
-  }
+  // Dùng chung một quy tắc với Worker (normalizeFundCell) và trang Fund — xem CTEC.normalizeFundStatus
+  const normFundStatus = (raw) => CTEC.normalizeFundStatus(raw);
 
   const makeRosterRow = (o = {}) => ({
     uid: newUid(),
@@ -563,10 +559,18 @@
     };
   }
 
-  function showTableMessage(messageKey) {
-    const row = (cols) => `<tr><td colspan="${cols}" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t(messageKey))}</td></tr>`;
+  function showTableMessage(messageKey, withRetry = false) {
+    const retry = withRetry
+      ? `<div class="mt-3"><button type="button" data-retry-load class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer"><i class="fa-solid fa-rotate-right mr-1.5"></i>${esc(t('retryLoadBtn'))}</button></div>`
+      : '';
+    const row = (cols) => `<tr><td colspan="${cols}" class="py-10 px-4 text-center text-sm text-slate-400">${esc(t(messageKey))}${retry}</td></tr>`;
     $('rosterEditorBody').innerHTML = row(7);
     $('fundEditorBody').innerHTML = row(14);
+    if (withRetry) {
+      document.querySelectorAll('[data-retry-load]').forEach((b) => {
+        b.addEventListener('click', () => loadAllAdminData(true));
+      });
+    }
   }
 
   async function loadAllAdminData(skipConfirm) {
@@ -576,7 +580,7 @@
     await exclusive(reloadBtn, async () => {
       showTableMessage('loadingRows');
       try {
-        // `fresh` làm khóa cache của Worker khác đi → luôn đọc thẳng D1.
+        // `fresh` báo Worker bỏ qua cache edge và đọc thẳng D1 (không tạo thêm entry cache).
         // Trình soạn thảo mà dùng bản cache 60s rồi bấm Lưu thì có thể ghi đè mất chỉnh sửa vừa rồi.
         const stamp = Date.now();
         const [rosterPayload, fundPayload] = await Promise.all([
@@ -608,10 +612,14 @@
         setDirty('roster', false);
         setDirty('fund', false);
         renderAll();
-        showToast(t('toastLoaded', { r: state.roster.length, f: state.fund.length }), 'success', 2500);
+        const unknownDeptRows = [...(rosterPayload.rows || []), ...(fundPayload.rows || [])]
+          .filter((r) => r && r.department_unknown).length;
+        let loadedMsg = t('toastLoaded', { r: state.roster.length, f: state.fund.length });
+        if (unknownDeptRows) loadedMsg += t('warnUnknownDeptLoaded', { n: unknownDeptRows });
+        showToast(loadedMsg, unknownDeptRows ? 'warn' : 'success', unknownDeptRows ? 9000 : 2500);
       } catch (err) {
         console.error('[admin-app] Load D1 failed:', err);
-        if (!state.loaded) showTableMessage('loadFailedRows');
+        if (!state.loaded) showTableMessage('loadFailedRows', true);
         else renderAll();
         showToast(t('toastLoadFail', { msg: errMsg(err) }), 'error');
       }
@@ -1351,7 +1359,7 @@
     btn.disabled = true;
     icon?.classList.add('fa-spin');
     try {
-      const payload = await CTEC.fetchWorkerJson(`/api/admin/fetch-sheet?url=${encodeURIComponent(url)}`);
+      const payload = await CTEC.adminWorkerJson(`/api/admin/fetch-sheet?url=${encodeURIComponent(url)}`);
       const csv = String(payload.csv ?? '');
       $('sheetPasteArea').value = csv;
       showToast(t('toastFetchSheetOk', { n: CTEC.parseCsvRows(csv).length }), 'success');
@@ -1416,7 +1424,10 @@
     await exclusive($('migrateWorkerBtn'), async () => {
       try {
         const res = await postWorkerJson('/api/admin/migrate-from-sheet', {});
-        showToast(t('toastMigrateOk', { r: res.rosterCount ?? 0, f: res.fundCount ?? 0 }), 'success');
+        let migrateMsg = t('toastMigrateOk', { r: res.rosterCount ?? 0, f: res.fundCount ?? 0 });
+        if (res.bankInfoKept) migrateMsg += t('toastMigrateBankKept');
+        if (res.unknownDept) migrateMsg += t('toastMigrateUnknownDept', { n: res.unknownDept });
+        showToast(migrateMsg, res.unknownDept ? 'warn' : 'success', res.unknownDept ? 8000 : undefined);
         setDirty('roster', false);
         setDirty('fund', false);
       } catch (err) {
