@@ -627,6 +627,12 @@ window.CTEC = (() => {
     return workerRequest(endpoint, { ...options, admin: true });
   }
 
+  // Xác thực ADMIN_TOKEN trước khi cho phép thao tác sửa đổi trên trang Admin
+  async function ensureAdminAuth(forcePrompt = false) {
+    if (forcePrompt) setAdminToken('');
+    return workerRequest('/api/admin/verify', { method: 'GET', admin: true });
+  }
+
   /* ================= WHEEL PICKER ================= */
   function createWheelPicker({ id, listId, labelId, selectId, options, onSelect }) {
     const listEl = document.getElementById(listId);
@@ -1052,6 +1058,7 @@ window.CTEC = (() => {
     setAdminToken,
     fetchWorkerJson,
     adminWorkerJson,
+    ensureAdminAuth,
     createWheelPicker,
     toggleWheel,
     closeAllWheels,
