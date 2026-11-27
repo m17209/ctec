@@ -301,12 +301,13 @@ function getDeadlineUtcMs(monthIdx, dayVal) {
 }
 
 function normalizeStatus(status, monthIdx) {
-  const up = (status || "").trim().toUpperCase();
-  if (up === "PAID" || up.includes("SETTLED") || up.includes("ĐÃ ĐÓNG")) return "PAID";
-  if (up.includes("DEBT") || up.includes("OVERDUE") || up.includes("NỢ") || up.includes("QUÁ HẠN")) return "DEBT";
+  // Quy tắc chuẩn hóa dùng chung với Admin và Worker (CTEC.normalizeFundStatus)
+  const base = CTEC.normalizeFundStatus(status);
+  if (base !== "UNPAID") return base;
 
   const deadlineMs = getDeadlineUtcMs(monthIdx, deadlines[monthIdx]);
-  const nowMs = CTEC.getServerNowMs ? CTEC.getServerNowMs() : Date.now();
+  // Giờ máy chủ (từ header X-Server-Time của Worker); chưa có thì dùng đồng hồ máy người xem
+  const nowMs = CTEC.getServerNowMs();
   if (deadlineMs !== null && nowMs >= deadlineMs) {
     return "DEBT";
   }
